@@ -160,7 +160,7 @@ watch(
       </div>
     </header>
 
-    <main class="content-grid">
+    <main class="content-grid" :class="{ 'content-grid-selected': !!selectedRawItem }">
       <section class="toolbar-panel">
         <div>
           <p class="meta" v-if="importFileName">Datei: {{ importFileName }}</p>
@@ -205,9 +205,9 @@ watch(
 
       <aside class="sidebar-panel">
         <p v-if="!selectedRawItem" class="meta">Kein Item ausgewaehlt.</p>
-        <div v-else class="field-grid">
-          <div class="field-row" v-if="looksLikeImageUrl(selectedRawItem.scan)">
-            <div class="scan-preview-wrap">
+        <div v-else class="sidebar-detail-grid">
+          <div class="scan-column">
+            <div class="scan-preview-wrap" v-if="looksLikeImageUrl(selectedRawItem.scan)">
               <img
                 v-if="!sidebarImageLoadFailed"
                 :src="selectedRawItem.scan"
@@ -218,27 +218,30 @@ watch(
               />
               <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
             </div>
+            <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
           </div>
 
-          <div v-for="(value, key) in selectedRawItem" :key="key" class="field-row">
-            <label :for="`field-${key}`">{{ key }}</label>
-            <template v-if="isEditableSimpleValue(value)">
-              <input
-                v-if="typeof value === 'string' || value === null || typeof value === 'number'"
-                :id="`field-${key}`"
-                :type="typeof value === 'number' ? 'number' : 'text'"
-                :value="value === null ? '' : value"
-                @input="onFieldInput(key, $event)"
-              />
-              <input
-                v-else-if="typeof value === 'boolean'"
-                :id="`field-${key}`"
-                type="checkbox"
-                :checked="value"
-                @change="onBooleanChange(key, $event)"
-              />
-            </template>
-            <pre v-else>{{ JSON.stringify(value) }}</pre>
+          <div class="field-grid">
+            <div v-for="(value, key) in selectedRawItem" :key="key" class="field-row">
+              <label :for="`field-${key}`">{{ key }}</label>
+              <template v-if="isEditableSimpleValue(value)">
+                <input
+                  v-if="typeof value === 'string' || value === null || typeof value === 'number'"
+                  :id="`field-${key}`"
+                  :type="typeof value === 'number' ? 'number' : 'text'"
+                  :value="value === null ? '' : value"
+                  @input="onFieldInput(key, $event)"
+                />
+                <input
+                  v-else-if="typeof value === 'boolean'"
+                  :id="`field-${key}`"
+                  type="checkbox"
+                  :checked="value"
+                  @change="onBooleanChange(key, $event)"
+                />
+              </template>
+              <pre v-else>{{ JSON.stringify(value) }}</pre>
+            </div>
           </div>
         </div>
       </aside>
