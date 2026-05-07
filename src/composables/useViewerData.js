@@ -1,0 +1,193 @@
+import { computed, ref } from 'vue'
+
+function uid() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID()
+  }
+  return `uid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function cloneData(data) {
+  return JSON.parse(JSON.stringify(data))
+}
+
+function toSearchText(item) {
+  return Object.values(item)
+    .map((value) => String(value ?? '').toLowerCase())
+    .join(' ')
+}
+
+function tokenize(query) {
+  return query
+    .toLowerCase()
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+}
+
+function isEditableSimpleValue(value) {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value === null
+  )
+}
+
+function parseJsonArray(text) {
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return { ok: false, error: 'JSON ist ungueltig (Parse-Fehler).' }
+  }
+
+  if (!Array.isArray(parsed)) {
+    return { ok: false, error: 'Top-Level muss ein JSON-Array sein.' }
+  }
+
+  const invalidIndex = parsed.findIndex((item) => !isPlainObject(item))
+  if (invalidIndex !== -1) {
+    return { ok: false, error: `Element ${invalidIndex + 1} ist kein Objekt.` }
+  }
+
+  return { ok: true, data: parsed }
+}
+
+function looksLikeImageUrl(value) {
+  if (typeof value !== 'string') return false
+  return /^(https?:\/\/).+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(value.trim())
+}
+
+export function useViewerData() {
+  const rawItems = ref([])
+  const viewItems = ref([])
+  const importSnapshot = ref([])
+
+  const selectedUid = ref(null)
+  const searchQuery = ref('')
+  const isDirty = ref(false)
+  const importFileName = ref('')
+
+  const errorMessage = ref('')
+
+  const hasData = computed(() => rawItems.value.length > 0)
+
+  const selectedViewItem = computed(() =>
+    viewItems.value.find((item) => item._uid === selectedUid.value) || null,
+  )
+
+  const selectedRawItem = computed(() => {
+    if (!selectedViewItem.value) return null
+    return rawItems.value[selectedViewItem.value._index] || null
+  })
+
+  const filteredViewItems = computed(() => {
+    const tokens = tokenize(searchQuery.value)
+    if (!tokens.length) return viewItems.value
+    return viewItems.value.filter((item) =>
+      tokens.every((token) => item._searchText.includes(token)),
+    )
+  })
+
+  function initializeFromJsonArray(items, fileName = '') {
+    rawItems.value = cloneData(items)
+    importSnapshot.value = cloneData(items)
+    viewItems.value = rawItems.value.map((item, index) => ({
+      _uid: uid(),
+      _index: index,
+      _searchText: toSearchText(item),
+    }))
+
+    selectedUid.value = viewItems.value[0]?._uid ?? null
+    searchQuery.value = ''
+    isDirty.value = false
+    errorMessage.value = ''
+    importFileName.value = fileName
+  }
+
+  function importFromJsonText(text, fileName = '') {
+    const result = parseJsonArray(text)
+    if (!result.ok) {
+      errorMessage.value = result.error
+      return false
+    }
+    initializeFromJsonArray(result.data, fileName)
+    return true
+  }
+
+  function selectItem(uidValue) {
+    selectedUid.value = uidValue
+  }
+
+  function updateField(key, nextRawValue) {
+    if (!selectedViewItem.value) return false
+
+    const itemIndex = selectedViewItem.value._index
+    const item = rawItems.value[itemIndex]
+    if (!item || !Object.prototype.hasOwnProperty.call(item, key)) return false
+    if (!isEditableSimpleValue(item[key])) return false
+
+    let normalizedValue = nextRawValue
+    if (typeof item[key] === 'number') {
+      const parsedNumber = Number(nextRawValue)
+      if (Number.isNaN(parsedNumber)) return false
+      normalizedValue = parsedNumber
+    } else if (typeof item[key] === 'boolean') {
+      normalizedValue = Boolean(nextRawValue)
+    } else if (item[key] === null) {
+      normalizedValue = nextRawValue === '' ? null : nextRawValue
+    }
+
+    item[key] = normalizedValue
+    selectedViewItem.value._searchText = toSearchText(item)
+    isDirty.value = true
+    return true
+  }
+
+  function resetToImportedSnapshot() {
+    if (!importSnapshot.value.length) return false
+    const fileName = importFileName.value
+    initializeFromJsonArray(cloneData(importSnapshot.value), fileName)
+    return true
+  }
+
+  function createExportPayload() {
+    return cloneData(rawItems.value)
+  }
+
+  return {
+    rawItems,
+    viewItems,
+    importSnapshot,
+    selectedUid,
+    searchQuery,
+    isDirty,
+    importFileName,
+    errorMessage,
+    hasData,
+    selectedViewItem,
+    selectedRawItem,
+    filteredViewItems,
+    initializeFromJsonArray,
+    importFromJsonText,
+    selectItem,
+    updateField,
+    resetToImportedSnapshot,
+    createExportPayload,
+    isEditableSimpleValue,
+    looksLikeImageUrl,
+  }
+}
+
+export const __test = {
+  parseJsonArray,
+  tokenize,
+  toSearchText,
+  isEditableSimpleValue,
+  looksLikeImageUrl,
+}
