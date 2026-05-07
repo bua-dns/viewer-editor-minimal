@@ -103,7 +103,7 @@ export function useViewerData() {
       _searchText: toSearchText(item),
     }))
 
-    selectedUid.value = viewItems.value[0]?._uid ?? null
+    selectedUid.value = null
     searchQuery.value = ''
     isDirty.value = false
     errorMessage.value = ''
@@ -160,6 +160,13 @@ export function useViewerData() {
     return cloneData(rawItems.value)
   }
 
+  function markAsSaved(nextFileName = '') {
+    importSnapshot.value = cloneData(rawItems.value)
+    importFileName.value = nextFileName || importFileName.value
+    isDirty.value = false
+    return true
+  }
+
   return {
     rawItems,
     viewItems,
@@ -179,6 +186,7 @@ export function useViewerData() {
     updateField,
     resetToImportedSnapshot,
     createExportPayload,
+    markAsSaved,
     isEditableSimpleValue,
     looksLikeImageUrl,
   }

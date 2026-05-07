@@ -33,7 +33,7 @@ body {
   font-size: 1.15rem;
 }
 
-.actions input {
+.actions input[type='file'] {
   display: none;
 }
 
@@ -42,6 +42,20 @@ body {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: flex-end;
+  align-items: center;
+}
+
+.download-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.download-option input[type='checkbox'] {
+  width: auto;
+  accent-color: #1f7a8c;
 }
 
 button {
@@ -64,16 +78,20 @@ button {
 .content-grid {
   margin-top: 1rem;
   display: grid;
-  grid-template-columns: 1fr 1fr 1.15fr;
+  grid-template-columns: 1fr;
   grid-template-areas:
-    'toolbar toolbar toolbar'
-    'list list sidebar'
-    'status status status';
+    'toolbar'
+    'list'
+    'status';
   gap: 1rem;
 }
 
 .content-grid.content-grid-selected {
   grid-template-columns: 1fr 1fr 2fr;
+  grid-template-areas:
+    'toolbar toolbar toolbar'
+    'list list sidebar'
+    'status status status';
 }
 
 .toolbar-panel,
@@ -102,6 +120,19 @@ button {
   grid-area: sidebar;
 }
 
+.sidebar-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-close {
+  min-width: 36px;
+  padding: 0.35rem 0.55rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .sidebar-detail-grid {
   display: grid;
   grid-template-columns: minmax(320px, 1.4fr) minmax(0, 1.15fr);
@@ -111,6 +142,26 @@ button {
 
 .scan-column {
   min-width: 0;
+}
+
+.scan-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.scan-nav button {
+  min-width: 42px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.scan-nav-index {
+  color: #4a5a6a;
+  font-weight: 600;
 }
 
 .status-panel {
