@@ -152,12 +152,14 @@ button {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+  cursor: pointer;
 }
 
 .user-config-title {
   color: #0f172a;
   font-weight: 700;
   font-size: 1.25rem;
+  margin-right: auto;
 }
 
 .user-config-toggle-icon {
@@ -176,7 +178,6 @@ button {
 .user-config-actions {
   display: inline-flex;
   gap: 0.5rem;
-  margin-left: auto;
 }
 
 .user-config-grid {

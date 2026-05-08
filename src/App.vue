@@ -32,8 +32,11 @@ const failedListImages = ref(new Set())
 const appendEditedTimestamp = ref(true)
 const userConfigFields = ref({})
 const appliedUserConfigFields = ref({})
+const appliedUserConfigSnapshot = ref('')
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
+
+const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
 
@@ -86,6 +89,25 @@ const hasUserConfigChanges = computed(() =>
   ),
 )
 
+const hasUnappliedUserConfigChanges = computed(
+  () => serializeUserConfigFields(userConfigFields.value) !== appliedUserConfigSnapshot.value,
+)
+
+function serializeUserConfigFields(fields) {
+  const normalized = {}
+  Object.keys(fields)
+    .sort()
+    .forEach((key) => {
+      normalized[key] = {
+        type: fields[key]?.type || 'normal',
+        label: fields[key]?.label || '',
+        order: Number.isFinite(fields[key]?.order) ? fields[key].order : 0,
+        placeholder: fields[key]?.placeholder || '',
+      }
+    })
+  return JSON.stringify(normalized)
+}
+
 function buildDefaultUserConfigFields() {
   const fields = {}
   availableFieldKeys.value.forEach((key, index) => {
@@ -99,10 +121,51 @@ function buildDefaultUserConfigFields() {
   return fields
 }
 
+function loadUserConfigFromSession() {
+  try {
+    const raw = sessionStorage.getItem(USER_CONFIG_SESSION_KEY)
+    if (!raw) return { fields: {}, appliedFields: {} }
+
+    const parsed = JSON.parse(raw)
+    return {
+      fields: parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
+      appliedFields:
+        parsed?.appliedFields && typeof parsed.appliedFields === 'object' ? parsed.appliedFields : {},
+    }
+  } catch {
+    return { fields: {}, appliedFields: {} }
+  }
+}
+
+function persistUserConfigToSession() {
+  const payload = {
+    fields: userConfigFields.value,
+    appliedFields: appliedUserConfigFields.value,
+  }
+  sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
+}
+
 function initializeUserConfig() {
   const defaults = buildDefaultUserConfigFields()
-  userConfigFields.value = defaults
-  appliedUserConfigFields.value = JSON.parse(JSON.stringify(defaults))
+  const persisted = loadUserConfigFromSession()
+
+  const nextFields = {}
+  const nextAppliedFields = {}
+
+  Object.keys(defaults).forEach((key) => {
+    nextFields[key] = {
+      ...defaults[key],
+      ...(persisted.fields[key] || {}),
+    }
+    nextAppliedFields[key] = {
+      ...defaults[key],
+      ...(persisted.appliedFields[key] || persisted.fields[key] || {}),
+    }
+  })
+
+  userConfigFields.value = nextFields
+  appliedUserConfigFields.value = nextAppliedFields
+  appliedUserConfigSnapshot.value = serializeUserConfigFields(nextAppliedFields)
 }
 
 function normalizeConfigOrder() {
@@ -217,7 +280,26 @@ function onDownloadUserConfig() {
 
 function onApplyUserConfig() {
   normalizeConfigOrder()
+  rawItems.value.forEach((item) => {
+    Object.keys(userConfigFields.value).forEach((key) => {
+      const configuredType = userConfigFields.value[key]?.type || 'normal'
+      const currentValue = item[key]
+
+      if (configuredType !== 'checkbox' && typeof currentValue === 'boolean') {
+        item[key] = String(currentValue)
+      }
+
+      if (configuredType === 'checkbox' && typeof currentValue === 'string') {
+        const normalized = currentValue.trim().toLowerCase()
+        if (normalized === 'true') item[key] = true
+        if (normalized === 'false') item[key] = false
+      }
+    })
+  })
+
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
+  appliedUserConfigSnapshot.value = serializeUserConfigFields(appliedUserConfigFields.value)
+  persistUserConfigToSession()
 }
 
 function getAppliedFieldLabel(key) {
@@ -229,6 +311,7 @@ function getAppliedFieldInputType(key, value) {
   if (configuredType === 'integer') return 'number'
   if (configuredType === 'checkbox') return 'checkbox'
   if (configuredType === 'text') return 'textarea'
+  if (configuredType === 'normal') return 'text'
 
   if (typeof value === 'number') return 'number'
   if (typeof value === 'boolean') return 'checkbox'
@@ -285,7 +368,7 @@ async function toggleFullscreen() {
 }
 
 function beforeUnloadListener(event) {
-  if (!isDirty.value) return
+  if (!isDirty.value && !hasUnappliedUserConfigChanges.value) return
   event.preventDefault()
   event.returnValue = ''
 }
@@ -339,6 +422,14 @@ watch(
     initializeUserConfig()
   },
 )
+
+watch(
+  () => userConfigFields.value,
+  () => {
+    persistUserConfigToSession()
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -391,17 +482,23 @@ watch(
       </section>
 
       <section class="user-config-panel" v-if="hasData">
-        <div class="user-config-head">
+        <div class="user-config-head" @click="isUserConfigOpen = !isUserConfigOpen">
           <div class="user-config-title">{{ t('configurationTitle', 'Konfiguration') }}</div>
           <div v-if="isUserConfigOpen" class="user-config-actions">
-            <button type="button" @click="onApplyUserConfig">{{ t('applyConfiguration', 'Konfiguration anwenden') }}</button>
-            <button type="button" v-if="hasUserConfigChanges" @click="onDownloadUserConfig">
+            <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="onApplyUserConfig">
+              {{ t('applyConfiguration', 'Konfiguration anwenden') }}
+            </button>
+            <button
+              type="button"
+              :disabled="!hasUnappliedUserConfigChanges"
+              @click.stop="onDownloadUserConfig"
+            >
               {{ t('downloadConfiguration', 'Konfiguration herunterladen') }}
             </button>
           </div>
-          <button type="button" class="user-config-toggle-icon" @click="isUserConfigOpen = !isUserConfigOpen">
+          <span class="user-config-toggle-icon" aria-hidden="true">
             <span class="toggle-icon">{{ isUserConfigOpen ? '▴' : '▾' }}</span>
-          </button>
+          </span>
         </div>
         <div v-if="isUserConfigOpen" class="user-config-grid">
           <div class="user-config-row user-config-row-head">
