@@ -63,6 +63,30 @@ const wording = {
     de: "Konfiguration herunterladen",
     en: "Download configuration",
   },
+  add_configuration_field: {
+    de: "Feld hinzufuegen",
+    en: "Add field",
+  },
+  add_field_name_placeholder: {
+    de: "Feldname (z. B. bemerkung)",
+    en: "Field name (e.g. note)",
+  },
+  add_field_button: {
+    de: "Hinzufuegen",
+    en: "Add",
+  },
+  remove_field_button: {
+    de: "Feld entfernen",
+    en: "Remove field",
+  },
+  add_field_duplicate_error: {
+    de: "Feld existiert bereits.",
+    en: "Field already exists.",
+  },
+  add_field_empty_error: {
+    de: "Bitte einen gueltigen Feldnamen eingeben.",
+    en: "Please enter a valid field name.",
+  },
   config_field_header: {
     de: "Feld",
     en: "Field",

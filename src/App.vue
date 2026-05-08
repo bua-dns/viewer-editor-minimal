@@ -35,6 +35,8 @@ const appliedUserConfigFields = ref({})
 const appliedUserConfigSnapshot = ref('')
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
+const newFieldName = ref('')
+const addFieldError = ref('')
 
 const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 
@@ -151,14 +153,26 @@ function initializeUserConfig() {
 
   const nextFields = {}
   const nextAppliedFields = {}
+  const allKeys = new Set([
+    ...Object.keys(defaults),
+    ...Object.keys(persisted.fields || {}),
+    ...Object.keys(persisted.appliedFields || {}),
+  ])
 
-  Object.keys(defaults).forEach((key) => {
+  Array.from(allKeys).forEach((key) => {
+    const defaultField = defaults[key] || {
+      type: 'normal',
+      label: '',
+      order: Object.keys(nextFields).length,
+      placeholder: '',
+    }
+
     nextFields[key] = {
-      ...defaults[key],
+      ...defaultField,
       ...(persisted.fields[key] || {}),
     }
     nextAppliedFields[key] = {
-      ...defaults[key],
+      ...defaultField,
       ...(persisted.appliedFields[key] || persisted.fields[key] || {}),
     }
   })
@@ -280,6 +294,27 @@ function onDownloadUserConfig() {
 
 function onApplyUserConfig() {
   normalizeConfigOrder()
+
+  const removedFieldKeys = Object.keys(appliedUserConfigFields.value).filter(
+    (key) => !Object.prototype.hasOwnProperty.call(userConfigFields.value, key),
+  )
+
+  if (removedFieldKeys.length) {
+    rawItems.value.forEach((item) => {
+      removedFieldKeys.forEach((key) => {
+        delete item[key]
+      })
+    })
+  }
+
+  Object.entries(userConfigFields.value).forEach(([key, config]) => {
+    rawItems.value.forEach((item) => {
+      if (!Object.prototype.hasOwnProperty.call(item, key)) {
+        item[key] = config.type === 'checkbox' ? false : ''
+      }
+    })
+  })
+
   rawItems.value.forEach((item) => {
     Object.keys(userConfigFields.value).forEach((key) => {
       const configuredType = userConfigFields.value[key]?.type || 'normal'
@@ -299,7 +334,42 @@ function onApplyUserConfig() {
 
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
   appliedUserConfigSnapshot.value = serializeUserConfigFields(appliedUserConfigFields.value)
+
+  isDirty.value = true
   persistUserConfigToSession()
+}
+
+function sanitizeFieldName(name) {
+  return name.trim().replace(/\s+/g, '_')
+}
+
+function onAddUserConfigField() {
+  const nextKey = sanitizeFieldName(newFieldName.value)
+  addFieldError.value = ''
+
+  if (!nextKey) {
+    addFieldError.value = t('addFieldEmptyError', 'Bitte einen gueltigen Feldnamen eingeben.')
+    return
+  }
+
+  if (Object.prototype.hasOwnProperty.call(userConfigFields.value, nextKey)) {
+    addFieldError.value = t('addFieldDuplicateError', 'Feld existiert bereits.')
+    return
+  }
+
+  userConfigFields.value[nextKey] = {
+    type: 'normal',
+    label: '',
+    order: Object.keys(userConfigFields.value).length,
+    placeholder: '',
+  }
+
+  newFieldName.value = ''
+}
+
+function onRemoveUserConfigField(fieldKey) {
+  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, fieldKey)) return
+  delete userConfigFields.value[fieldKey]
 }
 
 function getAppliedFieldLabel(key) {
@@ -402,6 +472,8 @@ watch(
     sidebarImageLoadFailed.value = false
     lightboxImageLoadFailed.value = false
     initializeUserConfig()
+    addFieldError.value = ''
+    newFieldName.value = ''
   },
 )
 
@@ -501,12 +573,25 @@ watch(
           </span>
         </div>
         <div v-if="isUserConfigOpen" class="user-config-grid">
+          <div class="user-config-add-row">
+            <strong>{{ t('addConfigurationField', 'Feld hinzufuegen') }}</strong>
+            <input
+              v-model="newFieldName"
+              type="text"
+              :placeholder="t('addFieldNamePlaceholder', 'Feldname (z. B. bemerkung)')"
+              @click.stop
+              @keydown.enter.prevent="onAddUserConfigField"
+            />
+            <button type="button" @click.stop="onAddUserConfigField">{{ t('addFieldButton', 'Hinzufuegen') }}</button>
+          </div>
+          <p v-if="addFieldError" class="error user-config-error">{{ addFieldError }}</p>
           <div class="user-config-row user-config-row-head">
             <strong></strong>
             <strong>{{ t('configFieldHeader', 'Feld') }}</strong>
             <strong>{{ t('configTypeHeader', 'Typ') }}</strong>
             <strong>{{ t('configLabelHeader', 'Beschriftung') }}</strong>
             <strong>{{ t('configPlaceholderHeader', 'Eingabehinweis') }}</strong>
+            <strong></strong>
           </div>
           <div
             class="user-config-row"
@@ -529,6 +614,9 @@ watch(
             </select>
             <input v-model="entry[1].label" type="text" :placeholder="t('configLabelInputPlaceholder', 'Label')" />
             <input v-model="entry[1].placeholder" type="text" :placeholder="t('configHintInputPlaceholder', 'Hinweis')" />
+            <button type="button" class="remove-field-btn" @click.stop="onRemoveUserConfigField(entry[0])">
+              {{ t('removeFieldButton', 'Feld entfernen') }}
+            </button>
           </div>
         </div>
       </section>

@@ -15,6 +15,7 @@ Kernfunktionen:
 - Bildvorschau fuer `scan`-URLs inkl. Lightbox und Fullscreen
 - App-weites Wording ueber Handles + Sprachumschalter (DE/EN)
 - Minimale User-Config-GUI pro Datenfeld mit Anwenden/Download
+- Session-persistente User-Config (via `sessionStorage`)
 
 ## Tech Stack
 
@@ -56,11 +57,19 @@ Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 - `placeholder`: Eingabehinweis
 - Reihenfolge via Drag-and-Drop
 
+Zusaetzlich:
+
+- neue Felder koennen manuell angelegt werden
+- vorhandene Felder koennen aus der Konfiguration entfernt werden
+
 Verhalten:
 
 - `Konfiguration anwenden` uebernimmt die aktuelle Konfiguration in die Darstellung der Sidebar-Felder.
 - `Konfiguration herunterladen` exportiert eine JSON-Datei mit `version` und `fields`.
 - Bei `type = text` wird ein `textarea` gerendert, sonst entsprechend `input`/`checkbox`.
+- Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
+- Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''` bzw. `false` bei `checkbox`).
+- Konfigurationszustand (`fields`, `appliedFields`) wird unter `viewerEditor.userConfig.v1` in `sessionStorage` gespeichert.
 
 ## Datenmodell und State
 
