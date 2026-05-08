@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
+import { useAppConfigStore } from './stores/useAppConfigStore'
 
 const fileInput = ref(null)
 const {
@@ -29,6 +30,8 @@ const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
 const appendEditedTimestamp = ref(true)
+
+const { title: appTitle, primaryColor, language, itemLabel, setLanguage } = useAppConfigStore()
 
 const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
@@ -166,6 +169,7 @@ function keydownListener(event) {
 }
 
 onMounted(() => {
+  document.documentElement.style.setProperty('--color-primary', primaryColor)
   window.addEventListener('beforeunload', beforeUnloadListener)
   window.addEventListener('keydown', keydownListener)
 })
@@ -195,7 +199,7 @@ watch(
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <h1>Viewer Editor Minimal</h1>
+      <h1>{{ appTitle }}</h1>
       <div class="actions">
         <label class="download-option">
           <input v-model="appendEditedTimestamp" type="checkbox" />
@@ -204,6 +208,25 @@ watch(
         <button type="button" @click="triggerUpload">JSON hochladen</button>
         <button type="button" :disabled="!hasData || !isDirty" @click="onDownload">JSON herunterladen</button>
         <button type="button" :disabled="!isDirty" @click="onReset">Reset</button>
+        <div class="language-switch" aria-label="Sprache waehlen">
+          <button
+            type="button"
+            class="lang-btn"
+            :class="{ active: language === 'de' }"
+            @click="setLanguage('de')"
+          >
+            DE
+          </button>
+          <span class="lang-separator">|</span>
+          <button
+            type="button"
+            class="lang-btn"
+            :class="{ active: language === 'en' }"
+            @click="setLanguage('en')"
+          >
+            EN
+          </button>
+        </div>
         <input ref="fileInput" type="file" accept="application/json" @change="onFileChange" />
       </div>
     </header>
@@ -221,7 +244,7 @@ watch(
       </section>
 
       <section class="list-panel" @click="clearSelection">
-        <h2>Items <span v-if="importFileName">({{ resultCountLabel }})</span></h2>
+        <h2>{{ itemLabel }} <span v-if="importFileName">({{ resultCountLabel }})</span></h2>
         <p v-if="!hasData" class="meta">Nach dem Upload erscheinen hier die Eintraege.</p>
         <p v-else-if="filteredViewItems.length === 0" class="meta">Keine Treffer zur Suchanfrage.</p>
         <ul v-else class="card-grid">

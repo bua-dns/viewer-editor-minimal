@@ -1,4 +1,5 @@
 :root {
+  --color-primary: #1f7a8c;
   font-family: "Source Sans 3", "Segoe UI", sans-serif;
   color: #1f2933;
   background: linear-gradient(160deg, #f6f9fc 0%, #eef3f8 100%);
@@ -53,14 +54,37 @@ body {
   font-size: 0.95rem;
 }
 
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.25rem;
+}
+
+.lang-btn {
+  background: transparent;
+  color: #475569;
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.lang-btn.active {
+  color: #0f172a;
+}
+
+.lang-separator {
+  color: #94a3b8;
+}
+
 .download-option input[type='checkbox'] {
   width: auto;
-  accent-color: #1f7a8c;
+  accent-color: var(--color-primary);
 }
 
 button {
   border: 0;
-  background: #1f7a8c;
+  background: var(--color-primary);
   color: #fff;
   border-radius: 8px;
   padding: 0.55rem 0.85rem;
@@ -221,9 +245,9 @@ button {
 }
 
 .item-card.active {
-  background: #1f7a8c;
+  background: var(--color-primary);
   color: #fff;
-  border-color: #1f7a8c;
+  border-color: var(--color-primary);
 }
 
 .card-media {
