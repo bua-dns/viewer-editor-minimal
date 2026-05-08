@@ -6,6 +6,7 @@ import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
 import DataTransferControls from './components/DataTransferControls.vue'
 import UserConfigPanel from './components/UserConfigPanel.vue'
+import ItemFieldEditor from './components/ItemFieldEditor.vue'
 
 const {
   rawItems,
@@ -42,10 +43,6 @@ const {
   clearUserConfigSession,
   applyUserConfigToRawItems,
   createUserConfigPayload,
-  getAppliedFieldLabel,
-  getAppliedFieldInputType,
-  getAppliedFieldPlaceholder,
-  getDisplayedFieldKeys,
   hasUnappliedUserConfigChanges,
 } = useUserConfigStore()
 
@@ -76,10 +73,6 @@ const availableFieldKeys = computed(() => {
   return Array.from(keys)
 })
 
-const displayedFieldKeys = computed(() => {
-  return getDisplayedFieldKeys(selectedRawItem.value)
-})
-
 function onDataModeChanged() {
   clearUserConfigSession()
   if (hasData.value) {
@@ -97,12 +90,12 @@ async function onDataFileSelected(file) {
   })
 }
 
-function onFieldInput(key, event) {
-  updateField(key, event.target.value)
+function onFieldInput(key, value) {
+  updateField(key, value)
 }
 
-function onBooleanChange(key, event) {
-  updateField(key, event.target.checked)
+function onBooleanChange(key, checked) {
+  updateField(key, checked)
 }
 
 function clearSelection() {
@@ -367,38 +360,12 @@ watch(
               <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
             </div>
 
-            <div class="field-grid">
-              <template v-for="key in displayedFieldKeys" :key="key">
-                <div class="field-row">
-                  <label :for="`field-${key}`">{{ getAppliedFieldLabel(key) }}</label>
-                  <template v-if="isEditableSimpleValue(selectedRawItem[key])">
-                    <textarea
-                      v-if="getAppliedFieldInputType(key, selectedRawItem[key]) === 'textarea'"
-                      :id="`field-${key}`"
-                      :placeholder="getAppliedFieldPlaceholder(key)"
-                      :value="selectedRawItem[key] === null ? '' : selectedRawItem[key]"
-                      @input="onFieldInput(key, $event)"
-                    />
-                    <input
-                      v-else-if="getAppliedFieldInputType(key, selectedRawItem[key]) !== 'checkbox'"
-                      :id="`field-${key}`"
-                      :type="getAppliedFieldInputType(key, selectedRawItem[key])"
-                      :placeholder="getAppliedFieldPlaceholder(key)"
-                      :value="selectedRawItem[key] === null ? '' : selectedRawItem[key]"
-                      @input="onFieldInput(key, $event)"
-                    />
-                    <input
-                      v-else
-                      :id="`field-${key}`"
-                      type="checkbox"
-                      :checked="Boolean(selectedRawItem[key])"
-                      @change="onBooleanChange(key, $event)"
-                    />
-                  </template>
-                  <pre v-else>{{ JSON.stringify(selectedRawItem[key]) }}</pre>
-                </div>
-              </template>
-            </div>
+            <ItemFieldEditor
+              :selected-raw-item="selectedRawItem"
+              :is-editable-simple-value="isEditableSimpleValue"
+              @field-input="onFieldInput"
+              @boolean-change="onBooleanChange"
+            />
           </div>
         </div>
       </aside>

@@ -35,6 +35,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/App.vue` - Haupt-UI und Interaktionen
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
+- `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
+- `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Typ/Placeholder/Sortierung
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
@@ -177,6 +179,16 @@ Nach erfolgreicher Aenderung:
 - `isDirty` wird auf `true` gesetzt
 
 Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `<pre>` angezeigt.
+
+## Sidebar Field Editor Modularization
+
+- `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
+- `useFieldMapping.js` kapselt die Mapping-Regeln fuer:
+  - Feldlabel
+  - Input-Typ (`text`, `textarea`, `checkbox`, `number`)
+  - Placeholder
+  - Feldreihenfolge
+- `App.vue` orchestriert nur noch die Feld-Update-Events und reicht sie an `useViewerData` weiter.
 
 ## UI-Architektur (`App.vue`)
 

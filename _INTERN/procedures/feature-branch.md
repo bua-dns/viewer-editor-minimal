@@ -14,14 +14,18 @@ Use a consistent lightweight workflow for feature delivery and integration.
    - Apply code changes according to project conventions.
    - Preserve existing behavior unless the task explicitly changes behavior.
 
-3. **Update documentation**
+3. **Request acceptance before finalization**
+   - Present the implementation result to the reviewer/user.
+   - Wait for explicit acceptance before continuing with documentation and integration.
+
+4. **Update documentation**
    - Reflect architecture, flow, and affected modules in README and technical docs.
    - Keep docs aligned with the final code structure.
 
-4. **Merge back into `main`**
+5. **Merge back into `main`**
    - Commit the feature branch changes.
    - Merge branch into `main` (prefer non-destructive standard merge flow).
 
-5. **Delete the feature branch**
+6. **Delete the feature branch**
    - Remove the local feature branch after successful merge.
    - Keep branch hygiene simple and avoid stale branches.
