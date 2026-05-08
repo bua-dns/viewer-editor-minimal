@@ -2,11 +2,12 @@
 
 ## Projektueberblick
 
-`viewer-editor-minimal-version` ist eine Vue-3-Einzelansicht, mit der JSON-Dateien (Top-Level Array aus Objekten) geladen, gefiltert, bearbeitet, zurueckgesetzt und wieder exportiert werden koennen.
+`viewer-editor-minimal-version` ist eine Vue-3-Einzelansicht, mit der JSON- und CSV-Dateien geladen, gefiltert, bearbeitet, zurueckgesetzt und wieder exportiert werden koennen.
 
 Kernfunktionen:
 
 - JSON-Datei importieren und validieren
+- CSV-Datei importieren und validieren
 - Volltextsuche ueber alle Feldwerte
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
 - Dirty-State inkl. Warnung beim Verlassen der Seite
@@ -16,6 +17,7 @@ Kernfunktionen:
 - App-weites Wording ueber Handles + Sprachumschalter (DE/EN)
 - Minimale User-Config-GUI pro Datenfeld mit Anwenden/Download
 - Session-persistente User-Config (via `sessionStorage`)
+- Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 
 ## Tech Stack
 
@@ -98,6 +100,15 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 
 ## Import-, Validierungs- und Parsing-Logik
 
+### Datenmodus im Header
+
+- In der Topbar kann zwischen `JSON` und `CSV` umgeschaltet werden.
+- Der gewaehlte Modus wird unter `viewerEditor.dataMode.v1` in `sessionStorage` gespeichert.
+- Upload-Button-Label und `accept`-Filter passen sich an den Modus an.
+- Dateityp-Mismatch wird mit Fehlermeldung blockiert.
+
+### JSON-Import
+
 Importweg:
 
 1. Datei wird in `App.vue` per `<input type="file">` geladen.
@@ -114,6 +125,15 @@ Kopierstrategie:
 - Daten werden via `cloneData` (`JSON.parse(JSON.stringify(...))`) tief kopiert.
 - Vorteil: einfacher, stabiler Snapshot fuer Reset/Export.
 - Einschraenkung: nicht geeignet fuer nicht-JSON-Typen (z. B. `Date`, `Map`, Funktionen).
+
+### CSV-Import
+
+- CSV-Import nutzt `parseCsvText` in `src/composables/useViewerData.js`.
+- Erste Zeile wird als Header interpretiert, danach folgt zeilenweise Mapping auf Objekte.
+- CSV-Header wird validiert:
+  - keine leeren Spaltennamen
+  - keine doppelten Spaltennamen
+- Das Feld `scan` wird bei Header-Normalisierung explizit auf `scan` gesetzt (case-insensitive), damit die bestehende Scan-UI automatisch greift.
 
 ## Suche
 
@@ -147,6 +167,7 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 Die Seite ist in vier Bereiche gegliedert:
 
 - Topbar: Upload, Download, Reset
+- Topbar: Upload, Download, Reset, Datenmodus-Umschalter JSON/CSV
 - Topbar: zusaetzlich DE/EN-Sprachumschalter
 - Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
 - Konfiguration: einklappbares Panel fuer User-Config
@@ -216,6 +237,7 @@ Weitere Skripte:
 ## Bekannte Grenzen
 
 - Import erwartet strikt ein Array aus Objekten auf Top-Level.
+- CSV-Parser ist bewusst minimal (Komplexitaet fuer exotische CSV-Formate wird noch nicht vollstaendig abgedeckt).
 - Editierbar sind nur primitive/simple Felder (`string`, `number`, `boolean`, `null`).
 - Deep Clone via JSON-Serialize unterstuetzt keine Spezialtypen.
 - Bildvorschau basiert auf URL-Pattern und prueft keine Erreichbarkeit vor dem Laden.

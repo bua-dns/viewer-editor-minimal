@@ -1,10 +1,12 @@
 # Viewer Editor Minimal
 
-Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-Listen mit Objektkarten (inkl. Scan-Vorschau).
+Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON- und CSV-Listen mit Objektkarten (inkl. Scan-Vorschau).
 
 ## Features
 
+- Datenmodus-Umschalter in der Topbar (`JSON | CSV`)
 - JSON-Datei lokal hochladen (Top-Level muss ein Array von Objekten sein)
+- CSV-Datei lokal hochladen (erste Zeile = Header, danach Datensaetze)
 - Volltextsuche über alle Felder
 - Kartenansicht mit Bildvorschau (`scan`-URL)
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
@@ -17,6 +19,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - User-Config anwenden auf die Felddarstellung in der Sidebar
 - User-Config als JSON herunterladen
 - User-Config bleibt in `sessionStorage` ueber Reloads erhalten
+- Datenmodus bleibt in `sessionStorage` ueber Reloads erhalten
 - Lightbox für größere Scan-Ansicht
 
 ## Tech Stack
@@ -73,6 +76,20 @@ Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.
 - Bei ungültigem JSON oder falscher Struktur zeigt die App eine Fehlermeldung.
 - Für die Bildvorschau muss `scan` eine direkt ladbare Bild-URL sein (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
+
+## Erwartetes CSV-Format
+
+CSV erwartet eine Header-Zeile und danach Datensaetze:
+
+```csv
+inventory_number,species,collector,scan
+A.51-98-6-778,Cedrus atlantica,Georg August Schweinfurth,https://example.org/card-1.jpg
+```
+
+Hinweise:
+- Das Feld `scan` wird automatisch als Digitalisat-URL interpretiert und fuer die Scan-Anzeige genutzt.
+- Headernamen muessen eindeutig sein (keine doppelten Spaltennamen).
+- Leere Spaltennamen sind unzulaessig.
 
 ## Projektstruktur
 

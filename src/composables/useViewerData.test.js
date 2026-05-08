@@ -15,6 +15,15 @@ describe('useViewerData helpers', () => {
     expect(__test.looksLikeImageUrl('https://example.com/a.jpg')).toBe(true)
     expect(__test.looksLikeImageUrl('https://example.com/a')).toBe(false)
   })
+
+  test('parseCsvText parses CSV rows and preserves scan column', () => {
+    const csv = 'inventory_number,scan,species\nA1,https://example.com/a.jpg,Oak\nB2,https://example.com/b.jpg,Pine'
+    const result = __test.parseCsvText(csv)
+    expect(result.ok).toBe(true)
+    expect(result.data).toHaveLength(2)
+    expect(result.data[0].scan).toBe('https://example.com/a.jpg')
+    expect(result.data[1].species).toBe('Pine')
+  })
 })
 
 describe('useViewerData flow', () => {
@@ -41,5 +50,16 @@ describe('useViewerData flow', () => {
     model.resetToImportedSnapshot()
     expect(model.rawItems.value[1].species).toBe('Pine')
     expect(model.isDirty.value).toBe(false)
+  })
+
+  test('imports csv data', () => {
+    const model = useViewerData()
+    const csv = 'inventory_number,scan\nA1,https://example.com/a.jpg'
+    const ok = model.importFromCsvText(csv, 'sample.csv')
+
+    expect(ok).toBe(true)
+    expect(model.rawItems.value).toHaveLength(1)
+    expect(model.rawItems.value[0].scan).toBe('https://example.com/a.jpg')
+    expect(model.importFileName.value).toBe('sample.csv')
   })
 })

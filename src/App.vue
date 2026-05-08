@@ -15,6 +15,7 @@ const {
   errorMessage,
   hasData,
   importFromJsonText,
+  importFromCsvText,
   selectItem,
   updateField,
   resetToImportedSnapshot,
@@ -37,10 +38,23 @@ const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
 const newFieldName = ref('')
 const addFieldError = ref('')
+const dataMode = ref('json')
+const modeErrorMessage = ref('')
 
 const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
+const DATA_MODE_SESSION_KEY = 'viewerEditor.dataMode.v1'
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
+
+const uploadButtonLabel = computed(() =>
+  dataMode.value === 'csv' ? t('uploadCsv', 'CSV hochladen') : t('uploadJson', 'JSON hochladen'),
+)
+
+const downloadButtonLabel = computed(() =>
+  dataMode.value === 'csv' ? t('downloadCsv', 'CSV herunterladen') : t('downloadJson', 'JSON herunterladen'),
+)
+
+const uploadAccept = computed(() => (dataMode.value === 'csv' ? '.csv,text/csv' : '.json,application/json'))
 
 const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
@@ -147,6 +161,10 @@ function persistUserConfigToSession() {
   sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
 }
 
+function clearUserConfigSession() {
+  sessionStorage.removeItem(USER_CONFIG_SESSION_KEY)
+}
+
 function initializeUserConfig() {
   const defaults = buildDefaultUserConfigFields()
   const persisted = loadUserConfigFromSession()
@@ -218,11 +236,59 @@ function onDragEnd() {
   draggedFieldKey.value = ''
 }
 
+function loadDataModeFromSession() {
+  const stored = sessionStorage.getItem(DATA_MODE_SESSION_KEY)
+  if (stored === 'json' || stored === 'csv') {
+    dataMode.value = stored
+  }
+}
+
+function setDataMode(nextMode) {
+  if (nextMode !== 'json' && nextMode !== 'csv') return
+  if (nextMode === dataMode.value) return
+
+  dataMode.value = nextMode
+  modeErrorMessage.value = ''
+  sessionStorage.setItem(DATA_MODE_SESSION_KEY, nextMode)
+
+  clearUserConfigSession()
+  if (hasData.value) {
+    initializeUserConfig()
+  } else {
+    userConfigFields.value = {}
+    appliedUserConfigFields.value = {}
+    appliedUserConfigSnapshot.value = ''
+  }
+}
+
+function detectUploadType(fileName) {
+  const lower = fileName.toLowerCase()
+  if (lower.endsWith('.json')) return 'json'
+  if (lower.endsWith('.csv')) return 'csv'
+  return 'unknown'
+}
+
 async function onFileChange(event) {
   const file = event.target.files?.[0]
   if (!file) return
 
+  const detectedType = detectUploadType(file.name)
+  if (detectedType !== dataMode.value) {
+    modeErrorMessage.value = t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.')
+    event.target.value = ''
+    return
+  }
+
+  if (dataMode.value === 'csv') {
+    const text = await file.text()
+    modeErrorMessage.value = ''
+    importFromCsvText(text, file.name)
+    event.target.value = ''
+    return
+  }
+
   const text = await file.text()
+  modeErrorMessage.value = ''
   importFromJsonText(text, file.name)
   event.target.value = ''
 }
@@ -456,6 +522,7 @@ function keydownListener(event) {
 
 onMounted(() => {
   document.documentElement.style.setProperty('--color-primary', primaryColor)
+  loadDataModeFromSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
   window.addEventListener('keydown', keydownListener)
 })
@@ -513,10 +580,27 @@ watch(
           <input v-model="appendEditedTimestamp" type="checkbox" />
           <span>{{ t('downloadWithTimestamp', 'Dateiname mit Timestamp') }}</span>
         </label>
-        <button type="button" @click="triggerUpload">{{ t('uploadJson', 'JSON hochladen') }}</button>
-        <button type="button" :disabled="!hasData || !isDirty" @click="onDownload">{{
-          t('downloadJson', 'JSON herunterladen')
-        }}</button>
+        <div class="data-mode-switch" :aria-label="t('dataModeAria', 'Datenmodus waehlen')">
+          <button
+            type="button"
+            class="mode-btn"
+            :class="{ active: dataMode === 'json' }"
+            @click="setDataMode('json')"
+          >
+            {{ t('dataModeJson', 'JSON') }}
+          </button>
+          <span class="mode-separator">|</span>
+          <button
+            type="button"
+            class="mode-btn"
+            :class="{ active: dataMode === 'csv' }"
+            @click="setDataMode('csv')"
+          >
+            {{ t('dataModeCsv', 'CSV') }}
+          </button>
+        </div>
+        <button type="button" @click="triggerUpload">{{ uploadButtonLabel }}</button>
+        <button type="button" :disabled="!hasData || !isDirty" @click="onDownload">{{ downloadButtonLabel }}</button>
         <button type="button" :disabled="!isDirty" @click="onReset">{{ t('reset', 'Reset') }}</button>
         <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
           <button
@@ -537,7 +621,7 @@ watch(
             {{ t('languageButtonEn', 'EN') }}
           </button>
         </div>
-        <input ref="fileInput" type="file" accept="application/json" @change="onFileChange" />
+        <input ref="fileInput" type="file" :accept="uploadAccept" @change="onFileChange" />
       </div>
     </header>
 
@@ -739,6 +823,7 @@ watch(
       <section class="status-panel">
         <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+        <p v-else-if="modeErrorMessage" class="error">{{ modeErrorMessage }}</p>
         <p v-else-if="!hasData">{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
       </section>
     </main>

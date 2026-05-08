@@ -61,6 +61,28 @@ body {
   margin-left: 0.25rem;
 }
 
+.data-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.mode-btn {
+  background: transparent;
+  color: #475569;
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.mode-btn.active {
+  color: #0f172a;
+}
+
+.mode-separator {
+  color: #94a3b8;
+}
+
 .lang-btn {
   background: transparent;
   color: #475569;
@@ -104,8 +126,8 @@ button {
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
-    'toolbar'
     'userconfig'
+    'toolbar'
     'list'
     'status';
   gap: 1rem;
@@ -114,8 +136,8 @@ button {
 .content-grid.content-grid-selected {
   grid-template-columns: 1fr 1fr 2fr;
   grid-template-areas:
-    'toolbar toolbar toolbar'
     'userconfig userconfig userconfig'
+    'toolbar toolbar toolbar'
     'list list sidebar'
     'status status status';
 }
@@ -486,8 +508,8 @@ pre {
   .content-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      'toolbar'
       'userconfig'
+      'toolbar'
       'list'
       'sidebar'
       'status';

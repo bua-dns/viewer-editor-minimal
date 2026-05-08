@@ -15,9 +15,37 @@ const wording = {
     de: "JSON hochladen",
     en: "Upload JSON",
   },
+  upload_csv: {
+    de: "CSV hochladen",
+    en: "Upload CSV",
+  },
   download_json: {
     de: "JSON herunterladen",
     en: "Download JSON",
+  },
+  download_csv: {
+    de: "CSV herunterladen",
+    en: "Download CSV",
+  },
+  data_mode_json: {
+    de: "JSON",
+    en: "JSON",
+  },
+  data_mode_csv: {
+    de: "CSV",
+    en: "CSV",
+  },
+  data_mode_aria: {
+    de: "Datenmodus waehlen",
+    en: "Choose data mode",
+  },
+  upload_mode_mismatch_error: {
+    de: "Dateityp passt nicht zum gewaehlten Modus.",
+    en: "File type does not match selected mode.",
+  },
+  csv_not_implemented_error: {
+    de: "CSV-Import folgt im naechsten Schritt.",
+    en: "CSV import will be implemented in the next step.",
   },
   reset: {
     de: "Reset",
