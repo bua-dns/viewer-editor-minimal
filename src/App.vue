@@ -35,7 +35,7 @@ const appliedUserConfigFields = ref({})
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
 
-const { title: appTitle, primaryColor, language, itemLabel, setLanguage } = useAppConfigStore()
+const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
 
 const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
@@ -168,7 +168,7 @@ function clearSelection() {
 
 function onReset() {
   if (!isDirty.value) return
-  const confirmed = globalThis.confirm('Aenderungen verwerfen und auf Import zuruecksetzen?')
+  const confirmed = globalThis.confirm(t('resetConfirm', 'Aenderungen verwerfen und auf Import zuruecksetzen?'))
   if (!confirmed) return
   resetToImportedSnapshot()
 }
@@ -348,19 +348,21 @@ watch(
       <div class="actions">
         <label class="download-option">
           <input v-model="appendEditedTimestamp" type="checkbox" />
-          <span>Dateiname mit Timestamp</span>
+          <span>{{ t('downloadWithTimestamp', 'Dateiname mit Timestamp') }}</span>
         </label>
-        <button type="button" @click="triggerUpload">JSON hochladen</button>
-        <button type="button" :disabled="!hasData || !isDirty" @click="onDownload">JSON herunterladen</button>
-        <button type="button" :disabled="!isDirty" @click="onReset">Reset</button>
-        <div class="language-switch" aria-label="Sprache waehlen">
+        <button type="button" @click="triggerUpload">{{ t('uploadJson', 'JSON hochladen') }}</button>
+        <button type="button" :disabled="!hasData || !isDirty" @click="onDownload">{{
+          t('downloadJson', 'JSON herunterladen')
+        }}</button>
+        <button type="button" :disabled="!isDirty" @click="onReset">{{ t('reset', 'Reset') }}</button>
+        <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
           <button
             type="button"
             class="lang-btn"
             :class="{ active: language === 'de' }"
             @click="setLanguage('de')"
           >
-            DE
+            {{ t('languageButtonDe', 'DE') }}
           </button>
           <span class="lang-separator">|</span>
           <button
@@ -369,7 +371,7 @@ watch(
             :class="{ active: language === 'en' }"
             @click="setLanguage('en')"
           >
-            EN
+            {{ t('languageButtonEn', 'EN') }}
           </button>
         </div>
         <input ref="fileInput" type="file" accept="application/json" @change="onFileChange" />
@@ -379,22 +381,22 @@ watch(
     <main class="content-grid" :class="{ 'content-grid-selected': !!selectedRawItem }">
       <section class="toolbar-panel">
         <div>
-          <p class="meta" v-if="!importFileName">Noch keine Datei geladen</p>
+          <p class="meta" v-if="!importFileName">{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
         </div>
         <label class="search-wrap" v-if="importFileName">
-          <span>Suche</span>
-          <input v-model="searchQuery" type="search" placeholder="Volltext über alle Felder" />
+          <span>{{ t('searchLabel', 'Suche') }}</span>
+          <input v-model="searchQuery" type="search" :placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" />
         </label>
-        <p v-if="isDirty" class="dirty">Ungespeicherte Aenderungen</p>
+        <p v-if="isDirty" class="dirty">{{ t('unsavedChanges', 'Ungespeicherte Aenderungen') }}</p>
       </section>
 
       <section class="user-config-panel" v-if="hasData">
         <div class="user-config-head">
-          <div class="user-config-title">Konfiguration</div>
+          <div class="user-config-title">{{ t('configurationTitle', 'Konfiguration') }}</div>
           <div v-if="isUserConfigOpen" class="user-config-actions">
-            <button type="button" @click="onApplyUserConfig">Konfiguration anwenden</button>
+            <button type="button" @click="onApplyUserConfig">{{ t('applyConfiguration', 'Konfiguration anwenden') }}</button>
             <button type="button" v-if="hasUserConfigChanges" @click="onDownloadUserConfig">
-              Konfiguration herunterladen
+              {{ t('downloadConfiguration', 'Konfiguration herunterladen') }}
             </button>
           </div>
           <button type="button" class="user-config-toggle-icon" @click="isUserConfigOpen = !isUserConfigOpen">
@@ -404,10 +406,10 @@ watch(
         <div v-if="isUserConfigOpen" class="user-config-grid">
           <div class="user-config-row user-config-row-head">
             <strong></strong>
-            <strong>Feld</strong>
-            <strong>Typ</strong>
-            <strong>Beschriftung</strong>
-            <strong>Eingabehinweis</strong>
+            <strong>{{ t('configFieldHeader', 'Feld') }}</strong>
+            <strong>{{ t('configTypeHeader', 'Typ') }}</strong>
+            <strong>{{ t('configLabelHeader', 'Beschriftung') }}</strong>
+            <strong>{{ t('configPlaceholderHeader', 'Eingabehinweis') }}</strong>
           </div>
           <div
             class="user-config-row"
@@ -423,21 +425,21 @@ watch(
             <div class="drag-handle" aria-hidden="true">⋮⋮</div>
             <div class="field-key">{{ entry[0] }}</div>
             <select v-model="entry[1].type">
-              <option value="normal">normal (string)</option>
-              <option value="text">Textfeld (text)</option>
-              <option value="integer">Zahl (integer)</option>
-              <option value="checkbox">Ja/Nein (checkbox)</option>
+              <option value="normal">{{ t('configTypeNormal', 'normal (string)') }}</option>
+              <option value="text">{{ t('configTypeText', 'Textfeld (text)') }}</option>
+              <option value="integer">{{ t('configTypeInteger', 'Zahl (integer)') }}</option>
+              <option value="checkbox">{{ t('configTypeCheckbox', 'Ja/Nein (checkbox)') }}</option>
             </select>
-            <input v-model="entry[1].label" type="text" placeholder="Label" />
-            <input v-model="entry[1].placeholder" type="text" placeholder="Hinweis" />
+            <input v-model="entry[1].label" type="text" :placeholder="t('configLabelInputPlaceholder', 'Label')" />
+            <input v-model="entry[1].placeholder" type="text" :placeholder="t('configHintInputPlaceholder', 'Hinweis')" />
           </div>
         </div>
       </section>
 
       <section class="list-panel" @click="clearSelection">
         <h2>{{ itemLabel }} <span v-if="importFileName">({{ resultCountLabel }})</span></h2>
-        <p v-if="!hasData" class="meta">Nach dem Upload erscheinen hier die Eintraege.</p>
-        <p v-else-if="filteredViewItems.length === 0" class="meta">Keine Treffer zur Suchanfrage.</p>
+        <p v-if="!hasData" class="meta">{{ t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.') }}</p>
+        <p v-else-if="filteredViewItems.length === 0" class="meta">{{ t('noSearchResults', 'Keine Treffer zur Suchanfrage.') }}</p>
         <ul v-else class="card-grid">
           <li v-for="item in filteredViewItems" :key="item._uid">
             <button
@@ -450,10 +452,10 @@ watch(
                 <img
                   v-if="looksLikeImageUrl(rawItems[item._index]?.scan) && !hasListImageFailed(item._uid)"
                   :src="rawItems[item._index]?.scan"
-                  alt="Scan Vorschau"
+                  :alt="t('scanPreviewAlt', 'Scan Vorschau')"
                   @error="listImageFailed(item._uid)"
                 />
-                <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
+                <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
               </div>
               <div class="card-caption">
                 {{ rawItems[item._index]?.inventory_number || `#${item._index + 1}` }}
@@ -466,15 +468,33 @@ watch(
       <aside v-if="selectedRawItem" class="sidebar-panel">
         <div class="sidebar-head">
           <div class="sidebar-nav" v-if="filteredViewItems.length > 1">
-            <button type="button" :disabled="!canGoPrevious" @click="selectPreviousItem" aria-label="Vorheriges Item">
+            <button
+              type="button"
+              :disabled="!canGoPrevious"
+              @click="selectPreviousItem"
+              :aria-label="t('sidebarPreviousItemAria', 'Vorheriges Item')"
+            >
               ←
             </button>
-            <span class="scan-nav-index">Scan {{ selectedFilteredIndex + 1 }} / {{ filteredViewItems.length }}</span>
-            <button type="button" :disabled="!canGoNext" @click="selectNextItem" aria-label="Naechstes Item">
+            <span class="scan-nav-index"
+              >{{ t('sidebarScanCounterPrefix', 'Scan') }} {{ selectedFilteredIndex + 1 }} /
+              {{ filteredViewItems.length }}</span
+            >
+            <button
+              type="button"
+              :disabled="!canGoNext"
+              @click="selectNextItem"
+              :aria-label="t('sidebarNextItemAria', 'Naechstes Item')"
+            >
               →
             </button>
           </div>
-          <button type="button" class="sidebar-close" @click="clearSelection" aria-label="Sidebar schliessen">
+          <button
+            type="button"
+            class="sidebar-close"
+            @click="clearSelection"
+            :aria-label="t('sidebarCloseAria', 'Sidebar schliessen')"
+          >
             ×
           </button>
         </div>
@@ -485,14 +505,14 @@ watch(
                 <img
                   v-if="!sidebarImageLoadFailed"
                   :src="selectedRawItem.scan"
-                  alt="Scan Vorschau"
+                  :alt="t('scanPreviewAlt', 'Scan Vorschau')"
                   class="scan-preview"
                   @error="sidebarImageLoadFailed = true"
                   @click="openLightbox(selectedRawItem.scan)"
                 />
-                <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
+                <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
               </div>
-              <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
+              <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
             </div>
 
             <div class="field-grid">
@@ -532,26 +552,26 @@ watch(
       </aside>
 
       <section class="status-panel">
-        <p v-if="importFileName">Datei: {{ importFileName }}</p>
+        <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-        <p v-else-if="!hasData">Bitte eine JSON-Datei hochladen.</p>
+        <p v-else-if="!hasData">{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
       </section>
     </main>
 
     <div v-if="isLightboxOpen" class="lightbox" @click.self="closeLightbox">
       <div class="lightbox-content">
         <div class="lightbox-actions">
-          <button type="button" @click="toggleFullscreen">Fullscreen</button>
-          <button type="button" @click="closeLightbox">Schliessen</button>
+          <button type="button" @click="toggleFullscreen">{{ t('fullscreen', 'Fullscreen') }}</button>
+          <button type="button" @click="closeLightbox">{{ t('close', 'Schliessen') }}</button>
         </div>
         <img
           v-if="!lightboxImageLoadFailed"
           :src="lightboxImageSrc"
-          alt="Scan gross"
+          :alt="t('lightboxImageAlt', 'Scan gross')"
           class="lightbox-image"
           @error="lightboxImageLoadFailed = true"
         />
-        <div v-else class="scan-fallback scan-fallback-large">Scan nicht verfuegbar</div>
+        <div v-else class="scan-fallback scan-fallback-large">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
       </div>
     </div>
   </div>

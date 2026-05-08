@@ -23,6 +23,10 @@ const supportedLanguages = computed(() => {
 const title = computed(() => getWordingValue(appConfig.wordingHandles?.title, 'Viewer Editor'))
 const itemLabel = computed(() => getWordingValue(appConfig.wordingHandles?.itemLabel, 'Items'))
 
+function t(handleKey, fallback = '') {
+  return getWordingValue(appConfig.wordingHandles?.[handleKey], fallback)
+}
+
 export function useAppConfigStore() {
   return {
     title,
@@ -31,5 +35,6 @@ export function useAppConfigStore() {
     supportedLanguages,
     itemLabel,
     setLanguage,
+    t,
   }
 }
