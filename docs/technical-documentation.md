@@ -13,6 +13,8 @@ Kernfunktionen:
 - Reset auf Import-Snapshot
 - Export der bearbeiteten Daten als neue JSON-Datei
 - Bildvorschau fuer `scan`-URLs inkl. Lightbox und Fullscreen
+- App-weites Wording ueber Handles + Sprachumschalter (DE/EN)
+- Minimale User-Config-GUI pro Datenfeld mit Anwenden/Download
 
 ## Tech Stack
 
@@ -30,8 +32,35 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/App.vue` - Haupt-UI und Interaktionen
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
+- `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
 - `src/assets/styles.css` - Layout, Komponenten-Styling, Responsive Regeln
+- `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
+- `config/wording.js` - uebersetzte Textvarianten je Handle
 - `vite.config.js` - Vite-Konfiguration mit Vue-Plugin
+
+## App-Konfiguration und Wording
+
+- `config/app.config.js` definiert die app-weiten Handles (z. B. `title`, `itemLabel`) und Basiswerte wie `language` und `primaryColor`.
+- `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
+- `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
+- Sprachwechsel passiert in `App.vue` per einfachem `DE | EN`-Schalter in der Topbar.
+
+## User-Config-GUI (minimal)
+
+In `App.vue` gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload verfuegbar ist.
+
+Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
+
+- `type`: `normal`, `text`, `integer`, `checkbox`
+- `label`: alternative Feldbeschriftung
+- `placeholder`: Eingabehinweis
+- Reihenfolge via Drag-and-Drop
+
+Verhalten:
+
+- `Konfiguration anwenden` uebernimmt die aktuelle Konfiguration in die Darstellung der Sidebar-Felder.
+- `Konfiguration herunterladen` exportiert eine JSON-Datei mit `version` und `fields`.
+- Bei `type = text` wird ein `textarea` gerendert, sonst entsprechend `input`/`checkbox`.
 
 ## Datenmodell und State
 
@@ -109,7 +138,9 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 Die Seite ist in vier Bereiche gegliedert:
 
 - Topbar: Upload, Download, Reset
+- Topbar: zusaetzlich DE/EN-Sprachumschalter
 - Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
+- Konfiguration: einklappbares Panel fuer User-Config
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau
 - Sidebar: Felder des selektierten Items und groessere Scan-Vorschau
 - Statusbereich: Datei-/Fehlerstatus

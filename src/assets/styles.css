@@ -105,6 +105,7 @@ button {
   grid-template-columns: 1fr;
   grid-template-areas:
     'toolbar'
+    'userconfig'
     'list'
     'status';
   gap: 1rem;
@@ -114,11 +115,13 @@ button {
   grid-template-columns: 1fr 1fr 2fr;
   grid-template-areas:
     'toolbar toolbar toolbar'
+    'userconfig userconfig userconfig'
     'list list sidebar'
     'status status status';
 }
 
 .toolbar-panel,
+.user-config-panel,
 .list-panel,
 .sidebar-panel,
 .status-panel {
@@ -138,6 +141,77 @@ button {
 
 .list-panel {
   grid-area: list;
+}
+
+.user-config-panel {
+  grid-area: userconfig;
+}
+
+.user-config-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.user-config-title {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.user-config-toggle-icon {
+  background: transparent;
+  color: #475569;
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+}
+
+.toggle-icon {
+  color: #475569;
+  font-size: 1.3em;
+  line-height: 1;
+}
+
+.user-config-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.user-config-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.user-config-row {
+  display: grid;
+  grid-template-columns: 34px minmax(180px, 1.2fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(220px, 1.3fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.user-config-row.is-dragging {
+  opacity: 0.55;
+}
+
+.drag-handle {
+  user-select: none;
+  cursor: grab;
+  text-align: center;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.user-config-row-head {
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.field-key {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.9rem;
+  color: #1e293b;
 }
 
 .sidebar-panel {
@@ -348,11 +422,18 @@ button {
 
 input[type='text'],
 input[type='number'],
-input[type='search'] {
+input[type='search'],
+textarea,
+select {
   border: 1px solid #bfd0df;
   border-radius: 8px;
   padding: 0.5rem 0.65rem;
   width: 100%;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
 }
 
 button:disabled {
@@ -387,6 +468,7 @@ pre {
     grid-template-columns: 1fr;
     grid-template-areas:
       'toolbar'
+      'userconfig'
       'list'
       'sidebar'
       'status';
@@ -425,5 +507,9 @@ pre {
 
   .search-wrap input {
     min-width: 0;
+  }
+
+  .user-config-row {
+    grid-template-columns: 1fr;
   }
 }

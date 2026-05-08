@@ -30,6 +30,10 @@ const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
 const appendEditedTimestamp = ref(true)
+const userConfigFields = ref({})
+const appliedUserConfigFields = ref({})
+const draggedFieldKey = ref('')
+const isUserConfigOpen = ref(false)
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage } = useAppConfigStore()
 
@@ -49,6 +53,93 @@ const canGoNext = computed(
     selectedFilteredIndex.value !== -1 &&
     selectedFilteredIndex.value < filteredViewItems.value.length - 1,
 )
+
+const availableFieldKeys = computed(() => {
+  const keys = new Set()
+  rawItems.value.forEach((item) => {
+    Object.keys(item || {}).forEach((key) => {
+      if (key !== 'scan') keys.add(key)
+    })
+  })
+  return Array.from(keys)
+})
+
+const sortedConfigFieldEntries = computed(() =>
+  Object.entries(userConfigFields.value).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
+)
+
+const displayedFieldKeys = computed(() => {
+  if (!selectedRawItem.value) return []
+
+  const keys = Object.keys(selectedRawItem.value).filter((key) => key !== 'scan')
+  return keys.sort((a, b) => {
+    const aOrder = appliedUserConfigFields.value[a]?.order ?? Number.MAX_SAFE_INTEGER
+    const bOrder = appliedUserConfigFields.value[b]?.order ?? Number.MAX_SAFE_INTEGER
+    if (aOrder !== bOrder) return aOrder - bOrder
+    return a.localeCompare(b)
+  })
+})
+
+const hasUserConfigChanges = computed(() =>
+  Object.values(userConfigFields.value).some(
+    (field) => field.type !== 'normal' || field.label || field.order !== 0 || field.placeholder,
+  ),
+)
+
+function buildDefaultUserConfigFields() {
+  const fields = {}
+  availableFieldKeys.value.forEach((key, index) => {
+    fields[key] = {
+      type: 'normal',
+      label: '',
+      order: index,
+      placeholder: '',
+    }
+  })
+  return fields
+}
+
+function initializeUserConfig() {
+  const defaults = buildDefaultUserConfigFields()
+  userConfigFields.value = defaults
+  appliedUserConfigFields.value = JSON.parse(JSON.stringify(defaults))
+}
+
+function normalizeConfigOrder() {
+  const sortedKeys = Object.entries(userConfigFields.value)
+    .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
+    .map(([key]) => key)
+
+  sortedKeys.forEach((key, index) => {
+    userConfigFields.value[key].order = index
+  })
+}
+
+function onDragStart(fieldKey) {
+  draggedFieldKey.value = fieldKey
+}
+
+function onDropAt(targetFieldKey) {
+  if (!draggedFieldKey.value || draggedFieldKey.value === targetFieldKey) return
+
+  const orderedKeys = sortedConfigFieldEntries.value.map(([key]) => key)
+  const fromIndex = orderedKeys.indexOf(draggedFieldKey.value)
+  const toIndex = orderedKeys.indexOf(targetFieldKey)
+  if (fromIndex === -1 || toIndex === -1) return
+
+  const [movedKey] = orderedKeys.splice(fromIndex, 1)
+  orderedKeys.splice(toIndex, 0, movedKey)
+
+  orderedKeys.forEach((key, index) => {
+    userConfigFields.value[key].order = index
+  })
+
+  draggedFieldKey.value = ''
+}
+
+function onDragEnd() {
+  draggedFieldKey.value = ''
+}
 
 async function onFileChange(event) {
   const file = event.target.files?.[0]
@@ -104,6 +195,48 @@ function onDownload() {
   if (appendEditedTimestamp.value) {
     markAsSaved(downloadFileName)
   }
+}
+
+function onDownloadUserConfig() {
+  const payload = {
+    version: 1,
+    fields: userConfigFields.value,
+  }
+  const json = JSON.stringify(payload, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const importedBaseName = importFileName.value ? importFileName.value.replace(/\.json$/i, '') : 'data'
+  link.href = url
+  link.download = `${importedBaseName}-user-config.json`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function onApplyUserConfig() {
+  normalizeConfigOrder()
+  appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
+}
+
+function getAppliedFieldLabel(key) {
+  return appliedUserConfigFields.value[key]?.label?.trim() || key
+}
+
+function getAppliedFieldInputType(key, value) {
+  const configuredType = appliedUserConfigFields.value[key]?.type || 'normal'
+  if (configuredType === 'integer') return 'number'
+  if (configuredType === 'checkbox') return 'checkbox'
+  if (configuredType === 'text') return 'textarea'
+
+  if (typeof value === 'number') return 'number'
+  if (typeof value === 'boolean') return 'checkbox'
+  return 'text'
+}
+
+function getAppliedFieldPlaceholder(key) {
+  return appliedUserConfigFields.value[key]?.placeholder || ''
 }
 
 function openLightbox(url) {
@@ -185,6 +318,7 @@ watch(
     failedListImages.value = new Set()
     sidebarImageLoadFailed.value = false
     lightboxImageLoadFailed.value = false
+    initializeUserConfig()
   },
 )
 
@@ -192,6 +326,17 @@ watch(
   () => selectedRawItem.value?.scan,
   () => {
     sidebarImageLoadFailed.value = false
+  },
+)
+
+watch(
+  () => availableFieldKeys.value.join('|'),
+  () => {
+    if (!hasData.value) {
+      userConfigFields.value = {}
+      return
+    }
+    initializeUserConfig()
   },
 )
 </script>
@@ -241,6 +386,52 @@ watch(
           <input v-model="searchQuery" type="search" placeholder="Volltext über alle Felder" />
         </label>
         <p v-if="isDirty" class="dirty">Ungespeicherte Aenderungen</p>
+      </section>
+
+      <section class="user-config-panel" v-if="hasData">
+        <div class="user-config-head">
+          <div class="user-config-title">Konfiguration</div>
+          <div v-if="isUserConfigOpen" class="user-config-actions">
+            <button type="button" @click="onApplyUserConfig">Konfiguration anwenden</button>
+            <button type="button" v-if="hasUserConfigChanges" @click="onDownloadUserConfig">
+              Konfiguration herunterladen
+            </button>
+          </div>
+          <button type="button" class="user-config-toggle-icon" @click="isUserConfigOpen = !isUserConfigOpen">
+            <span class="toggle-icon">{{ isUserConfigOpen ? '▴' : '▾' }}</span>
+          </button>
+        </div>
+        <div v-if="isUserConfigOpen" class="user-config-grid">
+          <div class="user-config-row user-config-row-head">
+            <strong></strong>
+            <strong>Feld</strong>
+            <strong>Typ</strong>
+            <strong>Beschriftung</strong>
+            <strong>Eingabehinweis</strong>
+          </div>
+          <div
+            class="user-config-row"
+            :class="{ 'is-dragging': draggedFieldKey === entry[0] }"
+            v-for="entry in sortedConfigFieldEntries"
+            :key="entry[0]"
+            draggable="true"
+            @dragstart="onDragStart(entry[0])"
+            @dragover.prevent
+            @drop="onDropAt(entry[0])"
+            @dragend="onDragEnd"
+          >
+            <div class="drag-handle" aria-hidden="true">⋮⋮</div>
+            <div class="field-key">{{ entry[0] }}</div>
+            <select v-model="entry[1].type">
+              <option value="normal">normal (string)</option>
+              <option value="text">Textfeld (text)</option>
+              <option value="integer">Zahl (integer)</option>
+              <option value="checkbox">Ja/Nein (checkbox)</option>
+            </select>
+            <input v-model="entry[1].label" type="text" placeholder="Label" />
+            <input v-model="entry[1].placeholder" type="text" placeholder="Hinweis" />
+          </div>
+        </div>
       </section>
 
       <section class="list-panel" @click="clearSelection">
@@ -305,26 +496,34 @@ watch(
             </div>
 
             <div class="field-grid">
-              <template v-for="(value, key) in selectedRawItem" :key="key">
-                <div v-if="key !== 'scan'" class="field-row">
-                  <label :for="`field-${key}`">{{ key }}</label>
-                  <template v-if="isEditableSimpleValue(value)">
-                    <input
-                      v-if="typeof value === 'string' || value === null || typeof value === 'number'"
+              <template v-for="key in displayedFieldKeys" :key="key">
+                <div class="field-row">
+                  <label :for="`field-${key}`">{{ getAppliedFieldLabel(key) }}</label>
+                  <template v-if="isEditableSimpleValue(selectedRawItem[key])">
+                    <textarea
+                      v-if="getAppliedFieldInputType(key, selectedRawItem[key]) === 'textarea'"
                       :id="`field-${key}`"
-                      :type="typeof value === 'number' ? 'number' : 'text'"
-                      :value="value === null ? '' : value"
+                      :placeholder="getAppliedFieldPlaceholder(key)"
+                      :value="selectedRawItem[key] === null ? '' : selectedRawItem[key]"
                       @input="onFieldInput(key, $event)"
                     />
                     <input
-                      v-else-if="typeof value === 'boolean'"
+                      v-else-if="getAppliedFieldInputType(key, selectedRawItem[key]) !== 'checkbox'"
+                      :id="`field-${key}`"
+                      :type="getAppliedFieldInputType(key, selectedRawItem[key])"
+                      :placeholder="getAppliedFieldPlaceholder(key)"
+                      :value="selectedRawItem[key] === null ? '' : selectedRawItem[key]"
+                      @input="onFieldInput(key, $event)"
+                    />
+                    <input
+                      v-else
                       :id="`field-${key}`"
                       type="checkbox"
-                      :checked="value"
+                      :checked="Boolean(selectedRawItem[key])"
                       @change="onBooleanChange(key, $event)"
                     />
                   </template>
-                  <pre v-else>{{ JSON.stringify(value) }}</pre>
+                  <pre v-else>{{ JSON.stringify(selectedRawItem[key]) }}</pre>
                 </div>
               </template>
             </div>

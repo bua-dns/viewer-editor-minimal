@@ -8,8 +8,13 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Volltextsuche über alle Felder
 - Kartenansicht mit Bildvorschau (`scan`-URL)
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
+- App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
+- Sprachumschalter (DE/EN) in der Topbar
 - Dirty-State mit Reset auf den importierten Stand
 - Export als neue `*-edited.json`
+- Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
+- User-Config anwenden auf die Felddarstellung in der Sidebar
+- User-Config als JSON herunterladen
 - Lightbox für größere Scan-Ansicht
 
 ## Tech Stack
@@ -72,7 +77,10 @@ Hinweise:
 - `src/App.vue` – UI, Interaktionen, Layout
 - `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
+- `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
 - `src/assets/styles.css` – Styling
+- `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
+- `config/wording.js` - Sprachvarianten je Wording-Handle
 
 ## Lizenz
 
