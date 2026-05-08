@@ -98,7 +98,9 @@ Hinweise:
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
 - `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
+- `src/stores/useDataTransferStore.js` - Upload/Download-State und Datenmodus-Handling (inkl. Session)
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
+- `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/assets/styles.css` – Styling
 - `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
 - `config/wording.js` - Sprachvarianten je Wording-Handle

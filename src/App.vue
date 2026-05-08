@@ -3,9 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
+import { useDataTransferStore } from './stores/useDataTransferStore'
+import DataTransferControls from './components/DataTransferControls.vue'
 import UserConfigPanel from './components/UserConfigPanel.vue'
 
-const fileInput = ref(null)
 const {
   rawItems,
   searchQuery,
@@ -32,23 +33,9 @@ const lightboxImageSrc = ref('')
 const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
-const appendEditedTimestamp = ref(true)
-const dataMode = ref('json')
-const modeErrorMessage = ref('')
-
-const DATA_MODE_SESSION_KEY = 'viewerEditor.dataMode.v1'
+const { modeErrorMessage, loadDataModeFromSession, processUploadFile, downloadDataPayload } = useDataTransferStore()
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
-
-const uploadButtonLabel = computed(() =>
-  dataMode.value === 'csv' ? t('uploadCsv', 'CSV hochladen') : t('uploadJson', 'JSON hochladen'),
-)
-
-const downloadButtonLabel = computed(() =>
-  dataMode.value === 'csv' ? t('downloadCsv', 'CSV herunterladen') : t('downloadJson', 'JSON herunterladen'),
-)
-
-const uploadAccept = computed(() => (dataMode.value === 'csv' ? '.csv,text/csv' : '.json,application/json'))
 
 const {
   initializeUserConfig,
@@ -93,21 +80,7 @@ const displayedFieldKeys = computed(() => {
   return getDisplayedFieldKeys(selectedRawItem.value)
 })
 
-function loadDataModeFromSession() {
-  const stored = sessionStorage.getItem(DATA_MODE_SESSION_KEY)
-  if (stored === 'json' || stored === 'csv') {
-    dataMode.value = stored
-  }
-}
-
-function setDataMode(nextMode) {
-  if (nextMode !== 'json' && nextMode !== 'csv') return
-  if (nextMode === dataMode.value) return
-
-  dataMode.value = nextMode
-  modeErrorMessage.value = ''
-  sessionStorage.setItem(DATA_MODE_SESSION_KEY, nextMode)
-
+function onDataModeChanged() {
   clearUserConfigSession()
   if (hasData.value) {
     initializeUserConfig(availableFieldKeys.value, hasData.value)
@@ -116,40 +89,12 @@ function setDataMode(nextMode) {
   }
 }
 
-function detectUploadType(fileName) {
-  const lower = fileName.toLowerCase()
-  if (lower.endsWith('.json')) return 'json'
-  if (lower.endsWith('.csv')) return 'csv'
-  return 'unknown'
-}
-
-async function onFileChange(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-
-  const detectedType = detectUploadType(file.name)
-  if (detectedType !== dataMode.value) {
-    modeErrorMessage.value = t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.')
-    event.target.value = ''
-    return
-  }
-
-  if (dataMode.value === 'csv') {
-    const text = await file.text()
-    modeErrorMessage.value = ''
-    importFromCsvText(text, file.name)
-    event.target.value = ''
-    return
-  }
-
-  const text = await file.text()
-  modeErrorMessage.value = ''
-  importFromJsonText(text, file.name)
-  event.target.value = ''
-}
-
-function triggerUpload() {
-  fileInput.value?.click()
+async function onDataFileSelected(file) {
+  await processUploadFile(file, {
+    importFromJsonText,
+    importFromCsvText,
+    t,
+  })
 }
 
 function onFieldInput(key, event) {
@@ -172,27 +117,7 @@ function onReset() {
 }
 
 function onDownload() {
-  const payload = createExportPayload()
-  const json = JSON.stringify(payload, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  const importedBaseName = importFileName.value ? importFileName.value.replace(/\.json$/i, '') : 'data'
-  const baseName = importedBaseName.replace(/-edited(?:-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})?$/i, '')
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
-  link.href = url
-  link.download = appendEditedTimestamp.value
-    ? `${baseName}-edited-${timestamp}.json`
-    : `${baseName}-edited.json`
-  const downloadFileName = link.download
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-
-  if (appendEditedTimestamp.value) {
-    markAsSaved(downloadFileName)
-  }
+  downloadDataPayload(createExportPayload(), importFileName.value, markAsSaved)
 }
 
 function onDownloadUserConfig() {
@@ -319,32 +244,14 @@ watch(
     <header class="topbar">
       <h1>{{ appTitle }}</h1>
       <div class="actions">
-        <label class="download-option">
-          <input v-model="appendEditedTimestamp" type="checkbox" />
-          <span>{{ t('downloadWithTimestamp', 'Dateiname mit Timestamp') }}</span>
-        </label>
-        <div class="data-mode-switch" :aria-label="t('dataModeAria', 'Datenmodus waehlen')">
-          <button
-            type="button"
-            class="mode-btn"
-            :class="{ active: dataMode === 'json' }"
-            @click="setDataMode('json')"
-          >
-            {{ t('dataModeJson', 'JSON') }}
-          </button>
-          <span class="mode-separator">|</span>
-          <button
-            type="button"
-            class="mode-btn"
-            :class="{ active: dataMode === 'csv' }"
-            @click="setDataMode('csv')"
-          >
-            {{ t('dataModeCsv', 'CSV') }}
-          </button>
-        </div>
-        <button type="button" @click="triggerUpload">{{ uploadButtonLabel }}</button>
-        <button type="button" :disabled="!hasData || !isDirty" @click="onDownload">{{ downloadButtonLabel }}</button>
-        <button type="button" :disabled="!isDirty" @click="onReset">{{ t('reset', 'Reset') }}</button>
+        <DataTransferControls
+          :has-data="hasData"
+          :is-dirty="isDirty"
+          @file-selected="onDataFileSelected"
+          @download="onDownload"
+          @reset="onReset"
+          @mode-changed="onDataModeChanged"
+        />
         <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
           <button
             type="button"
@@ -364,7 +271,6 @@ watch(
             {{ t('languageButtonEn', 'EN') }}
           </button>
         </div>
-        <input ref="fileInput" type="file" :accept="uploadAccept" @change="onFileChange" />
       </div>
     </header>
 
