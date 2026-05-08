@@ -33,9 +33,11 @@ Abhaengigkeiten stehen in `package.json`.
 - `index.html` - Einstiegspunkt mit Mount-Node `#app`
 - `src/main.js` - Bootstrapping (`createApp(App).mount('#app')`)
 - `src/App.vue` - Haupt-UI und Interaktionen
+- `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
+- `src/stores/useUserConfigStore.js` - User-Config-Store (State, Session, Add/Remove, Reorder, Apply)
 - `src/assets/styles.css` - Layout, Komponenten-Styling, Responsive Regeln
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
 - `config/wording.js` - uebersetzte Textvarianten je Handle
@@ -50,7 +52,13 @@ Abhaengigkeiten stehen in `package.json`.
 
 ## User-Config-GUI (minimal)
 
-In `App.vue` gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload verfuegbar ist.
+Die User-Config ist modularisiert:
+
+- `UserConfigPanel.vue` kapselt die GUI.
+- `useUserConfigStore.js` kapselt den zugehoerigen State und die Aktionen.
+- `App.vue` orchestriert nur noch (Apply/Download, Datenmodus-Wechsel, Datenfluss).
+
+Im UI gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload verfuegbar ist.
 
 Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 
@@ -170,7 +178,7 @@ Die Seite ist in vier Bereiche gegliedert:
 - Topbar: Upload, Download, Reset, Datenmodus-Umschalter JSON/CSV
 - Topbar: zusaetzlich DE/EN-Sprachumschalter
 - Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
-- Konfiguration: einklappbares Panel fuer User-Config
+- Konfiguration: eigenstaendige SFC (`UserConfigPanel`) fuer User-Config
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau
 - Sidebar: Felder des selektierten Items und groessere Scan-Vorschau
 - Statusbereich: Datei-/Fehlerstatus

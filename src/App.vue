@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useAppConfigStore } from './stores/useAppConfigStore'
+import { useUserConfigStore } from './stores/useUserConfigStore'
+import UserConfigPanel from './components/UserConfigPanel.vue'
 
 const fileInput = ref(null)
 const {
@@ -31,17 +33,9 @@ const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
 const appendEditedTimestamp = ref(true)
-const userConfigFields = ref({})
-const appliedUserConfigFields = ref({})
-const appliedUserConfigSnapshot = ref('')
-const draggedFieldKey = ref('')
-const isUserConfigOpen = ref(false)
-const newFieldName = ref('')
-const addFieldError = ref('')
 const dataMode = ref('json')
 const modeErrorMessage = ref('')
 
-const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 const DATA_MODE_SESSION_KEY = 'viewerEditor.dataMode.v1'
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
@@ -55,6 +49,18 @@ const downloadButtonLabel = computed(() =>
 )
 
 const uploadAccept = computed(() => (dataMode.value === 'csv' ? '.csv,text/csv' : '.json,application/json'))
+
+const {
+  initializeUserConfig,
+  clearUserConfigSession,
+  applyUserConfigToRawItems,
+  createUserConfigPayload,
+  getAppliedFieldLabel,
+  getAppliedFieldInputType,
+  getAppliedFieldPlaceholder,
+  getDisplayedFieldKeys,
+  hasUnappliedUserConfigChanges,
+} = useUserConfigStore()
 
 const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
@@ -83,158 +89,9 @@ const availableFieldKeys = computed(() => {
   return Array.from(keys)
 })
 
-const sortedConfigFieldEntries = computed(() =>
-  Object.entries(userConfigFields.value).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
-)
-
 const displayedFieldKeys = computed(() => {
-  if (!selectedRawItem.value) return []
-
-  const keys = Object.keys(selectedRawItem.value).filter((key) => key !== 'scan')
-  return keys.sort((a, b) => {
-    const aOrder = appliedUserConfigFields.value[a]?.order ?? Number.MAX_SAFE_INTEGER
-    const bOrder = appliedUserConfigFields.value[b]?.order ?? Number.MAX_SAFE_INTEGER
-    if (aOrder !== bOrder) return aOrder - bOrder
-    return a.localeCompare(b)
-  })
+  return getDisplayedFieldKeys(selectedRawItem.value)
 })
-
-const hasUserConfigChanges = computed(() =>
-  Object.values(userConfigFields.value).some(
-    (field) => field.type !== 'normal' || field.label || field.order !== 0 || field.placeholder,
-  ),
-)
-
-const hasUnappliedUserConfigChanges = computed(
-  () => serializeUserConfigFields(userConfigFields.value) !== appliedUserConfigSnapshot.value,
-)
-
-function serializeUserConfigFields(fields) {
-  const normalized = {}
-  Object.keys(fields)
-    .sort()
-    .forEach((key) => {
-      normalized[key] = {
-        type: fields[key]?.type || 'normal',
-        label: fields[key]?.label || '',
-        order: Number.isFinite(fields[key]?.order) ? fields[key].order : 0,
-        placeholder: fields[key]?.placeholder || '',
-      }
-    })
-  return JSON.stringify(normalized)
-}
-
-function buildDefaultUserConfigFields() {
-  const fields = {}
-  availableFieldKeys.value.forEach((key, index) => {
-    fields[key] = {
-      type: 'normal',
-      label: '',
-      order: index,
-      placeholder: '',
-    }
-  })
-  return fields
-}
-
-function loadUserConfigFromSession() {
-  try {
-    const raw = sessionStorage.getItem(USER_CONFIG_SESSION_KEY)
-    if (!raw) return { fields: {}, appliedFields: {} }
-
-    const parsed = JSON.parse(raw)
-    return {
-      fields: parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
-      appliedFields:
-        parsed?.appliedFields && typeof parsed.appliedFields === 'object' ? parsed.appliedFields : {},
-    }
-  } catch {
-    return { fields: {}, appliedFields: {} }
-  }
-}
-
-function persistUserConfigToSession() {
-  const payload = {
-    fields: userConfigFields.value,
-    appliedFields: appliedUserConfigFields.value,
-  }
-  sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
-}
-
-function clearUserConfigSession() {
-  sessionStorage.removeItem(USER_CONFIG_SESSION_KEY)
-}
-
-function initializeUserConfig() {
-  const defaults = buildDefaultUserConfigFields()
-  const persisted = loadUserConfigFromSession()
-
-  const nextFields = {}
-  const nextAppliedFields = {}
-  const allKeys = new Set([
-    ...Object.keys(defaults),
-    ...Object.keys(persisted.fields || {}),
-    ...Object.keys(persisted.appliedFields || {}),
-  ])
-
-  Array.from(allKeys).forEach((key) => {
-    const defaultField = defaults[key] || {
-      type: 'normal',
-      label: '',
-      order: Object.keys(nextFields).length,
-      placeholder: '',
-    }
-
-    nextFields[key] = {
-      ...defaultField,
-      ...(persisted.fields[key] || {}),
-    }
-    nextAppliedFields[key] = {
-      ...defaultField,
-      ...(persisted.appliedFields[key] || persisted.fields[key] || {}),
-    }
-  })
-
-  userConfigFields.value = nextFields
-  appliedUserConfigFields.value = nextAppliedFields
-  appliedUserConfigSnapshot.value = serializeUserConfigFields(nextAppliedFields)
-}
-
-function normalizeConfigOrder() {
-  const sortedKeys = Object.entries(userConfigFields.value)
-    .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
-    .map(([key]) => key)
-
-  sortedKeys.forEach((key, index) => {
-    userConfigFields.value[key].order = index
-  })
-}
-
-function onDragStart(fieldKey) {
-  draggedFieldKey.value = fieldKey
-}
-
-function onDropAt(targetFieldKey) {
-  if (!draggedFieldKey.value || draggedFieldKey.value === targetFieldKey) return
-
-  const orderedKeys = sortedConfigFieldEntries.value.map(([key]) => key)
-  const fromIndex = orderedKeys.indexOf(draggedFieldKey.value)
-  const toIndex = orderedKeys.indexOf(targetFieldKey)
-  if (fromIndex === -1 || toIndex === -1) return
-
-  const [movedKey] = orderedKeys.splice(fromIndex, 1)
-  orderedKeys.splice(toIndex, 0, movedKey)
-
-  orderedKeys.forEach((key, index) => {
-    userConfigFields.value[key].order = index
-  })
-
-  draggedFieldKey.value = ''
-}
-
-function onDragEnd() {
-  draggedFieldKey.value = ''
-}
 
 function loadDataModeFromSession() {
   const stored = sessionStorage.getItem(DATA_MODE_SESSION_KEY)
@@ -253,11 +110,9 @@ function setDataMode(nextMode) {
 
   clearUserConfigSession()
   if (hasData.value) {
-    initializeUserConfig()
+    initializeUserConfig(availableFieldKeys.value, hasData.value)
   } else {
-    userConfigFields.value = {}
-    appliedUserConfigFields.value = {}
-    appliedUserConfigSnapshot.value = ''
+    initializeUserConfig([], false)
   }
 }
 
@@ -341,10 +196,7 @@ function onDownload() {
 }
 
 function onDownloadUserConfig() {
-  const payload = {
-    version: 1,
-    fields: userConfigFields.value,
-  }
+  const payload = createUserConfigPayload()
   const json = JSON.stringify(payload, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -359,103 +211,8 @@ function onDownloadUserConfig() {
 }
 
 function onApplyUserConfig() {
-  normalizeConfigOrder()
-
-  const removedFieldKeys = Object.keys(appliedUserConfigFields.value).filter(
-    (key) => !Object.prototype.hasOwnProperty.call(userConfigFields.value, key),
-  )
-
-  if (removedFieldKeys.length) {
-    rawItems.value.forEach((item) => {
-      removedFieldKeys.forEach((key) => {
-        delete item[key]
-      })
-    })
-  }
-
-  Object.entries(userConfigFields.value).forEach(([key, config]) => {
-    rawItems.value.forEach((item) => {
-      if (!Object.prototype.hasOwnProperty.call(item, key)) {
-        item[key] = config.type === 'checkbox' ? false : ''
-      }
-    })
-  })
-
-  rawItems.value.forEach((item) => {
-    Object.keys(userConfigFields.value).forEach((key) => {
-      const configuredType = userConfigFields.value[key]?.type || 'normal'
-      const currentValue = item[key]
-
-      if (configuredType !== 'checkbox' && typeof currentValue === 'boolean') {
-        item[key] = String(currentValue)
-      }
-
-      if (configuredType === 'checkbox' && typeof currentValue === 'string') {
-        const normalized = currentValue.trim().toLowerCase()
-        if (normalized === 'true') item[key] = true
-        if (normalized === 'false') item[key] = false
-      }
-    })
-  })
-
-  appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
-  appliedUserConfigSnapshot.value = serializeUserConfigFields(appliedUserConfigFields.value)
-
+  applyUserConfigToRawItems(rawItems.value)
   isDirty.value = true
-  persistUserConfigToSession()
-}
-
-function sanitizeFieldName(name) {
-  return name.trim().replace(/\s+/g, '_')
-}
-
-function onAddUserConfigField() {
-  const nextKey = sanitizeFieldName(newFieldName.value)
-  addFieldError.value = ''
-
-  if (!nextKey) {
-    addFieldError.value = t('addFieldEmptyError', 'Bitte einen gueltigen Feldnamen eingeben.')
-    return
-  }
-
-  if (Object.prototype.hasOwnProperty.call(userConfigFields.value, nextKey)) {
-    addFieldError.value = t('addFieldDuplicateError', 'Feld existiert bereits.')
-    return
-  }
-
-  userConfigFields.value[nextKey] = {
-    type: 'normal',
-    label: '',
-    order: Object.keys(userConfigFields.value).length,
-    placeholder: '',
-  }
-
-  newFieldName.value = ''
-}
-
-function onRemoveUserConfigField(fieldKey) {
-  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, fieldKey)) return
-  delete userConfigFields.value[fieldKey]
-}
-
-function getAppliedFieldLabel(key) {
-  return appliedUserConfigFields.value[key]?.label?.trim() || key
-}
-
-function getAppliedFieldInputType(key, value) {
-  const configuredType = appliedUserConfigFields.value[key]?.type || 'normal'
-  if (configuredType === 'integer') return 'number'
-  if (configuredType === 'checkbox') return 'checkbox'
-  if (configuredType === 'text') return 'textarea'
-  if (configuredType === 'normal') return 'text'
-
-  if (typeof value === 'number') return 'number'
-  if (typeof value === 'boolean') return 'checkbox'
-  return 'text'
-}
-
-function getAppliedFieldPlaceholder(key) {
-  return appliedUserConfigFields.value[key]?.placeholder || ''
 }
 
 function openLightbox(url) {
@@ -538,9 +295,7 @@ watch(
     failedListImages.value = new Set()
     sidebarImageLoadFailed.value = false
     lightboxImageLoadFailed.value = false
-    initializeUserConfig()
-    addFieldError.value = ''
-    newFieldName.value = ''
+    initializeUserConfig(availableFieldKeys.value, hasData.value)
   },
 )
 
@@ -554,20 +309,8 @@ watch(
 watch(
   () => availableFieldKeys.value.join('|'),
   () => {
-    if (!hasData.value) {
-      userConfigFields.value = {}
-      return
-    }
-    initializeUserConfig()
+    initializeUserConfig(availableFieldKeys.value, hasData.value)
   },
-)
-
-watch(
-  () => userConfigFields.value,
-  () => {
-    persistUserConfigToSession()
-  },
-  { deep: true },
 )
 </script>
 
@@ -637,73 +380,7 @@ watch(
         <p v-if="isDirty" class="dirty">{{ t('unsavedChanges', 'Ungespeicherte Aenderungen') }}</p>
       </section>
 
-      <section class="user-config-panel" v-if="hasData">
-        <div class="user-config-head" @click="isUserConfigOpen = !isUserConfigOpen">
-          <div class="user-config-title">{{ t('configurationTitle', 'Konfiguration') }}</div>
-          <div v-if="isUserConfigOpen" class="user-config-actions">
-            <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="onApplyUserConfig">
-              {{ t('applyConfiguration', 'Konfiguration anwenden') }}
-            </button>
-            <button
-              type="button"
-              :disabled="!hasUnappliedUserConfigChanges"
-              @click.stop="onDownloadUserConfig"
-            >
-              {{ t('downloadConfiguration', 'Konfiguration herunterladen') }}
-            </button>
-          </div>
-          <span class="user-config-toggle-icon" aria-hidden="true">
-            <span class="toggle-icon">{{ isUserConfigOpen ? '▴' : '▾' }}</span>
-          </span>
-        </div>
-        <div v-if="isUserConfigOpen" class="user-config-grid">
-          <div class="user-config-add-row">
-            <strong>{{ t('addConfigurationField', 'Feld hinzufuegen') }}</strong>
-            <input
-              v-model="newFieldName"
-              type="text"
-              :placeholder="t('addFieldNamePlaceholder', 'Feldname (z. B. bemerkung)')"
-              @click.stop
-              @keydown.enter.prevent="onAddUserConfigField"
-            />
-            <button type="button" @click.stop="onAddUserConfigField">{{ t('addFieldButton', 'Hinzufuegen') }}</button>
-          </div>
-          <p v-if="addFieldError" class="error user-config-error">{{ addFieldError }}</p>
-          <div class="user-config-row user-config-row-head">
-            <strong></strong>
-            <strong>{{ t('configFieldHeader', 'Feld') }}</strong>
-            <strong>{{ t('configTypeHeader', 'Typ') }}</strong>
-            <strong>{{ t('configLabelHeader', 'Beschriftung') }}</strong>
-            <strong>{{ t('configPlaceholderHeader', 'Eingabehinweis') }}</strong>
-            <strong></strong>
-          </div>
-          <div
-            class="user-config-row"
-            :class="{ 'is-dragging': draggedFieldKey === entry[0] }"
-            v-for="entry in sortedConfigFieldEntries"
-            :key="entry[0]"
-            draggable="true"
-            @dragstart="onDragStart(entry[0])"
-            @dragover.prevent
-            @drop="onDropAt(entry[0])"
-            @dragend="onDragEnd"
-          >
-            <div class="drag-handle" aria-hidden="true">⋮⋮</div>
-            <div class="field-key">{{ entry[0] }}</div>
-            <select v-model="entry[1].type">
-              <option value="normal">{{ t('configTypeNormal', 'normal (string)') }}</option>
-              <option value="text">{{ t('configTypeText', 'Textfeld (text)') }}</option>
-              <option value="integer">{{ t('configTypeInteger', 'Zahl (integer)') }}</option>
-              <option value="checkbox">{{ t('configTypeCheckbox', 'Ja/Nein (checkbox)') }}</option>
-            </select>
-            <input v-model="entry[1].label" type="text" :placeholder="t('configLabelInputPlaceholder', 'Label')" />
-            <input v-model="entry[1].placeholder" type="text" :placeholder="t('configHintInputPlaceholder', 'Hinweis')" />
-            <button type="button" class="remove-field-btn" @click.stop="onRemoveUserConfigField(entry[0])">
-              {{ t('removeFieldButton', 'Feld entfernen') }}
-            </button>
-          </div>
-        </div>
-      </section>
+      <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" @download="onDownloadUserConfig" />
 
       <section class="list-panel" @click="clearSelection">
         <h2>{{ itemLabel }} <span v-if="importFileName">({{ resultCountLabel }})</span></h2>

@@ -97,6 +97,8 @@ Hinweise:
 - `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
+- `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
+- `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/assets/styles.css` – Styling
 - `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
 - `config/wording.js` - Sprachvarianten je Wording-Handle
