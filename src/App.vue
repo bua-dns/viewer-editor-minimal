@@ -211,19 +211,17 @@ watch(
     <main class="content-grid" :class="{ 'content-grid-selected': !!selectedRawItem }">
       <section class="toolbar-panel">
         <div>
-          <p class="meta" v-if="importFileName">Datei: {{ importFileName }}</p>
-          <p class="meta" v-else>Noch keine Datei geladen</p>
+          <p class="meta" v-if="!importFileName">Noch keine Datei geladen</p>
         </div>
-        <label class="search-wrap">
+        <label class="search-wrap" v-if="importFileName">
           <span>Suche</span>
-          <input v-model="searchQuery" type="search" placeholder="Volltext ueber alle Felder" />
+          <input v-model="searchQuery" type="search" placeholder="Volltext über alle Felder" />
         </label>
-        <p class="meta">Treffer: {{ resultCountLabel }}</p>
         <p v-if="isDirty" class="dirty">Ungespeicherte Aenderungen</p>
       </section>
 
       <section class="list-panel" @click="clearSelection">
-        <h2>Items</h2>
+        <h2>Items <span v-if="importFileName">({{ resultCountLabel }})</span></h2>
         <p v-if="!hasData" class="meta">Nach dem Upload erscheinen hier die Eintraege.</p>
         <p v-else-if="filteredViewItems.length === 0" class="meta">Keine Treffer zur Suchanfrage.</p>
         <ul v-else class="card-grid">
@@ -253,54 +251,60 @@ watch(
 
       <aside v-if="selectedRawItem" class="sidebar-panel">
         <div class="sidebar-head">
+          <div class="sidebar-nav" v-if="filteredViewItems.length > 1">
+            <button type="button" :disabled="!canGoPrevious" @click="selectPreviousItem" aria-label="Vorheriges Item">
+              ←
+            </button>
+            <span class="scan-nav-index">Scan {{ selectedFilteredIndex + 1 }} / {{ filteredViewItems.length }}</span>
+            <button type="button" :disabled="!canGoNext" @click="selectNextItem" aria-label="Naechstes Item">
+              →
+            </button>
+          </div>
           <button type="button" class="sidebar-close" @click="clearSelection" aria-label="Sidebar schliessen">
             ×
           </button>
         </div>
-        <div class="sidebar-detail-grid">
-          <div class="scan-column">
-            <div class="scan-nav" v-if="filteredViewItems.length > 1">
-              <button type="button" :disabled="!canGoPrevious" @click="selectPreviousItem">←</button>
-              <span class="scan-nav-index">{{ selectedFilteredIndex + 1 }} / {{ filteredViewItems.length }}</span>
-              <button type="button" :disabled="!canGoNext" @click="selectNextItem">→</button>
-            </div>
-            <div class="scan-preview-wrap" v-if="looksLikeImageUrl(selectedRawItem.scan)">
-              <img
-                v-if="!sidebarImageLoadFailed"
-                :src="selectedRawItem.scan"
-                alt="Scan Vorschau"
-                class="scan-preview"
-                @error="sidebarImageLoadFailed = true"
-                @click="openLightbox(selectedRawItem.scan)"
-              />
+        <div class="sidebar-content">
+          <div class="sidebar-detail-grid">
+            <div class="scan-column">
+              <div class="scan-preview-wrap" v-if="looksLikeImageUrl(selectedRawItem.scan)">
+                <img
+                  v-if="!sidebarImageLoadFailed"
+                  :src="selectedRawItem.scan"
+                  alt="Scan Vorschau"
+                  class="scan-preview"
+                  @error="sidebarImageLoadFailed = true"
+                  @click="openLightbox(selectedRawItem.scan)"
+                />
+                <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
+              </div>
               <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
             </div>
-            <div v-else class="scan-fallback">Scan nicht verfuegbar</div>
-          </div>
 
-          <div class="field-grid">
-            <template v-for="(value, key) in selectedRawItem" :key="key">
-              <div v-if="key !== 'scan'" class="field-row">
-                <label :for="`field-${key}`">{{ key }}</label>
-                <template v-if="isEditableSimpleValue(value)">
-                  <input
-                    v-if="typeof value === 'string' || value === null || typeof value === 'number'"
-                    :id="`field-${key}`"
-                    :type="typeof value === 'number' ? 'number' : 'text'"
-                    :value="value === null ? '' : value"
-                    @input="onFieldInput(key, $event)"
-                  />
-                  <input
-                    v-else-if="typeof value === 'boolean'"
-                    :id="`field-${key}`"
-                    type="checkbox"
-                    :checked="value"
-                    @change="onBooleanChange(key, $event)"
-                  />
-                </template>
-                <pre v-else>{{ JSON.stringify(value) }}</pre>
-              </div>
-            </template>
+            <div class="field-grid">
+              <template v-for="(value, key) in selectedRawItem" :key="key">
+                <div v-if="key !== 'scan'" class="field-row">
+                  <label :for="`field-${key}`">{{ key }}</label>
+                  <template v-if="isEditableSimpleValue(value)">
+                    <input
+                      v-if="typeof value === 'string' || value === null || typeof value === 'number'"
+                      :id="`field-${key}`"
+                      :type="typeof value === 'number' ? 'number' : 'text'"
+                      :value="value === null ? '' : value"
+                      @input="onFieldInput(key, $event)"
+                    />
+                    <input
+                      v-else-if="typeof value === 'boolean'"
+                      :id="`field-${key}`"
+                      type="checkbox"
+                      :checked="value"
+                      @change="onBooleanChange(key, $event)"
+                    />
+                  </template>
+                  <pre v-else>{{ JSON.stringify(value) }}</pre>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
       </aside>
@@ -308,7 +312,7 @@ watch(
       <section class="status-panel">
         <p v-if="importFileName">Datei: {{ importFileName }}</p>
         <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-        <p v-else-if="!hasData">Bitte eine gueltige JSON-Datei hochladen.</p>
+        <p v-else-if="!hasData">Bitte eine JSON-Datei hochladen.</p>
       </section>
     </main>
 

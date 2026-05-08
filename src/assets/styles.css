@@ -122,8 +122,23 @@ button {
 
 .sidebar-head {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sidebar-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.sidebar-nav button {
+  min-width: 42px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .sidebar-close {
@@ -131,6 +146,13 @@ button {
   padding: 0.35rem 0.55rem;
   font-size: 1.2rem;
   line-height: 1;
+}
+
+.sidebar-content {
+  border: 1px solid #d8e1ea;
+  border-radius: 12px;
+  background: #f8fbfe;
+  padding: 0.8rem;
 }
 
 .sidebar-detail-grid {
@@ -142,21 +164,6 @@ button {
 
 .scan-column {
   min-width: 0;
-}
-
-.scan-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.scan-nav button {
-  min-width: 42px;
-  padding: 0.4rem 0.6rem;
-  font-size: 1rem;
-  line-height: 1;
 }
 
 .scan-nav-index {
@@ -367,6 +374,15 @@ pre {
 
   .sidebar-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sidebar-head {
+    gap: 0.5rem;
+  }
+
+  .sidebar-nav {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .content-grid-selected .card-grid {
