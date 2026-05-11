@@ -18,6 +18,8 @@ Kernfunktionen:
 - Minimale User-Config-GUI pro Datenfeld mit Anwenden
 - Session-persistente User-Config (via `sessionStorage`)
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
+- Optionaler Timestamp im Export-Dateinamen
+- Keyboard-Shortcuts mit `Escape` (Lightbox schliessen / Sidebar-Auswahl aufheben)
 
 ## Tech Stack
 
@@ -39,6 +41,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Typ/Placeholder/Sortierung
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
+- `src/composables/userConfigValidation.test.js` - Unit-Tests fuer JSON-Config-Validierung
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
 - `src/stores/useUserConfigStore.js` - User-Config-Store (State, Session, Add/Remove, Reorder, Apply)
 - `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Modus, Session, Dateinamenlogik)
@@ -128,6 +131,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Upload-Button-Label und `accept`-Filter passen sich an den Modus an.
 - Dateityp-Mismatch wird mit Fehlermeldung blockiert.
 - Die Umschalter fuer Datenmodus und Sprache sind als visuell aktive/inaktive Segmented Controls umgesetzt.
+- Download-Dateinamen koennen optional einen Timestamp enthalten (UI-Checkbox in `DataTransferControls.vue`).
 
 ### JSON-Import
 
@@ -142,7 +146,7 @@ Importweg:
    - falls vorhanden: `config` ist Objekt
 4. Bei Erfolg initialisiert `initializeFromJsonArray` alle States neu und uebernimmt optionale `config` in `importedConfig`.
 5. `App.vue` validiert und appliziert eingebettete `config` strikt (bei Fehler harter Abbruch mit Fehlermeldung).
-5. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
+6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
 
 Kopierstrategie:
 
@@ -198,11 +202,11 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 
 ## UI-Architektur (`App.vue`)
 
-Die Seite ist in vier Bereiche gegliedert:
+Die Seite ist in mehrere Bereiche gegliedert:
 
-- Topbar: Upload, Download, Reset
 - Topbar: Upload, Download, Reset, Datenmodus-Umschalter JSON/CSV
 - Topbar: zusaetzlich DE/EN-Sprachumschalter
+- Topbar: zusaetzlich Option fuer Dateinamen mit Timestamp beim Download
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
 - Konfiguration: eigenstaendige SFC (`UserConfigPanel`) fuer User-Config
@@ -215,7 +219,7 @@ Zusatzfunktionen:
 - Lightbox fuer `scan`-Bild mit Fullscreen-Umschaltung
 - Fallback-UI bei Bildladefehlern (Liste, Sidebar, Lightbox)
 - `beforeunload`-Warnung bei `isDirty`
-- `Escape` schliesst die Lightbox
+- `Escape` schliesst die Lightbox; bei offener Sidebar hebt `Escape` die aktuelle Auswahl auf
 
 ## Export und Reset
 
@@ -224,6 +228,7 @@ Zusatzfunktionen:
 - CSV-Export schreibt nur Nutzdaten (ohne Config).
 - Download wird im Browser ueber `Blob` + temporaeren Link ausgeloest.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
+- Falls aktiviert: Dateiname mit Timestamp im Format `<importName>-edited-YYYY-MM-DD_hh-mm-ss.<json|csv>`.
 - Reset nutzt `importSnapshot` und stellt den Zustand des letzten gueltigen Imports wieder her.
 
 ## Styling und Responsiveness
@@ -252,6 +257,12 @@ Tests in `src/composables/useViewerData.test.js` pruefen:
   - Selektieren
   - Feld aktualisieren
   - Reset
+
+Tests in `src/composables/userConfigValidation.test.js` pruefen:
+
+- gueltige JSON-Config-Payloads
+- fehlendes/ungueltiges `fields`-Objekt
+- nicht unterstuetzte Feldtypen
 
 Testlauf:
 

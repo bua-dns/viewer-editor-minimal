@@ -20,7 +20,9 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Bei aktivem CSV-Modus wechselt `Konfiguration anwenden` automatisch auf JSON-Modus
 - User-Config bleibt in `sessionStorage` ueber Reloads erhalten
 - Datenmodus bleibt in `sessionStorage` ueber Reloads erhalten
+- Optionaler Timestamp im Export-Dateinamen (aktivierbar/deaktivierbar)
 - Lightbox für größere Scan-Ansicht
+- Keyboard-Shortcuts: `Escape` schliesst Lightbox bzw. Sidebar-Selektion
 
 Hinweis zur Bedienung:
 - Datenmodus- und Sprach-Umschalter sind als aktive/inaktive Segmented Controls dargestellt.
@@ -131,6 +133,7 @@ Hinweise:
 - `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Sidebar-Feldrendering
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
+- `src/composables/userConfigValidation.test.js` – Unit-Tests für die JSON-Config-Validierung
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
 - `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
 - `src/stores/useDataTransferStore.js` - Datenmodus-UI-State und Dateinamenlogik (inkl. Session)
