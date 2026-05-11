@@ -41,6 +41,7 @@ const {
   dataMode,
   modeErrorMessage,
   loadDataModeFromSession,
+  setDataMode,
   setModeErrorMessage,
   createEditedFileName,
 } = useDataTransferStore()
@@ -178,6 +179,9 @@ function onDownload() {
 
 function onApplyUserConfig() {
   applyUserConfigToRawItems(rawItems.value)
+  if (dataMode.value === 'csv') {
+    setDataMode('json')
+  }
   isDirty.value = true
 }
 
@@ -302,7 +306,6 @@ watch(
           >
             {{ t('languageButtonDe', 'DE') }}
           </button>
-          <span class="lang-separator">|</span>
           <button
             type="button"
             class="lang-btn"

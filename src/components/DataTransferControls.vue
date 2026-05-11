@@ -48,15 +48,18 @@ function onModeChange(nextMode) {
     <button type="button" class="mode-btn" :class="{ active: dataMode === 'json' }" @click="onModeChange('json')">
       {{ t('dataModeJson', 'JSON') }}
     </button>
-    <span class="mode-separator">|</span>
     <button type="button" class="mode-btn" :class="{ active: dataMode === 'csv' }" @click="onModeChange('csv')">
       {{ t('dataModeCsv', 'CSV') }}
     </button>
   </div>
 
-  <button type="button" @click="triggerUpload">{{ uploadButtonLabel }}</button>
-  <button type="button" :disabled="!props.hasData || !props.isDirty" @click="emit('download')">{{ downloadButtonLabel }}</button>
-  <button type="button" :disabled="!props.isDirty" @click="emit('reset')">{{ t('reset', 'Reset') }}</button>
+  <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerUpload">{{ uploadButtonLabel }}</button>
+  <button type="button" class="transfer-btn transfer-btn-mode" :disabled="!props.hasData || !props.isDirty" @click="emit('download')">
+    {{ downloadButtonLabel }}
+  </button>
+  <button type="button" class="transfer-btn transfer-btn-reset" :disabled="!props.isDirty" @click="emit('reset')">
+    {{ t('reset', 'Reset') }}
+  </button>
 
   <input ref="fileInput" type="file" :accept="uploadAccept" @change="onFileChange" />
 </template>

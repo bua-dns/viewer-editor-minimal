@@ -17,9 +17,13 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
 - Felder koennen in der User-Config hinzugefuegt und entfernt werden
 - User-Config anwenden auf die Felddarstellung in der Sidebar
+- Bei aktivem CSV-Modus wechselt `Konfiguration anwenden` automatisch auf JSON-Modus
 - User-Config bleibt in `sessionStorage` ueber Reloads erhalten
 - Datenmodus bleibt in `sessionStorage` ueber Reloads erhalten
 - Lightbox für größere Scan-Ansicht
+
+Hinweis zur Bedienung:
+- Datenmodus- und Sprach-Umschalter sind als aktive/inaktive Segmented Controls dargestellt.
 
 ## Tech Stack
 

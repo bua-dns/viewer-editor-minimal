@@ -80,6 +80,7 @@ Zusaetzlich:
 Verhalten:
 
 - `Konfiguration anwenden` uebernimmt die aktuelle Konfiguration in die Darstellung der Sidebar-Felder.
+- Falls beim Anwenden der Konfiguration der Datenmodus auf `CSV` steht, schaltet die App automatisch auf `JSON` um.
 - Bei `type = text` wird ein `textarea` gerendert, sonst entsprechend `input`/`checkbox`.
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
 - Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''` bzw. `false` bei `checkbox`).
@@ -126,6 +127,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Der gewaehlte Modus wird unter `viewerEditor.dataMode.v1` in `sessionStorage` gespeichert.
 - Upload-Button-Label und `accept`-Filter passen sich an den Modus an.
 - Dateityp-Mismatch wird mit Fehlermeldung blockiert.
+- Die Umschalter fuer Datenmodus und Sprache sind als visuell aktive/inaktive Segmented Controls umgesetzt.
 
 ### JSON-Import
 
@@ -201,6 +203,7 @@ Die Seite ist in vier Bereiche gegliedert:
 - Topbar: Upload, Download, Reset
 - Topbar: Upload, Download, Reset, Datenmodus-Umschalter JSON/CSV
 - Topbar: zusaetzlich DE/EN-Sprachumschalter
+- Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
 - Konfiguration: eigenstaendige SFC (`UserConfigPanel`) fuer User-Config
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau

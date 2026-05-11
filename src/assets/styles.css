@@ -59,44 +59,64 @@ body {
   align-items: center;
   gap: 0.25rem;
   margin-left: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, #cbd5e1);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 8%, #f8fafc);
 }
 
 .data-mode-switch {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, #cbd5e1);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 8%, #f8fafc);
 }
 
 .mode-btn {
-  background: transparent;
-  color: #475569;
-  padding: 0.1rem 0.2rem;
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-primary) 12%, #e2e8f0);
+  color: color-mix(in srgb, var(--color-primary) 78%, #0f172a);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
   font-weight: 600;
 }
 
 .mode-btn.active {
-  color: #0f172a;
-}
-
-.mode-separator {
-  color: #94a3b8;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px #ffffff;
 }
 
 .lang-btn {
-  background: transparent;
-  color: #475569;
-  padding: 0.1rem 0.2rem;
-  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-primary) 12%, #e2e8f0);
+  color: color-mix(in srgb, var(--color-primary) 78%, #0f172a);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
   font-weight: 600;
 }
 
 .lang-btn.active {
-  color: #0f172a;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px #ffffff;
 }
 
-.lang-separator {
-  color: #94a3b8;
+.transfer-btn {
+  white-space: nowrap;
+}
+
+.transfer-btn-mode {
+  width: 11.5rem;
+}
+
+.transfer-btn-reset {
+  min-width: 4.8rem;
 }
 
 .download-option input[type='checkbox'] {
