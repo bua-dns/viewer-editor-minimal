@@ -40,6 +40,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Typ/Placeholder/Sortierung
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
+- `src/composables/useDataImportExport.js` - Import/Export-Flow inkl. Dateimodus-Validierung und Download-Ausleitung
+- `src/composables/useSelectionNavigation.js` - Auswahlindex-Berechnung und Vor/Zurueck-Navigation
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
 - `src/composables/userConfigValidation.test.js` - Unit-Tests fuer JSON-Config-Validierung
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
@@ -121,8 +123,8 @@ Die Data-Transfer-Funktion ist modularisiert:
 
 - `DataTransferControls.vue` kapselt die Header-Controls fuer Upload/Download/Reset/Modus.
 - `useDataTransferStore.js` kapselt Datenmodus, Session-Persistenz und Dateinamenslogik.
-- Upload/Download-Verarbeitung liegt in `App.vue`, waehrend Parsing/Serialisierung in `useViewerData` und User-Config-Store aufgeteilt ist.
-- `App.vue` orchestriert die Integrationspunkte (Import-Funktionen aus `useViewerData`, User-Config-Reset bei Moduswechsel).
+- Upload/Download-Verarbeitung liegt in `useDataImportExport.js`, waehrend Parsing/Serialisierung in `useViewerData` und User-Config-Store aufgeteilt ist.
+- `App.vue` orchestriert die Integrationspunkte (Import-Funktionen aus `useViewerData`, User-Config-Reset bei Moduswechsel) und bindet die Composable-Handler in die UI ein.
 
 ### Datenmodus im Header
 
@@ -224,12 +226,18 @@ Zusatzfunktionen:
 - `beforeunload`-Warnung bei `isDirty`
 - `Escape` schliesst die Lightbox; bei offener Sidebar hebt `Escape` die aktuelle Auswahl auf
 
+Interne Script-Aufteilung:
+
+- `useSelectionNavigation.js` kapselt `selectedFilteredIndex`, `canGoPrevious`, `canGoNext` sowie die Aktionen fuer vorheriges/naechstes Item und Selektion aufheben.
+- `useDataImportExport.js` kapselt Dateityp-Mismatch-Checks, Datei-Importpfad (`csv/json`), optionales Anwenden eingebetteter JSON-Config sowie Download/Reset-Handler.
+- `App.vue` bleibt damit der Composition-Root und konzentriert sich auf Verdrahtung von Komponenten, Stores, Watchern und Lifecycle-Events.
+
 ## Export und Reset
 
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
 - JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config> }`.
 - CSV-Export schreibt nur Nutzdaten (ohne Config).
-- Download wird in `App.vue` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
+- Download wird in `useDataImportExport.js` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
 - Falls aktiviert: Dateiname mit Timestamp im Format `<importName>-edited-YYYY-MM-DD_hh-mm-ss.<json|csv>`.
 - Reset nutzt `importSnapshot` und stellt den Zustand des letzten gueltigen Imports wieder her.

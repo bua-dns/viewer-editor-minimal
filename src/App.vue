@@ -1,6 +1,8 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
+import { useDataImportExport } from './composables/useDataImportExport'
+import { useSelectionNavigation } from './composables/useSelectionNavigation'
 import { useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
@@ -65,18 +67,6 @@ const resultCountLabel = computed(() => {
   return `${filteredViewItems.value.length} / ${rawItems.value.length}`
 })
 
-const selectedFilteredIndex = computed(() => {
-  if (!selectedViewItem.value) return -1
-  return filteredViewItems.value.findIndex((item) => item._uid === selectedViewItem.value._uid)
-})
-
-const canGoPrevious = computed(() => selectedFilteredIndex.value > 0)
-const canGoNext = computed(
-  () =>
-    selectedFilteredIndex.value !== -1 &&
-    selectedFilteredIndex.value < filteredViewItems.value.length - 1,
-)
-
 const availableFieldKeys = computed(() => {
   const keys = new Set()
   rawItems.value.forEach((item) => {
@@ -100,106 +90,12 @@ function onDataModeChanged() {
   initializeUserConfigForCurrentData()
 }
 
-function detectDataFileType(fileName) {
-  const lowerFileName = fileName.toLowerCase()
-  if (lowerFileName.endsWith('.json')) return 'json'
-  if (lowerFileName.endsWith('.csv')) return 'csv'
-  return 'unknown'
-}
-
-function isSelectedFileTypeMatchingMode(fileName) {
-  return detectDataFileType(fileName) === dataMode.value
-}
-
-function parseDataFileContent(text, fileName) {
-  if (dataMode.value === 'csv') {
-    return importFromCsvText(text, fileName)
-  }
-  return importFromJsonText(text, fileName)
-}
-
-async function applyImportedConfigIfPresent() {
-  if (dataMode.value !== 'json' || !importedConfig.value) return true
-
-  const applyResult = applyImportedConfigPayload(importedConfig.value)
-  if (!applyResult.ok) {
-    errorMessage.value = applyResult.error
-    return false
-  }
-
-  applyUserConfigToRawItems(rawItems.value)
-  await nextTick()
-  return true
-}
-
-async function onDataFileSelected(file) {
-  if (!isSelectedFileTypeMatchingMode(file.name)) {
-    setModeErrorMessage(t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.'))
-    return
-  }
-
-  const text = await file.text()
-  setModeErrorMessage('')
-  const success = parseDataFileContent(text, file.name)
-
-  if (!success) return
-
-  initializeUserConfigForCurrentData()
-
-  await applyImportedConfigIfPresent()
-}
-
 function onFieldInput(key, value) {
   updateField(key, value)
 }
 
 function onBooleanChange(key, checked) {
   updateField(key, checked)
-}
-
-function clearSelection() {
-  selectItem(null)
-}
-
-function onReset() {
-  if (!isDirty.value) return
-  const confirmed = globalThis.confirm(t('resetConfirm', 'Aenderungen verwerfen und auf Import zuruecksetzen?'))
-  if (!confirmed) return
-  resetToImportedSnapshot()
-}
-
-function triggerBrowserDownload(content, mimeType, fileName) {
-  const blob = new Blob([content], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-}
-
-function onDownload() {
-  const extension = dataMode.value === 'csv' ? '.csv' : '.json'
-  const downloadFileName = createEditedFileName(importFileName.value, extension)
-
-  if (dataMode.value === 'csv') {
-    triggerBrowserDownload(createCsvExportText(), 'text/csv', downloadFileName)
-    if (appendEditedTimestamp.value) {
-      markAsSaved(downloadFileName)
-    }
-    return
-  }
-
-  const payload = {
-    data: createExportPayload(),
-    config: createUserConfigPayload(),
-  }
-  triggerBrowserDownload(JSON.stringify(payload, null, 2), 'application/json', downloadFileName)
-  if (appendEditedTimestamp.value) {
-    markAsSaved(downloadFileName)
-  }
 }
 
 function onApplyUserConfig() {
@@ -225,17 +121,41 @@ function hasListImageFailed(uid) {
   return failedListImages.value.has(uid)
 }
 
-function selectPreviousItem() {
-  if (!canGoPrevious.value) return
-  const previousItem = filteredViewItems.value[selectedFilteredIndex.value - 1]
-  if (previousItem) selectItem(previousItem._uid)
-}
+const {
+  selectedFilteredIndex,
+  canGoPrevious,
+  canGoNext,
+  selectPreviousItem,
+  selectNextItem,
+  clearSelection,
+} = useSelectionNavigation({
+  filteredViewItems,
+  selectedViewItem,
+  selectItem,
+})
 
-function selectNextItem() {
-  if (!canGoNext.value) return
-  const nextItem = filteredViewItems.value[selectedFilteredIndex.value + 1]
-  if (nextItem) selectItem(nextItem._uid)
-}
+const { onDataFileSelected, onDownload, onReset } = useDataImportExport({
+  dataMode,
+  t,
+  setModeErrorMessage,
+  importFromCsvText,
+  importFromJsonText,
+  initializeUserConfigForCurrentData,
+  importedConfig,
+  applyImportedConfigPayload,
+  applyUserConfigToRawItems,
+  rawItems,
+  errorMessage,
+  createEditedFileName,
+  importFileName,
+  createCsvExportText,
+  appendEditedTimestamp,
+  markAsSaved,
+  createExportPayload,
+  createUserConfigPayload,
+  isDirty,
+  resetToImportedSnapshot,
+})
 
 function closeLightbox() {
   isLightboxOpen.value = false

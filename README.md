@@ -129,9 +129,11 @@ Hinweise:
 
 ## Projektstruktur
 
-- `src/App.vue` – UI, Interaktionen, Layout
+- `src/App.vue` – UI-Composition-Root (Orchestrierung von Komponenten, Stores und Composables)
 - `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Sidebar-Feldrendering
+- `src/composables/useDataImportExport.js` - Import/Export-Orchestrierung inkl. Dateimodus-Pruefung und Download-Flow
+- `src/composables/useSelectionNavigation.js` - Navigation der gefilterten Auswahl (vor/zurueck/clear)
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
 - `src/composables/userConfigValidation.test.js` – Unit-Tests für die JSON-Config-Validierung
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
