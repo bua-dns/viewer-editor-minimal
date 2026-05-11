@@ -9,6 +9,7 @@ import UserConfigPanel from './components/UserConfigPanel.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
 import ToolbarPanel from './components/ToolbarPanel.vue'
+import ListPanel from './components/ListPanel.vue'
 
 const {
   rawItems,
@@ -342,34 +343,24 @@ watch(
 
       <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
 
-      <section class="list-panel" @click="clearSelection">
-        <h2>{{ itemLabel }} <span v-if="importFileName">({{ resultCountLabel }})</span></h2>
-        <p v-if="!hasData" class="meta">{{ t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.') }}</p>
-        <p v-else-if="filteredViewItems.length === 0" class="meta">{{ t('noSearchResults', 'Keine Treffer zur Suchanfrage.') }}</p>
-        <ul v-else class="card-grid">
-          <li v-for="item in filteredViewItems" :key="item._uid">
-            <button
-              type="button"
-              class="item-card"
-              :class="{ active: selectedViewItem && selectedViewItem._uid === item._uid }"
-              @click.stop="selectItem(item._uid)"
-            >
-              <div class="card-media">
-                <img
-                  v-if="looksLikeImageUrl(rawItems[item._index]?.scan) && !hasListImageFailed(item._uid)"
-                  :src="rawItems[item._index]?.scan"
-                  :alt="t('scanPreviewAlt', 'Scan Vorschau')"
-                  @error="listImageFailed(item._uid)"
-                />
-                <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
-              </div>
-              <div class="card-caption">
-                {{ rawItems[item._index]?.inventory_number || `#${item._index + 1}` }}
-              </div>
-            </button>
-          </li>
-        </ul>
-      </section>
+      <ListPanel
+        :item-label="itemLabel"
+        :import-file-name="importFileName"
+        :result-count-label="resultCountLabel"
+        :has-data="hasData"
+        :filtered-view-items="filteredViewItems"
+        :selected-view-item="selectedViewItem"
+        :raw-items="rawItems"
+        :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
+        :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
+        :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
+        :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
+        :looks-like-image-url="looksLikeImageUrl"
+        :has-list-image-failed="hasListImageFailed"
+        @clear-selection="clearSelection"
+        @select-item="selectItem"
+        @list-image-failed="listImageFailed"
+      />
 
       <aside v-if="selectedRawItem" class="sidebar-panel">
         <div class="sidebar-head">

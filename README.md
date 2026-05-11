@@ -143,6 +143,7 @@ Hinweise:
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
 - `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Suchfeld, Hinweise, Dirty-Hinweis) als eigenstaendige SFC
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
+- `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/assets/styles.css` – Styling
 - `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
 - `config/wording.js` - Sprachvarianten je Wording-Handle
