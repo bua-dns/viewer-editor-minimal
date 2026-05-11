@@ -36,7 +36,14 @@ const lightboxImageSrc = ref('')
 const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
-const { dataMode, modeErrorMessage, loadDataModeFromSession, processUploadFile, downloadDataPayload } = useDataTransferStore()
+const {
+  appendEditedTimestamp,
+  dataMode,
+  modeErrorMessage,
+  loadDataModeFromSession,
+  setModeErrorMessage,
+  createEditedFileName,
+} = useDataTransferStore()
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
 
@@ -86,11 +93,16 @@ function onDataModeChanged() {
 }
 
 async function onDataFileSelected(file) {
-  const success = await processUploadFile(file, {
-    importFromJsonText,
-    importFromCsvText,
-    t,
-  })
+  const lowerFileName = file.name.toLowerCase()
+  const detectedType = lowerFileName.endsWith('.json') ? 'json' : lowerFileName.endsWith('.csv') ? 'csv' : 'unknown'
+  if (detectedType !== dataMode.value) {
+    setModeErrorMessage(t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.'))
+    return
+  }
+
+  const text = await file.text()
+  setModeErrorMessage('')
+  const success = dataMode.value === 'csv' ? importFromCsvText(text, file.name) : importFromJsonText(text, file.name)
 
   if (!success) return
 
@@ -127,19 +139,41 @@ function onReset() {
 }
 
 function onDownload() {
+  const extension = dataMode.value === 'csv' ? '.csv' : '.json'
+  const downloadFileName = createEditedFileName(importFileName.value, extension)
+
   if (dataMode.value === 'csv') {
-    downloadDataPayload(createCsvExportText(), importFileName.value, markAsSaved)
+    const blob = new Blob([createCsvExportText()], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = downloadFileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    if (appendEditedTimestamp.value) {
+      markAsSaved(downloadFileName)
+    }
     return
   }
 
-  downloadDataPayload(
-    {
-      data: createExportPayload(),
-      config: createUserConfigPayload(),
-    },
-    importFileName.value,
-    markAsSaved,
-  )
+  const payload = {
+    data: createExportPayload(),
+    config: createUserConfigPayload(),
+  }
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = downloadFileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  if (appendEditedTimestamp.value) {
+    markAsSaved(downloadFileName)
+  }
 }
 
 function onApplyUserConfig() {

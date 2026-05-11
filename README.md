@@ -129,7 +129,8 @@ Hinweise:
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
 - `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
-- `src/stores/useDataTransferStore.js` - Upload/Download-State und Datenmodus-Handling (inkl. Session)
+- `src/stores/useDataTransferStore.js` - Datenmodus-UI-State und Dateinamenlogik (inkl. Session)
+- `src/composables/userConfigValidation.js` - zentraler Validator fuer eingebettete JSON-Config
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC

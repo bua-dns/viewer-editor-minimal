@@ -41,7 +41,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
 - `src/stores/useUserConfigStore.js` - User-Config-Store (State, Session, Add/Remove, Reorder, Apply)
-- `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Upload/Download, Modus, Session)
+- `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Modus, Session, Dateinamenlogik)
+- `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles.css` - Layout, Komponenten-Styling, Responsive Regeln
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
 - `config/wording.js` - uebersetzte Textvarianten je Handle
@@ -115,8 +116,9 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 Die Data-Transfer-Funktion ist modularisiert:
 
 - `DataTransferControls.vue` kapselt die Header-Controls fuer Upload/Download/Reset/Modus.
-- `useDataTransferStore.js` kapselt Datenmodus, Session-Persistenz, Upload-Verarbeitung und Download-Erzeugung.
-- `App.vue` orchestriert nur Integrationspunkte (Import-Funktionen aus `useViewerData`, User-Config-Reset bei Moduswechsel).
+- `useDataTransferStore.js` kapselt Datenmodus, Session-Persistenz und Dateinamenslogik.
+- Upload/Download-Verarbeitung liegt in `App.vue`, waehrend Parsing/Serialisierung in `useViewerData` und User-Config-Store aufgeteilt ist.
+- `App.vue` orchestriert die Integrationspunkte (Import-Funktionen aus `useViewerData`, User-Config-Reset bei Moduswechsel).
 
 ### Datenmodus im Header
 

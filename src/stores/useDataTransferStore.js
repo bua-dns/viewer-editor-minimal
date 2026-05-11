@@ -24,54 +24,16 @@ function setDataMode(nextMode) {
   return true
 }
 
-function detectUploadType(fileName) {
-  const lower = fileName.toLowerCase()
-  if (lower.endsWith('.json')) return 'json'
-  if (lower.endsWith('.csv')) return 'csv'
-  return 'unknown'
+function setModeErrorMessage(message) {
+  modeErrorMessage.value = message || ''
 }
 
-async function processUploadFile(file, { importFromJsonText, importFromCsvText, t }) {
-  const detectedType = detectUploadType(file.name)
-  if (detectedType !== dataMode.value) {
-    modeErrorMessage.value = t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.')
-    return false
-  }
-
-  const text = await file.text()
-  modeErrorMessage.value = ''
-
-  if (dataMode.value === 'csv') {
-    return importFromCsvText(text, file.name)
-  }
-
-  return importFromJsonText(text, file.name)
-}
-
-function downloadDataPayload(payload, importFileName, markAsSaved) {
-  const isCsvMode = dataMode.value === 'csv'
-  const fileExtension = isCsvMode ? '.csv' : '.json'
-  const output = isCsvMode ? String(payload ?? '') : JSON.stringify(payload, null, 2)
-  const mimeType = isCsvMode ? 'text/csv' : 'application/json'
-  const blob = new Blob([output], { type: mimeType })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
+function createEditedFileName(importFileName = '', extension = '.json') {
   const importedBaseName = importFileName ? importFileName.replace(/\.(json|csv)$/i, '') : 'data'
   const baseName = importedBaseName.replace(/-edited(?:-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})?$/i, '')
+  if (!appendEditedTimestamp.value) return `${baseName}-edited${extension}`
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
-  link.href = url
-  link.download = appendEditedTimestamp.value
-    ? `${baseName}-edited-${timestamp}${fileExtension}`
-    : `${baseName}-edited${fileExtension}`
-  const downloadFileName = link.download
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-
-  if (appendEditedTimestamp.value) {
-    markAsSaved(downloadFileName)
-  }
+  return `${baseName}-edited-${timestamp}${extension}`
 }
 
 export function useDataTransferStore() {
@@ -82,7 +44,7 @@ export function useDataTransferStore() {
     uploadAccept,
     loadDataModeFromSession,
     setDataMode,
-    processUploadFile,
-    downloadDataPayload,
+    setModeErrorMessage,
+    createEditedFileName,
   }
 }
