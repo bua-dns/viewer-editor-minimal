@@ -8,6 +8,7 @@ import DataTransferControls from './components/DataTransferControls.vue'
 import UserConfigPanel from './components/UserConfigPanel.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
+import ToolbarPanel from './components/ToolbarPanel.vue'
 
 const {
   rawItems,
@@ -328,16 +329,16 @@ watch(
     </header>
 
     <main class="content-grid" :class="{ 'content-grid-selected': !!selectedRawItem }">
-      <section class="toolbar-panel">
-        <div>
-          <p class="meta" v-if="!importFileName">{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
-        </div>
-        <label class="search-wrap" v-if="importFileName">
-          <span>{{ t('searchLabel', 'Suche') }}</span>
-          <input v-model="searchQuery" type="search" :placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" />
-        </label>
-        <p v-if="isDirty" class="dirty">{{ t('unsavedChanges', 'Ungespeicherte Aenderungen') }}</p>
-      </section>
+      <ToolbarPanel
+        :import-file-name="importFileName"
+        :search-query="searchQuery"
+        :is-dirty="isDirty"
+        :no-file-loaded-label="t('noFileLoaded', 'Noch keine Datei geladen')"
+        :search-label="t('searchLabel', 'Suche')"
+        :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')"
+        :unsaved-changes-label="t('unsavedChanges', 'Ungespeicherte Aenderungen')"
+        @update:search-query="searchQuery = $event"
+      />
 
       <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
 

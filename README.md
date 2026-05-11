@@ -141,6 +141,8 @@ Hinweise:
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
+- `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Suchfeld, Hinweise, Dirty-Hinweis) als eigenstaendige SFC
+- `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/assets/styles.css` – Styling
 - `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
 - `config/wording.js` - Sprachvarianten je Wording-Handle
