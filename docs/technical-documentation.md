@@ -226,7 +226,7 @@ Zusatzfunktionen:
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
 - JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config> }`.
 - CSV-Export schreibt nur Nutzdaten (ohne Config).
-- Download wird im Browser ueber `Blob` + temporaeren Link ausgeloest.
+- Download wird in `App.vue` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
 - Falls aktiviert: Dateiname mit Timestamp im Format `<importName>-edited-YYYY-MM-DD_hh-mm-ss.<json|csv>`.
 - Reset nutzt `importSnapshot` und stellt den Zustand des letzten gueltigen Imports wieder her.

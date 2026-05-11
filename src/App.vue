@@ -139,20 +139,24 @@ function onReset() {
   resetToImportedSnapshot()
 }
 
+function triggerBrowserDownload(content, mimeType, fileName) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
 function onDownload() {
   const extension = dataMode.value === 'csv' ? '.csv' : '.json'
   const downloadFileName = createEditedFileName(importFileName.value, extension)
 
   if (dataMode.value === 'csv') {
-    const blob = new Blob([createCsvExportText()], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = downloadFileName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    triggerBrowserDownload(createCsvExportText(), 'text/csv', downloadFileName)
     if (appendEditedTimestamp.value) {
       markAsSaved(downloadFileName)
     }
@@ -163,15 +167,7 @@ function onDownload() {
     data: createExportPayload(),
     config: createUserConfigPayload(),
   }
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = downloadFileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  triggerBrowserDownload(JSON.stringify(payload, null, 2), 'application/json', downloadFileName)
   if (appendEditedTimestamp.value) {
     markAsSaved(downloadFileName)
   }
