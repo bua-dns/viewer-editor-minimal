@@ -7,6 +7,7 @@ import { useDataTransferStore } from './stores/useDataTransferStore'
 import DataTransferControls from './components/DataTransferControls.vue'
 import UserConfigPanel from './components/UserConfigPanel.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
+import LightboxModal from './components/LightboxModal.vue'
 
 const {
   rawItems,
@@ -235,21 +236,7 @@ function selectNextItem() {
 }
 
 function closeLightbox() {
-  if (document.fullscreenElement) {
-    document.exitFullscreen()
-  }
   isLightboxOpen.value = false
-}
-
-async function toggleFullscreen() {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen()
-    return
-  }
-  const target = document.querySelector('.lightbox-content')
-  if (target?.requestFullscreen) {
-    await target.requestFullscreen()
-  }
 }
 
 function beforeUnloadListener(event) {
@@ -451,21 +438,15 @@ watch(
       </section>
     </main>
 
-    <div v-if="isLightboxOpen" class="lightbox" @click.self="closeLightbox">
-      <div class="lightbox-content">
-        <div class="lightbox-actions">
-          <button type="button" @click="toggleFullscreen">{{ t('fullscreen', 'Fullscreen') }}</button>
-          <button type="button" @click="closeLightbox">{{ t('close', 'Schliessen') }}</button>
-        </div>
-        <img
-          v-if="!lightboxImageLoadFailed"
-          :src="lightboxImageSrc"
-          :alt="t('lightboxImageAlt', 'Scan gross')"
-          class="lightbox-image"
-          @error="lightboxImageLoadFailed = true"
-        />
-        <div v-else class="scan-fallback scan-fallback-large">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
-      </div>
-    </div>
+    <LightboxModal
+      :is-open="isLightboxOpen"
+      :image-src="lightboxImageSrc"
+      :image-load-failed="lightboxImageLoadFailed"
+      :close-label="t('close', 'Schliessen')"
+      :image-alt="t('lightboxImageAlt', 'Scan gross')"
+      :unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
+      @close="closeLightbox"
+      @image-error="lightboxImageLoadFailed = true"
+    />
   </div>
 </template>
