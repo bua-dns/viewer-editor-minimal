@@ -152,4 +152,5 @@ Hinweise:
 
 ## Lizenz
 
-Aktuell keine Lizenzdatei hinterlegt. Falls das Projekt öffentlich genutzt werden soll, ergänze eine passende `LICENSE`.
+MIT License - Copyright (c) 2026 Michael Müller, Digitales Netzwerk Sammlungen.
+Siehe `LICENSE`.
