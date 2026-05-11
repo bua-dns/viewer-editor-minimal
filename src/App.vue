@@ -84,40 +84,66 @@ const availableFieldKeys = computed(() => {
   return Array.from(keys)
 })
 
+function initializeUserConfigForCurrentData() {
+  if (hasData.value) {
+    initializeUserConfig(availableFieldKeys.value, true)
+    return
+  }
+  initializeUserConfig([], false)
+}
+
 function onDataModeChanged() {
   clearUserConfigSession()
-  if (hasData.value) {
-    initializeUserConfig(availableFieldKeys.value, hasData.value)
-  } else {
-    initializeUserConfig([], false)
+  initializeUserConfigForCurrentData()
+}
+
+function detectDataFileType(fileName) {
+  const lowerFileName = fileName.toLowerCase()
+  if (lowerFileName.endsWith('.json')) return 'json'
+  if (lowerFileName.endsWith('.csv')) return 'csv'
+  return 'unknown'
+}
+
+function isSelectedFileTypeMatchingMode(fileName) {
+  return detectDataFileType(fileName) === dataMode.value
+}
+
+function parseDataFileContent(text, fileName) {
+  if (dataMode.value === 'csv') {
+    return importFromCsvText(text, fileName)
   }
+  return importFromJsonText(text, fileName)
+}
+
+async function applyImportedConfigIfPresent() {
+  if (dataMode.value !== 'json' || !importedConfig.value) return true
+
+  const applyResult = applyImportedConfigPayload(importedConfig.value)
+  if (!applyResult.ok) {
+    errorMessage.value = applyResult.error
+    return false
+  }
+
+  applyUserConfigToRawItems(rawItems.value)
+  await nextTick()
+  return true
 }
 
 async function onDataFileSelected(file) {
-  const lowerFileName = file.name.toLowerCase()
-  const detectedType = lowerFileName.endsWith('.json') ? 'json' : lowerFileName.endsWith('.csv') ? 'csv' : 'unknown'
-  if (detectedType !== dataMode.value) {
+  if (!isSelectedFileTypeMatchingMode(file.name)) {
     setModeErrorMessage(t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.'))
     return
   }
 
   const text = await file.text()
   setModeErrorMessage('')
-  const success = dataMode.value === 'csv' ? importFromCsvText(text, file.name) : importFromJsonText(text, file.name)
+  const success = parseDataFileContent(text, file.name)
 
   if (!success) return
 
-  initializeUserConfig(availableFieldKeys.value, hasData.value)
+  initializeUserConfigForCurrentData()
 
-  if (dataMode.value === 'json' && importedConfig.value) {
-    const applyResult = applyImportedConfigPayload(importedConfig.value)
-    if (!applyResult.ok) {
-      errorMessage.value = applyResult.error
-      return
-    }
-    applyUserConfigToRawItems(rawItems.value)
-    await nextTick()
-  }
+  await applyImportedConfigIfPresent()
 }
 
 function onFieldInput(key, value) {
@@ -261,7 +287,7 @@ watch(
     failedListImages.value = new Set()
     sidebarImageLoadFailed.value = false
     lightboxImageLoadFailed.value = false
-    initializeUserConfig(availableFieldKeys.value, hasData.value)
+    initializeUserConfigForCurrentData()
   },
 )
 
@@ -275,7 +301,7 @@ watch(
 watch(
   () => availableFieldKeys.value.join('|'),
   () => {
-    initializeUserConfig(availableFieldKeys.value, hasData.value)
+    initializeUserConfigForCurrentData()
   },
 )
 </script>

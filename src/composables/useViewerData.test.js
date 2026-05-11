@@ -43,6 +43,28 @@ describe('useViewerData helpers', () => {
     expect(result.data[1].species).toBe('Pine')
   })
 
+  test('splitCsvLine handles quoted commas and escaped quotes', () => {
+    const values = __test.splitCsvLine('A1,"Oak, Large","He said ""hi"""')
+    expect(values).toEqual(['A1', 'Oak, Large', 'He said "hi"'])
+  })
+
+  test('parseCsvText keeps empty values and pads missing trailing columns', () => {
+    const csv = 'inventory_number,species,notes\nA1,,\nB2,Pine'
+    const result = __test.parseCsvText(csv)
+
+    expect(result.ok).toBe(true)
+    expect(result.data).toEqual([
+      { inventory_number: 'A1', species: '', notes: '' },
+      { inventory_number: 'B2', species: 'Pine', notes: '' },
+    ])
+  })
+
+  test('parseCsvText rejects rows with more columns than header', () => {
+    const csv = 'inventory_number,species\nA1,Oak,EXTRA'
+
+    expect(() => __test.parseCsvText(csv)).toThrow('Zeile 2 hat mehr Spalten als der Header.')
+  })
+
   test('createCsvTextFromItems creates csv export text', () => {
     const csv = __test.createCsvTextFromItems([
       { a: 'A', b: 'B' },

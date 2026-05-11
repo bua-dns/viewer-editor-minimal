@@ -11,17 +11,21 @@ const isUserConfigOpen = ref(false)
 const newFieldName = ref('')
 const addFieldError = ref('')
 
+function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
+  return {
+    type: source.type || 'normal',
+    label: source.label || '',
+    order: Number.isFinite(source.order) ? source.order : fallbackOrder,
+    placeholder: source.placeholder || '',
+  }
+}
+
 function serializeUserConfigFields(fields) {
   const normalized = {}
   Object.keys(fields)
     .sort()
     .forEach((key) => {
-      normalized[key] = {
-        type: fields[key]?.type || 'normal',
-        label: fields[key]?.label || '',
-        order: Number.isFinite(fields[key]?.order) ? fields[key].order : 0,
-        placeholder: fields[key]?.placeholder || '',
-      }
+      normalized[key] = normalizeUserConfigField(fields[key], 0)
     })
   return JSON.stringify(normalized)
 }
@@ -71,12 +75,7 @@ function initializeUserConfig(availableFieldKeys, hasData) {
 
   const defaults = {}
   availableFieldKeys.forEach((key, index) => {
-    defaults[key] = {
-      type: 'normal',
-      label: '',
-      order: index,
-      placeholder: '',
-    }
+    defaults[key] = normalizeUserConfigField({}, index)
   })
 
   const persisted = loadUserConfigFromSession()
@@ -89,17 +88,15 @@ function initializeUserConfig(availableFieldKeys, hasData) {
   ])
 
   Array.from(allKeys).forEach((key) => {
-    const defaultField = defaults[key] || {
-      type: 'normal',
-      label: '',
-      order: Object.keys(nextFields).length,
-      placeholder: '',
-    }
-    nextFields[key] = { ...defaultField, ...(persisted.fields[key] || {}) }
-    nextAppliedFields[key] = {
-      ...defaultField,
-      ...(persisted.appliedFields[key] || persisted.fields[key] || {}),
-    }
+    const defaultField = defaults[key] || normalizeUserConfigField({}, Object.keys(nextFields).length)
+    nextFields[key] = normalizeUserConfigField(
+      { ...defaultField, ...(persisted.fields[key] || {}) },
+      defaultField.order,
+    )
+    nextAppliedFields[key] = normalizeUserConfigField(
+      { ...defaultField, ...(persisted.appliedFields[key] || persisted.fields[key] || {}) },
+      defaultField.order,
+    )
   })
 
   userConfigFields.value = nextFields
@@ -172,12 +169,7 @@ function addUserConfigField(t) {
     return
   }
 
-  userConfigFields.value[nextKey] = {
-    type: 'normal',
-    label: '',
-    order: Object.keys(userConfigFields.value).length,
-    placeholder: '',
-  }
+  userConfigFields.value[nextKey] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
   newFieldName.value = ''
   persistUserConfigToSession()
 }
@@ -224,12 +216,7 @@ function applyImportedConfigPayload(configPayload) {
   const nextFields = {}
   Object.keys(configPayload.fields).forEach((key, index) => {
     const source = configPayload.fields[key] || {}
-    nextFields[key] = {
-      type: source.type || 'normal',
-      label: source.label || '',
-      order: Number.isFinite(source.order) ? source.order : index,
-      placeholder: source.placeholder || '',
-    }
+    nextFields[key] = normalizeUserConfigField(source, index)
   })
 
   userConfigFields.value = nextFields

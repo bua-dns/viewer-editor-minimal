@@ -161,6 +161,9 @@ Kopierstrategie:
 - CSV-Header wird validiert:
   - keine leeren Spaltennamen
   - keine doppelten Spaltennamen
+- Datenzeilen werden validiert:
+  - mehr Spalten als im Header fuehren zu einem Parse-Fehler
+  - fehlende trailing Spalten werden mit leerem String (`''`) aufgefuellt
 - Das Feld `scan` wird bei Header-Normalisierung explizit auf `scan` gesetzt (case-insensitive), damit die bestehende Scan-UI automatisch greift.
 
 ## Suche
@@ -251,6 +254,10 @@ Tests in `src/composables/useViewerData.test.js` pruefen:
 - Validierung von `parseJsonPayload`
 - Tokenisierung via `tokenize`
 - Bild-URL-Erkennung via `looksLikeImageUrl`
+- CSV-Randfaelle:
+  - Quotes und escaped Quotes in `splitCsvLine`
+  - leere Werte und fehlende trailing Spalten in `parseCsvText`
+  - Spaltenabweichung (mehr Werte als Header) mit Fehlerpfad
 - End-to-End-Flow der Composable-Logik:
   - Initialisieren
   - Filtern
