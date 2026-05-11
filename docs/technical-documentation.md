@@ -12,10 +12,10 @@ Kernfunktionen:
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
 - Dirty-State inkl. Warnung beim Verlassen der Seite
 - Reset auf Import-Snapshot
-- Export der bearbeiteten Daten als neue JSON-Datei
+- Export der bearbeiteten Daten als neue JSON- oder CSV-Datei
 - Bildvorschau fuer `scan`-URLs inkl. Lightbox und Fullscreen
 - App-weites Wording ueber Handles + Sprachumschalter (DE/EN)
-- Minimale User-Config-GUI pro Datenfeld mit Anwenden/Download
+- Minimale User-Config-GUI pro Datenfeld mit Anwenden
 - Session-persistente User-Config (via `sessionStorage`)
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 
@@ -60,7 +60,7 @@ Die User-Config ist modularisiert:
 
 - `UserConfigPanel.vue` kapselt die GUI.
 - `useUserConfigStore.js` kapselt den zugehoerigen State und die Aktionen.
-- `App.vue` orchestriert nur noch (Apply/Download, Datenmodus-Wechsel, Datenfluss).
+- `App.vue` orchestriert nur noch (Apply, Datenmodus-Wechsel, Datenfluss).
 
 Im UI gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload verfuegbar ist.
 
@@ -79,7 +79,6 @@ Zusaetzlich:
 Verhalten:
 
 - `Konfiguration anwenden` uebernimmt die aktuelle Konfiguration in die Darstellung der Sidebar-Felder.
-- `Konfiguration herunterladen` exportiert eine JSON-Datei mit `version` und `fields`.
 - Bei `type = text` wird ein `textarea` gerendert, sonst entsprechend `input`/`checkbox`.
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
 - Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''` bzw. `false` bei `checkbox`).
@@ -101,6 +100,7 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 - `searchQuery`: Suchfeldinhalt
 - `isDirty`: ungespeicherte Aenderungen vorhanden
 - `importFileName`: Name der importierten Datei
+- `importedConfig`: optional eingebettete JSON-Config aus dem letzten JSON-Import
 - `errorMessage`: Validierungs- oder Parse-Fehler
 
 ### Computed Values
@@ -131,11 +131,13 @@ Importweg:
 
 1. Datei wird in `App.vue` per `<input type="file">` geladen.
 2. Text wird an `importFromJsonText(text, fileName)` uebergeben.
-3. `parseJsonArray` validiert:
+3. `parseJsonPayload` validiert:
    - gueltiges JSON
-   - Top-Level ist Array
-   - jedes Element ist ein Plain Object
-4. Bei Erfolg initialisiert `initializeFromJsonArray` alle States neu.
+   - entweder Top-Level-Array, oder Objekt mit `data`-Array
+   - jedes Datenelement ist ein Plain Object
+   - falls vorhanden: `config` ist Objekt
+4. Bei Erfolg initialisiert `initializeFromJsonArray` alle States neu und uebernimmt optionale `config` in `importedConfig`.
+5. `App.vue` validiert und appliziert eingebettete `config` strikt (bei Fehler harter Abbruch mit Fehlermeldung).
 5. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
 
 Kopierstrategie:
@@ -213,8 +215,10 @@ Zusatzfunktionen:
 ## Export und Reset
 
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
+- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config> }`.
+- CSV-Export schreibt nur Nutzdaten (ohne Config).
 - Download wird im Browser ueber `Blob` + temporaeren Link ausgeloest.
-- Dateiname: `<importName>-edited.json` bzw. `data-edited.json`.
+- Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
 - Reset nutzt `importSnapshot` und stellt den Zustand des letzten gueltigen Imports wieder her.
 
 ## Styling und Responsiveness
@@ -234,7 +238,7 @@ Hinweis:
 
 Tests in `src/composables/useViewerData.test.js` pruefen:
 
-- Validierung von `parseJsonArray`
+- Validierung von `parseJsonPayload`
 - Tokenisierung via `tokenize`
 - Bild-URL-Erkennung via `looksLikeImageUrl`
 - End-to-End-Flow der Composable-Logik:
@@ -264,7 +268,7 @@ Weitere Skripte:
 
 ## Bekannte Grenzen
 
-- Import erwartet strikt ein Array aus Objekten auf Top-Level.
+- Import akzeptiert Top-Level-Array oder `data`-Array; `data` als Objekt ist ungueltig.
 - CSV-Parser ist bewusst minimal (Komplexitaet fuer exotische CSV-Formate wird noch nicht vollstaendig abgedeckt).
 - Editierbar sind nur primitive/simple Felder (`string`, `number`, `boolean`, `null`).
 - Deep Clone via JSON-Serialize unterstuetzt keine Spezialtypen.

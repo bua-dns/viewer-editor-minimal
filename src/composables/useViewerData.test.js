@@ -2,9 +2,27 @@ import { describe, expect, test } from 'vitest'
 import { __test, useViewerData } from './useViewerData'
 
 describe('useViewerData helpers', () => {
-  test('parseJsonArray validates top-level array', () => {
-    expect(__test.parseJsonArray('{"a":1}').ok).toBe(false)
-    expect(__test.parseJsonArray('[{"a":1}]').ok).toBe(true)
+  test('parseJsonPayload validates top-level array', () => {
+    expect(__test.parseJsonPayload('{"a":1}').ok).toBe(false)
+    expect(__test.parseJsonPayload('[{"a":1}]').ok).toBe(true)
+  })
+
+  test('parseJsonPayload accepts embedded data and config', () => {
+    const payload = JSON.stringify({
+      data: [{ a: 1 }],
+      config: { version: 1, fields: { a: { type: 'normal', label: '', order: 0, placeholder: '' } } },
+      ignored: true,
+    })
+    const result = __test.parseJsonPayload(payload)
+    expect(result.ok).toBe(true)
+    expect(result.data).toHaveLength(1)
+    expect(result.hasConfig).toBe(true)
+    expect(result.config?.version).toBe(1)
+  })
+
+  test('parseJsonPayload rejects non-array data object', () => {
+    const result = __test.parseJsonPayload('{"data":{"a":1}}')
+    expect(result.ok).toBe(false)
   })
 
   test('tokenize splits search query', () => {
@@ -23,6 +41,15 @@ describe('useViewerData helpers', () => {
     expect(result.data).toHaveLength(2)
     expect(result.data[0].scan).toBe('https://example.com/a.jpg')
     expect(result.data[1].species).toBe('Pine')
+  })
+
+  test('createCsvTextFromItems creates csv export text', () => {
+    const csv = __test.createCsvTextFromItems([
+      { a: 'A', b: 'B' },
+      { a: 'A2', b: 'B2' },
+    ])
+    expect(csv).toContain('a,b')
+    expect(csv).toContain('A2,B2')
   })
 })
 

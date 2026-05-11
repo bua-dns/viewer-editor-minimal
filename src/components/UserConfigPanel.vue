@@ -6,7 +6,7 @@ const props = defineProps({
   hasData: { type: Boolean, required: true },
 })
 
-const emit = defineEmits(['apply', 'download'])
+const emit = defineEmits(['apply'])
 
 const { t } = useAppConfigStore()
 const {
@@ -39,9 +39,6 @@ function onAddField() {
       <div v-if="isUserConfigOpen" class="user-config-actions">
         <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="emit('apply')">
           {{ t('applyConfiguration', 'Konfiguration anwenden') }}
-        </button>
-        <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="emit('download')">
-          {{ t('downloadConfiguration', 'Konfiguration herunterladen') }}
         </button>
       </div>
       <span class="user-config-toggle-icon" aria-hidden="true">

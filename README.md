@@ -5,7 +5,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 ## Features
 
 - Datenmodus-Umschalter in der Topbar (`JSON | CSV`)
-- JSON-Datei lokal hochladen (Top-Level muss ein Array von Objekten sein)
+- JSON-Datei lokal hochladen (Top-Level-Array oder Objekt mit `data`-Array)
 - CSV-Datei lokal hochladen (erste Zeile = Header, danach Datensaetze)
 - Volltextsuche über alle Felder
 - Kartenansicht mit Bildvorschau (`scan`-URL)
@@ -13,11 +13,10 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
 - Sprachumschalter (DE/EN) in der Topbar
 - Dirty-State mit Reset auf den importierten Stand
-- Export als neue `*-edited.json`
+- Export als neue `*-edited.json` (Format: `{ data, config }`)
 - Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
 - Felder koennen in der User-Config hinzugefuegt und entfernt werden
 - User-Config anwenden auf die Felddarstellung in der Sidebar
-- User-Config als JSON herunterladen
 - User-Config bleibt in `sessionStorage` ueber Reloads erhalten
 - Datenmodus bleibt in `sessionStorage` ueber Reloads erhalten
 - Lightbox für größere Scan-Ansicht
@@ -57,7 +56,9 @@ npm run test
 
 ## Erwartetes JSON-Format
 
-Die App erwartet ein JSON-Array mit Objekten als Top-Level:
+Beim Import werden zwei JSON-Formate akzeptiert:
+
+1) Top-Level-Array (kompatibel zum bisherigen Verhalten):
 
 ```json
 [
@@ -72,8 +73,37 @@ Die App erwartet ein JSON-Array mit Objekten als Top-Level:
 ]
 ```
 
+2) Objekt mit eingebettetem Nutzdaten- und Konfigurationsblock:
+
+```json
+{
+  "data": [
+    {
+      "inventory_number": "A.51-98-6-778",
+      "species": "Cedrus atlantica",
+      "scan": "https://example.org/card-1.jpg"
+    }
+  ],
+  "config": {
+    "version": 1,
+    "fields": {
+      "species": {
+        "type": "normal",
+        "label": "",
+        "order": 0,
+        "placeholder": ""
+      }
+    }
+  }
+}
+```
+
+Beim JSON-Export nutzt die App immer das kanonische Format mit `data` und `config`.
+
 Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.
+- Falls `data` vorhanden ist, muss `data` ein Array sein.
+- Falls `config` vorhanden ist, muss `config` ein valides Objekt mit `fields` sein.
 - Bei ungültigem JSON oder falscher Struktur zeigt die App eine Fehlermeldung.
 - Für die Bildvorschau muss `scan` eine direkt ladbare Bild-URL sein (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
 

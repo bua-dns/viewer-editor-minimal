@@ -25,6 +25,48 @@ function serializeUserConfigFields(fields) {
   return JSON.stringify(normalized)
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function validateImportedConfigPayload(configPayload) {
+  if (!isPlainObject(configPayload)) {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config muss ein Objekt sein.' }
+  }
+
+  if (!isPlainObject(configPayload.fields)) {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.fields muss ein Objekt sein.' }
+  }
+
+  const allowedTypes = new Set(['normal', 'text', 'integer', 'checkbox'])
+  const fieldEntries = Object.entries(configPayload.fields)
+
+  for (const [key, fieldConfig] of fieldEntries) {
+    if (!isPlainObject(fieldConfig)) {
+      return { ok: false, error: `JSON-Config ist ungueltig: Feld ${key} muss ein Objekt sein.` }
+    }
+
+    const type = fieldConfig.type ?? 'normal'
+    if (!allowedTypes.has(type)) {
+      return { ok: false, error: `JSON-Config ist ungueltig: Feldtyp bei ${key} wird nicht unterstuetzt.` }
+    }
+
+    if (fieldConfig.label != null && typeof fieldConfig.label !== 'string') {
+      return { ok: false, error: `JSON-Config ist ungueltig: label bei ${key} muss ein String sein.` }
+    }
+
+    if (fieldConfig.placeholder != null && typeof fieldConfig.placeholder !== 'string') {
+      return { ok: false, error: `JSON-Config ist ungueltig: placeholder bei ${key} muss ein String sein.` }
+    }
+
+    if (fieldConfig.order != null && !Number.isFinite(fieldConfig.order)) {
+      return { ok: false, error: `JSON-Config ist ungueltig: order bei ${key} muss eine Zahl sein.` }
+    }
+  }
+
+  return { ok: true }
+}
+
 const sortedConfigFieldEntries = computed(() =>
   Object.entries(userConfigFields.value).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
 )
@@ -214,6 +256,31 @@ function createUserConfigPayload() {
   return { version: 1, fields: userConfigFields.value }
 }
 
+function applyImportedConfigPayload(configPayload) {
+  const validation = validateImportedConfigPayload(configPayload)
+  if (!validation.ok) {
+    return validation
+  }
+
+  const nextFields = {}
+  Object.keys(configPayload.fields).forEach((key, index) => {
+    const source = configPayload.fields[key] || {}
+    nextFields[key] = {
+      type: source.type || 'normal',
+      label: source.label || '',
+      order: Number.isFinite(source.order) ? source.order : index,
+      placeholder: source.placeholder || '',
+    }
+  })
+
+  userConfigFields.value = nextFields
+  appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
+  appliedUserConfigSnapshot.value = serializeUserConfigFields(appliedUserConfigFields.value)
+  persistUserConfigToSession()
+
+  return { ok: true }
+}
+
 export function useUserConfigStore() {
   return {
     userConfigFields,
@@ -233,5 +300,7 @@ export function useUserConfigStore() {
     dropAt,
     endDrag,
     createUserConfigPayload,
+    applyImportedConfigPayload,
+    validateImportedConfigPayload,
   }
 }

@@ -38,7 +38,7 @@ function isEditableSimpleValue(value) {
   )
 }
 
-function parseJsonArray(text) {
+function parseJsonPayload(text) {
   let parsed
   try {
     parsed = JSON.parse(text)
@@ -46,16 +46,34 @@ function parseJsonArray(text) {
     return { ok: false, error: 'JSON ist ungueltig (Parse-Fehler).' }
   }
 
-  if (!Array.isArray(parsed)) {
+  const hasDataObject = isPlainObject(parsed) && Object.prototype.hasOwnProperty.call(parsed, 'data')
+  const rawData = hasDataObject ? parsed.data : parsed
+
+  if (!Array.isArray(rawData)) {
+    if (hasDataObject) {
+      return { ok: false, error: 'JSON-Feld "data" muss ein Array sein.' }
+    }
     return { ok: false, error: 'Top-Level muss ein JSON-Array sein.' }
   }
 
-  const invalidIndex = parsed.findIndex((item) => !isPlainObject(item))
+  const invalidIndex = rawData.findIndex((item) => !isPlainObject(item))
   if (invalidIndex !== -1) {
     return { ok: false, error: `Element ${invalidIndex + 1} ist kein Objekt.` }
   }
 
-  return { ok: true, data: parsed }
+  const hasConfigProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'config')
+  if (hasConfigProperty && !isPlainObject(parsed.config)) {
+    return { ok: false, error: 'JSON-Feld "config" muss ein Objekt sein.' }
+  }
+
+  const configFromPayload = hasConfigProperty ? parsed.config : null
+
+  return {
+    ok: true,
+    data: rawData,
+    hasConfig: configFromPayload !== null,
+    config: configFromPayload,
+  }
 }
 
 function splitCsvLine(line, delimiter = ',') {
@@ -142,6 +160,38 @@ function looksLikeImageUrl(value) {
   return /^(https?:\/\/).+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(value.trim())
 }
 
+function toCsvCell(value) {
+  const text = String(value ?? '')
+  if (/[,"\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+  return text
+}
+
+function createCsvTextFromItems(items) {
+  if (!Array.isArray(items) || items.length === 0) return ''
+  const headers = []
+  const seen = new Set()
+  items.forEach((item) => {
+    Object.keys(item || {}).forEach((key) => {
+      if (!seen.has(key)) {
+        headers.push(key)
+        seen.add(key)
+      }
+    })
+  })
+
+  if (!headers.length) return ''
+
+  const lines = []
+  lines.push(headers.map((header) => toCsvCell(header)).join(','))
+  items.forEach((item) => {
+    lines.push(headers.map((header) => toCsvCell(item?.[header])).join(','))
+  })
+
+  return lines.join('\n')
+}
+
 export function useViewerData() {
   const rawItems = ref([])
   const viewItems = ref([])
@@ -151,6 +201,7 @@ export function useViewerData() {
   const searchQuery = ref('')
   const isDirty = ref(false)
   const importFileName = ref('')
+  const importedConfig = ref(null)
 
   const errorMessage = ref('')
 
@@ -187,15 +238,17 @@ export function useViewerData() {
     isDirty.value = false
     errorMessage.value = ''
     importFileName.value = fileName
+    importedConfig.value = null
   }
 
   function importFromJsonText(text, fileName = '') {
-    const result = parseJsonArray(text)
+    const result = parseJsonPayload(text)
     if (!result.ok) {
       errorMessage.value = result.error
       return false
     }
     initializeFromJsonArray(result.data, fileName)
+    importedConfig.value = result.hasConfig ? cloneData(result.config) : null
     return true
   }
 
@@ -214,6 +267,7 @@ export function useViewerData() {
     }
 
     initializeFromJsonArray(result.data, fileName)
+    importedConfig.value = null
     return true
   }
 
@@ -257,6 +311,10 @@ export function useViewerData() {
     return cloneData(rawItems.value)
   }
 
+  function createCsvExportText() {
+    return createCsvTextFromItems(rawItems.value)
+  }
+
   function markAsSaved(nextFileName = '') {
     importSnapshot.value = cloneData(rawItems.value)
     importFileName.value = nextFileName || importFileName.value
@@ -272,6 +330,7 @@ export function useViewerData() {
     searchQuery,
     isDirty,
     importFileName,
+    importedConfig,
     errorMessage,
     hasData,
     selectedViewItem,
@@ -284,6 +343,7 @@ export function useViewerData() {
     updateField,
     resetToImportedSnapshot,
     createExportPayload,
+    createCsvExportText,
     markAsSaved,
     isEditableSimpleValue,
     looksLikeImageUrl,
@@ -291,8 +351,9 @@ export function useViewerData() {
 }
 
 export const __test = {
-  parseJsonArray,
+  parseJsonPayload,
   parseCsvText,
+  createCsvTextFromItems,
   splitCsvLine,
   tokenize,
   toSearchText,

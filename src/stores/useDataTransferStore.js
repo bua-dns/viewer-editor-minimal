@@ -42,24 +42,27 @@ async function processUploadFile(file, { importFromJsonText, importFromCsvText, 
   modeErrorMessage.value = ''
 
   if (dataMode.value === 'csv') {
-    importFromCsvText(text, file.name)
-    return true
+    return importFromCsvText(text, file.name)
   }
 
-  importFromJsonText(text, file.name)
-  return true
+  return importFromJsonText(text, file.name)
 }
 
 function downloadDataPayload(payload, importFileName, markAsSaved) {
-  const json = JSON.stringify(payload, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
+  const isCsvMode = dataMode.value === 'csv'
+  const fileExtension = isCsvMode ? '.csv' : '.json'
+  const output = isCsvMode ? String(payload ?? '') : JSON.stringify(payload, null, 2)
+  const mimeType = isCsvMode ? 'text/csv' : 'application/json'
+  const blob = new Blob([output], { type: mimeType })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
-  const importedBaseName = importFileName ? importFileName.replace(/\.json$/i, '') : 'data'
+  const importedBaseName = importFileName ? importFileName.replace(/\.(json|csv)$/i, '') : 'data'
   const baseName = importedBaseName.replace(/-edited(?:-\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})?$/i, '')
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19)
   link.href = url
-  link.download = appendEditedTimestamp.value ? `${baseName}-edited-${timestamp}.json` : `${baseName}-edited.json`
+  link.download = appendEditedTimestamp.value
+    ? `${baseName}-edited-${timestamp}${fileExtension}`
+    : `${baseName}-edited${fileExtension}`
   const downloadFileName = link.download
   document.body.appendChild(link)
   link.click()

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
@@ -16,6 +16,7 @@ const {
   selectedViewItem,
   isDirty,
   importFileName,
+  importedConfig,
   errorMessage,
   hasData,
   importFromJsonText,
@@ -24,6 +25,7 @@ const {
   updateField,
   resetToImportedSnapshot,
   createExportPayload,
+  createCsvExportText,
   markAsSaved,
   isEditableSimpleValue,
   looksLikeImageUrl,
@@ -34,7 +36,7 @@ const lightboxImageSrc = ref('')
 const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
-const { modeErrorMessage, loadDataModeFromSession, processUploadFile, downloadDataPayload } = useDataTransferStore()
+const { dataMode, modeErrorMessage, loadDataModeFromSession, processUploadFile, downloadDataPayload } = useDataTransferStore()
 
 const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
 
@@ -43,6 +45,7 @@ const {
   clearUserConfigSession,
   applyUserConfigToRawItems,
   createUserConfigPayload,
+  applyImportedConfigPayload,
   hasUnappliedUserConfigChanges,
 } = useUserConfigStore()
 
@@ -83,11 +86,25 @@ function onDataModeChanged() {
 }
 
 async function onDataFileSelected(file) {
-  await processUploadFile(file, {
+  const success = await processUploadFile(file, {
     importFromJsonText,
     importFromCsvText,
     t,
   })
+
+  if (!success) return
+
+  initializeUserConfig(availableFieldKeys.value, hasData.value)
+
+  if (dataMode.value === 'json' && importedConfig.value) {
+    const applyResult = applyImportedConfigPayload(importedConfig.value)
+    if (!applyResult.ok) {
+      errorMessage.value = applyResult.error
+      return
+    }
+    applyUserConfigToRawItems(rawItems.value)
+    await nextTick()
+  }
 }
 
 function onFieldInput(key, value) {
@@ -110,22 +127,19 @@ function onReset() {
 }
 
 function onDownload() {
-  downloadDataPayload(createExportPayload(), importFileName.value, markAsSaved)
-}
+  if (dataMode.value === 'csv') {
+    downloadDataPayload(createCsvExportText(), importFileName.value, markAsSaved)
+    return
+  }
 
-function onDownloadUserConfig() {
-  const payload = createUserConfigPayload()
-  const json = JSON.stringify(payload, null, 2)
-  const blob = new Blob([json], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  const importedBaseName = importFileName.value ? importFileName.value.replace(/\.json$/i, '') : 'data'
-  link.href = url
-  link.download = `${importedBaseName}-user-config.json`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  downloadDataPayload(
+    {
+      data: createExportPayload(),
+      config: createUserConfigPayload(),
+    },
+    importFileName.value,
+    markAsSaved,
+  )
 }
 
 function onApplyUserConfig() {
@@ -279,7 +293,7 @@ watch(
         <p v-if="isDirty" class="dirty">{{ t('unsavedChanges', 'Ungespeicherte Aenderungen') }}</p>
       </section>
 
-      <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" @download="onDownloadUserConfig" />
+      <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
 
       <section class="list-panel" @click="clearSelection">
         <h2>{{ itemLabel }} <span v-if="importFileName">({{ resultCountLabel }})</span></h2>
