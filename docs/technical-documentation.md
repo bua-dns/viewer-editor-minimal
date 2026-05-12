@@ -29,6 +29,7 @@ Kernfunktionen:
 - Build Tool: Vite
 - Tests: Vitest
 - Sprache: JavaScript (ESM)
+- Deployment Base Path: `/viewer-editor/` (gesetzt in `vite.config.js`)
 
 Abhaengigkeiten stehen in `package.json`.
 
@@ -38,6 +39,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/main.js` - Bootstrapping (`createApp(App).mount('#app')`)
 - `src/App.vue` - Haupt-UI und Interaktionen
 - `src/components/InfoPanel.vue` - rendert den Info-Bereich aus Markdown-Inhalt
+- `src/components/footer/Identity.vue` - Footer-Identity; Text und ARIA-Labels aus dem zentralen Wording
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
@@ -64,6 +66,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
 - Sprachwechsel passiert in `App.vue` per einfachem `DE | EN`-Schalter in der Topbar.
+- Tab-Beschriftungen (`Editieren`/`Info`) sowie Footer-Credit und zugehoerige ARIA-Labels werden ebenfalls ueber Wording-Handles lokalisiert.
 
 ## User-Config-GUI (minimal)
 
@@ -220,7 +223,8 @@ Die Seite ist in mehrere Bereiche gegliedert:
 - Topbar: zusaetzlich Option fuer Dateinamen mit Timestamp beim Download
 - Oberhalb des Inhalts: Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
-- Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
+- Toolbar: Dateiname-Hinweis und Dirty-Hinweis
+- Liste: Titel inkl. Trefferzaehler und Volltextsuche
 - Konfiguration: eigenstaendige SFC (`UserConfigPanel`) fuer User-Config
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau
 - Sidebar: Felder des selektierten Items und groessere Scan-Vorschau
@@ -258,6 +262,7 @@ Die Styles sind in Layer aufgeteilt (`src/assets/styles/index.scss`):
 - `base/_index.scss`: Basiselemente, Fokuszustand, globaler Hintergrund
 - `layout/_index.scss`: Grid-Layout und Responsive-Regeln
 - `legacy.scss`: temporaerer Migrations-Layer fuer globale Alt-Styles
+- Wichtige interaktive Controls uebersteuern `button:hover` lokal (z. B. Tabs, Datenmodus-Switch, Transfer-Buttons, Listenkarten), damit Hover-Farben konsistent mit Primary/Secondary bleiben.
 
 Das aktuelle Farbschema nutzt semantische Root-Tokens (`--color-*`) mit Mapping auf bestehende `--ve-*` Variablen, damit bestehende Komponenten-Regeln unveraendert bleiben.
 

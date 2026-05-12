@@ -58,6 +58,9 @@ npm run build
 npm run preview
 ```
 
+Deploy-Hinweis:
+- Der Vite-Build ist auf den Subpfad `/viewer-editor/` konfiguriert (`base` in `vite.config.js`).
+
 ## Tests
 
 ```bash
@@ -148,7 +151,7 @@ Hinweise:
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
-- `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Suchfeld, Hinweise, Dirty-Hinweis) als eigenstaendige SFC
+- `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Hinweise, Dirty-Hinweis) als eigenstaendige SFC
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
@@ -170,6 +173,7 @@ Hinweise:
 - Globaler App-Hintergrund ist ein radialer Verlauf in `src/assets/styles/base/_index.scss` (`#F8FAFC -> #EEF1F5 -> #E7ECF2`).
 - Komponenten-spezifische Styles gehoeren in die jeweiligen SFCs (`<style scoped lang="scss">`).
 - `components/_index.scss` nur fuer Ausnahmen mit notwendiger globaler Wirkung (z. B. Third-Party-Overrides).
+- Fuer kritische UI-Steuerungen (Tabs, Modus-Switch, Transfer-Buttons, Karten) sind lokale `:hover`-Regeln gesetzt, damit globale `button:hover`-Styles keine unerwuenschten Farbwechsel erzeugen.
 
 ## Lizenz
 

@@ -33,5 +33,6 @@
 ## Bedienung
 
 - Die App ist in zwei Tabs gegliedert: `Editieren` (Arbeitsbereich) und `Info` (Kurzanleitung).
+- Die Volltextsuche befindet sich im Bereich `Digitalisate` oberhalb der Kartenliste.
 - `Escape` schliesst die Lightbox.
 - `Escape` hebt ausserdem eine aktive Sidebar-Auswahl auf.

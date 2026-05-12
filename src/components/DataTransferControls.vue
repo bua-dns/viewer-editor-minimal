@@ -96,11 +96,21 @@ function onModeChange(nextMode) {
   font-weight: 600;
 }
 
+.mode-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-secondary) 22%, #f1f5f9);
+  color: color-mix(in srgb, var(--color-secondary) 82%, #0f172a);
+}
+
 .mode-btn.active {
   background: var(--color-secondary);
   color: var(--ve-color-white);
   border-color: var(--color-secondary);
   box-shadow: 0 0 0 2px var(--ve-color-white);
+}
+
+.mode-btn.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-secondary) 88%, #111827);
+  border-color: color-mix(in srgb, var(--color-secondary) 88%, #111827);
 }
 
 .transfer-btn {
@@ -109,6 +119,11 @@ function onModeChange(nextMode) {
 
 .transfer-btn-mode {
   width: 11.5rem;
+}
+
+.transfer-btn-mode:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 88%, #ffffff);
+  border-color: color-mix(in srgb, var(--color-primary) 88%, #ffffff);
 }
 
 .transfer-btn-reset {

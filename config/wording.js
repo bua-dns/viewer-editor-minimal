@@ -43,6 +43,18 @@ const wording = {
     de: "Datenmodus wählen",
     en: "Choose data mode",
   },
+  app_tabs_aria: {
+    de: "App-Bereiche",
+    en: "App sections",
+  },
+  tab_edit: {
+    de: "Editieren",
+    en: "Edit",
+  },
+  tab_info: {
+    de: "Info",
+    en: "Info",
+  },
   upload_mode_mismatch_error: {
     de: "Dateityp passt nicht zum gewählten Modus.",
     en: "File type does not match selected mode.",
@@ -218,6 +230,18 @@ const wording = {
   reset_confirm: {
     de: "Änderungen verwerfen und auf Import zurücksetzen?",
     en: "Discard changes and reset to imported data?",
+  },
+  footer_identity_credit: {
+    de: "Ein Tool von Digitales Netzwerk Sammlungen<br>Berlin University Alliance",
+    en: "A tool by the Digital Network for Collections<br>Berlin University Alliance",
+  },
+  footer_github_aria: {
+    de: "GitHub-Repository",
+    en: "GitHub repository",
+  },
+  footer_buc_aria: {
+    de: "Berlin University Collections",
+    en: "Berlin University Collections",
   },
 }
 

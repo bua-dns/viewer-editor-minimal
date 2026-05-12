@@ -179,6 +179,11 @@ function onSearchInput(event) {
   padding: var(--ve-space-2);
 }
 
+.item-card:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--ve-color-surface-card));
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--ve-color-border-default));
+}
+
 .item-card.active {
   background: var(--color-primary);
   color: var(--ve-color-white);
