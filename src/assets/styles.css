@@ -1,5 +1,6 @@
 :root {
   --color-primary: #1f7a8c;
+  --color-secondary: #8c4f2a;
   font-family: "Source Sans 3", "Segoe UI", sans-serif;
   color: #1f2933;
   background: linear-gradient(160deg, #f6f9fc 0%, #eef3f8 100%);
@@ -60,9 +61,9 @@ body {
   gap: 0.25rem;
   margin-left: 0.25rem;
   padding: 0.2rem 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, #cbd5e1);
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 35%, #cbd5e1);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary) 8%, #f8fafc);
+  background: color-mix(in srgb, var(--color-secondary) 8%, #f8fafc);
 }
 
 .data-mode-switch {
@@ -70,14 +71,14 @@ body {
   align-items: center;
   gap: 0.25rem;
   padding: 0.2rem 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, #cbd5e1);
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 35%, #cbd5e1);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary) 8%, #f8fafc);
+  background: color-mix(in srgb, var(--color-secondary) 8%, #f8fafc);
 }
 
 .mode-btn {
-  background: color-mix(in srgb, var(--color-primary) 12%, #e2e8f0);
-  color: color-mix(in srgb, var(--color-primary) 78%, #0f172a);
+  background: color-mix(in srgb, var(--color-secondary) 14%, #e2e8f0);
+  color: color-mix(in srgb, var(--color-secondary) 78%, #0f172a);
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   border: 1px solid transparent;
@@ -85,15 +86,15 @@ body {
 }
 
 .mode-btn.active {
-  background: var(--color-primary);
+  background: var(--color-secondary);
   color: #ffffff;
-  border-color: var(--color-primary);
+  border-color: var(--color-secondary);
   box-shadow: 0 0 0 2px #ffffff;
 }
 
 .lang-btn {
-  background: color-mix(in srgb, var(--color-primary) 12%, #e2e8f0);
-  color: color-mix(in srgb, var(--color-primary) 78%, #0f172a);
+  background: color-mix(in srgb, var(--color-secondary) 14%, #e2e8f0);
+  color: color-mix(in srgb, var(--color-secondary) 78%, #0f172a);
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   border: 1px solid transparent;
@@ -101,9 +102,9 @@ body {
 }
 
 .lang-btn.active {
-  background: var(--color-primary);
+  background: var(--color-secondary);
   color: #ffffff;
-  border-color: var(--color-primary);
+  border-color: var(--color-secondary);
   box-shadow: 0 0 0 2px #ffffff;
 }
 
