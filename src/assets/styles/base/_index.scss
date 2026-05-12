@@ -1,9 +1,7 @@
 :root {
-  --color-primary: var(--ve-color-primary);
-  --color-secondary: var(--ve-color-secondary);
   font-family: var(--ve-font-family-base);
   color: var(--ve-color-text-default);
-  background: linear-gradient(160deg, #f6f9fc 0%, #eef3f8 100%);
+  background: radial-gradient(circle at top, #f8fafc 0%, #eef1f5 60%, #e7ecf2 100%);
 }
 
 * {
@@ -12,6 +10,7 @@
 
 body {
   margin: 0;
+  background: transparent;
 }
 
 button {
@@ -21,6 +20,11 @@ button {
   border-radius: 8px;
   padding: 0.55rem 0.85rem;
   cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-primary-hover);
 }
 
 button:disabled {
@@ -37,6 +41,13 @@ select {
   border-radius: 8px;
   padding: 0.5rem 0.65rem;
   width: 100%;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 textarea {

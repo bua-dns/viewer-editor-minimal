@@ -113,6 +113,14 @@ function onModeChange(nextMode) {
 
 .transfer-btn-reset {
   min-width: 4.8rem;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.transfer-btn-reset:hover:not(:disabled) {
+  background: #f8fafc;
+  color: var(--color-text-primary);
 }
 
 .download-option input[type='checkbox'] {

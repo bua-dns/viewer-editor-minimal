@@ -48,7 +48,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/stores/useUserConfigStore.js` - User-Config-Store (State, Session, Add/Remove, Reorder, Apply)
 - `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Modus, Session, Dateinamenlogik)
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
-- `src/assets/styles.css` - Layout, Komponenten-Styling, Responsive Regeln
+- `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
 - `config/wording.js` - uebersetzte Textvarianten je Handle
 - `vite.config.js` - Vite-Konfiguration mit Vue-Plugin
@@ -244,7 +244,26 @@ Interne Script-Aufteilung:
 
 ## Styling und Responsiveness
 
-`src/assets/styles.css` verwendet:
+Die Styles sind in Layer aufgeteilt (`src/assets/styles/index.scss`):
+
+- `tokens/_index.scss`: zentrale Farb-/Spacing-/Typo-Tokens
+- `base/_index.scss`: Basiselemente, Fokuszustand, globaler Hintergrund
+- `layout/_index.scss`: Grid-Layout und Responsive-Regeln
+- `legacy.scss`: temporaerer Migrations-Layer fuer globale Alt-Styles
+
+Das aktuelle Farbschema nutzt semantische Root-Tokens (`--color-*`) mit Mapping auf bestehende `--ve-*` Variablen, damit bestehende Komponenten-Regeln unveraendert bleiben.
+
+- Primary `#0066CC` / Hover `#004F99`
+- Secondary `#FF8C42` / Hover `#E56E2E`
+- Background `#EEF1F5`, Surface `#FFFFFF`
+- Border `#D6DCE5` / Soft `#E5EAF0`
+- Text `#1F2937` / Secondary `#5B6575`
+
+Globaler Seitenhintergrund:
+
+- `radial-gradient(circle at top, #F8FAFC 0%, #EEF1F5 60%, #E7ECF2 100%)`
+
+Layoutverhalten:
 
 - Grid-Layout fuer Desktop (`toolbar/list/sidebar/status`)
 - Responsive Umschaltung auf einspaltiges Layout bei `max-width: 768px`

@@ -1,21 +1,32 @@
 :root {
-  --ve-color-primary: #1f7a8c;
-  --ve-color-secondary: #8c4f2a;
+  --color-primary: #0066cc;
+  --color-primary-hover: #004f99;
+  --color-secondary: #ff8c42;
+  --color-secondary-hover: #e56e2e;
+  --color-background: #eef1f5;
+  --color-surface: #ffffff;
+  --color-border: #d6dce5;
+  --color-border-soft: #e5eaf0;
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #5b6575;
+
+  --ve-color-primary: var(--color-primary);
+  --ve-color-secondary: var(--color-secondary);
   --ve-color-white: #ffffff;
 
-  --ve-color-text-default: #1f2933;
-  --ve-color-text-strong: #0f172a;
-  --ve-color-text-muted: #475569;
-  --ve-color-text-soft: #4a5a6a;
+  --ve-color-text-default: var(--color-text-primary);
+  --ve-color-text-strong: var(--color-text-primary);
+  --ve-color-text-muted: var(--color-text-secondary);
+  --ve-color-text-soft: var(--color-text-secondary);
 
-  --ve-color-border-default: #d8e1ea;
-  --ve-color-border-soft: #bfd0df;
-  --ve-color-border-strong: #cbd5e1;
+  --ve-color-border-default: var(--color-border);
+  --ve-color-border-soft: var(--color-border-soft);
+  --ve-color-border-strong: var(--color-border);
 
-  --ve-color-surface-base: #f8fbfe;
-  --ve-color-surface-panel: #ffffffd9;
-  --ve-color-surface-appbar: #ffffffcc;
-  --ve-color-surface-card: #edf3f9;
+  --ve-color-surface-base: var(--color-background);
+  --ve-color-surface-panel: var(--color-surface);
+  --ve-color-surface-appbar: var(--color-surface);
+  --ve-color-surface-card: #f7f9fc;
 
   --ve-color-success: #0f5132;
   --ve-color-error: #b42318;

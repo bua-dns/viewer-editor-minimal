@@ -159,6 +159,9 @@ Hinweise:
 ## Styling-Architektur
 
 - Zentral in `src/assets/styles/`: Tokens, Base, Layout und globale Utilities.
+- Farbthema basiert auf semantischen Root-Tokens (`--color-*`) in `src/assets/styles/tokens/_index.scss` und wird auf bestehende `--ve-*` Tokens gemappt, damit Alt-Styles stabil bleiben.
+- Aktuelle Theme-Palette: Primary `#0066CC`, Primary Hover `#004F99`, Secondary `#FF8C42`, Background `#EEF1F5`, Surface `#FFFFFF`, Border `#D6DCE5`, Text `#1F2937`/`#5B6575`.
+- Globaler App-Hintergrund ist ein radialer Verlauf in `src/assets/styles/base/_index.scss` (`#F8FAFC -> #EEF1F5 -> #E7ECF2`).
 - Komponenten-spezifische Styles gehoeren in die jeweiligen SFCs (`<style scoped lang="scss">`).
 - `components/_index.scss` nur fuer Ausnahmen mit notwendiger globaler Wirkung (z. B. Third-Party-Overrides).
 

@@ -161,9 +161,9 @@ function onAddField() {
 }
 
 .remove-field-btn {
-  background: #f8fafc;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .user-config-row.is-dragging {
@@ -174,7 +174,7 @@ function onAddField() {
   user-select: none;
   cursor: grab;
   text-align: center;
-  color: #64748b;
+  color: var(--ve-color-text-soft);
   font-weight: 700;
 }
 
@@ -186,7 +186,7 @@ function onAddField() {
 .field-key {
   font-family: var(--ve-font-family-mono);
   font-size: 0.9rem;
-  color: #1e293b;
+  color: var(--ve-color-text-strong);
 }
 
 @media (max-width: 768px) {
