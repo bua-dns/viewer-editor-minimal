@@ -12,6 +12,7 @@ import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
 import ToolbarPanel from './components/ToolbarPanel.vue'
 import ListPanel from './components/ListPanel.vue'
+import Identity from './components/footer/Identity.vue'
 
 const {
   rawItems,
@@ -66,6 +67,8 @@ const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
   return `${filteredViewItems.value.length} / ${rawItems.value.length}`
 })
+
+const showSampleDataButton = computed(() => !hasData.value)
 
 const availableFieldKeys = computed(() => {
   const keys = new Set()
@@ -134,7 +137,7 @@ const {
   selectItem,
 })
 
-const { onDataFileSelected, onDownload, onReset } = useDataImportExport({
+const { onDataFileSelected, onDownload, onReset, onLoadSampleData } = useDataImportExport({
   dataMode,
   t,
   setModeErrorMessage,
@@ -223,10 +226,12 @@ watch(
         <DataTransferControls
           :has-data="hasData"
           :is-dirty="isDirty"
+          :show-sample-data-button="showSampleDataButton"
           @file-selected="onDataFileSelected"
           @download="onDownload"
           @reset="onReset"
           @mode-changed="onDataModeChanged"
+          @load-sample-data="onLoadSampleData"
         />
         <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
           <button
@@ -343,10 +348,13 @@ watch(
       </aside>
 
       <section class="status-panel">
-        <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
-        <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-        <p v-else-if="modeErrorMessage" class="error">{{ modeErrorMessage }}</p>
-        <p v-else-if="!hasData">{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
+        <div class="status-content">
+          <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
+          <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+          <p v-else-if="modeErrorMessage" class="error">{{ modeErrorMessage }}</p>
+          <p v-else-if="!hasData">{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
+        </div>
+        <Identity />
       </section>
     </main>
 

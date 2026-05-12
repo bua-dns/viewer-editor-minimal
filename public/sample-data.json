@@ -1,0 +1,26 @@
+[
+    {
+        "inventory_number": "",
+        "species": "",
+        "collector": "",
+        "location": "",
+        "date": "",
+        "scan": "/sample-card-1.jpg"
+    },
+    {
+        "inventory_number": "",
+        "species": "",
+        "collector": "",
+        "location": "",
+        "date": "",
+        "scan": "/sample-card-2.jpg"
+    },
+    {
+        "inventory_number": "",
+        "species": "",
+        "collector": "",
+        "location": "",
+        "date": "",
+        "scan": "/sample-card-3.jpg"
+    }
+]

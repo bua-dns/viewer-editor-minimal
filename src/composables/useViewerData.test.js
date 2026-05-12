@@ -31,6 +31,7 @@ describe('useViewerData helpers', () => {
 
   test('looksLikeImageUrl detects image links', () => {
     expect(__test.looksLikeImageUrl('https://example.com/a.jpg')).toBe(true)
+    expect(__test.looksLikeImageUrl('/sample-card-1.jpg')).toBe(true)
     expect(__test.looksLikeImageUrl('https://example.com/a')).toBe(false)
   })
 

@@ -19,6 +19,10 @@ const wording = {
     de: "CSV hochladen",
     en: "Upload CSV",
   },
+  use_sample_data: {
+    de: "Mit Beispieldaten arbeiten",
+    en: "Use sample data",
+  },
   download_json: {
     de: "JSON herunterladen",
     en: "Download JSON",
@@ -42,6 +46,10 @@ const wording = {
   upload_mode_mismatch_error: {
     de: "Dateityp passt nicht zum gewaehlten Modus.",
     en: "File type does not match selected mode.",
+  },
+  sample_data_load_error: {
+    de: "Beispieldaten konnten nicht geladen werden.",
+    en: "Could not load sample data.",
   },
   csv_not_implemented_error: {
     de: "CSV-Import folgt im naechsten Schritt.",

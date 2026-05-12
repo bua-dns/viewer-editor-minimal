@@ -6,9 +6,10 @@ import { useDataTransferStore } from '../stores/useDataTransferStore'
 const props = defineProps({
   hasData: { type: Boolean, required: true },
   isDirty: { type: Boolean, required: true },
+  showSampleDataButton: { type: Boolean, default: true },
 })
 
-const emit = defineEmits(['file-selected', 'download', 'reset', 'mode-changed'])
+const emit = defineEmits(['file-selected', 'download', 'reset', 'mode-changed', 'load-sample-data'])
 
 const fileInput = ref(null)
 const { t } = useAppConfigStore()
@@ -53,6 +54,9 @@ function onModeChange(nextMode) {
     </button>
   </div>
 
+  <button v-if="props.showSampleDataButton" type="button" class="transfer-btn transfer-btn-mode" @click="emit('load-sample-data')">
+    {{ t('useSampleData', 'Mit Beispieldaten arbeiten') }}
+  </button>
   <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerUpload">{{ uploadButtonLabel }}</button>
   <button type="button" class="transfer-btn transfer-btn-mode" :disabled="!props.hasData || !props.isDirty" @click="emit('download')">
     {{ downloadButtonLabel }}

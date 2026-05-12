@@ -157,7 +157,7 @@ function parseCsvText(text) {
 
 function looksLikeImageUrl(value) {
   if (typeof value !== 'string') return false
-  return /^(https?:\/\/).+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(value.trim())
+  return /^(?:https?:\/\/|\/).+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(value.trim())
 }
 
 function toCsvCell(value) {

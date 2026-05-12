@@ -69,6 +69,29 @@ export function useDataImportExport({
     await applyImportedConfigIfPresent()
   }
 
+  async function onLoadSampleData() {
+    const samplePath = dataMode.value === 'csv' ? '/sample-data.csv' : '/sample-data.json'
+    const sampleFileName = dataMode.value === 'csv' ? 'sample-data.csv' : 'sample-data.json'
+
+    try {
+      setModeErrorMessage('')
+      errorMessage.value = ''
+      const response = await fetch(samplePath)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const text = await response.text()
+      const success = parseDataFileContent(text, sampleFileName)
+      if (!success) return
+
+      initializeUserConfigForCurrentData()
+      await applyImportedConfigIfPresent()
+    } catch {
+      errorMessage.value = t('sampleDataLoadError', 'Beispieldaten konnten nicht geladen werden.')
+    }
+  }
+
   function triggerBrowserDownload(content, mimeType, fileName) {
     const blob = new Blob([content], { type: mimeType })
     const url = URL.createObjectURL(blob)
@@ -112,6 +135,7 @@ export function useDataImportExport({
 
   return {
     onDataFileSelected,
+    onLoadSampleData,
     onDownload,
     onReset,
   }

@@ -332,6 +332,14 @@ button {
 
 .status-panel {
   grid-area: status;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-content {
+  min-width: 0;
 }
 
 .search-wrap {
@@ -557,6 +565,11 @@ pre {
   }
 
   .toolbar-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-panel {
     flex-direction: column;
     align-items: stretch;
   }
