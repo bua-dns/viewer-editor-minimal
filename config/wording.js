@@ -40,11 +40,11 @@ const wording = {
     en: "CSV",
   },
   data_mode_aria: {
-    de: "Datenmodus waehlen",
+    de: "Datenmodus wählen",
     en: "Choose data mode",
   },
   upload_mode_mismatch_error: {
-    de: "Dateityp passt nicht zum gewaehlten Modus.",
+    de: "Dateityp passt nicht zum gewählten Modus.",
     en: "File type does not match selected mode.",
   },
   sample_data_load_error: {
@@ -52,7 +52,7 @@ const wording = {
     en: "Could not load sample data.",
   },
   csv_not_implemented_error: {
-    de: "CSV-Import folgt im naechsten Schritt.",
+    de: "CSV-Import folgt im nächsten Schritt.",
     en: "CSV import will be implemented in the next step.",
   },
   reset: {
@@ -100,7 +100,7 @@ const wording = {
     en: "Download configuration",
   },
   add_configuration_field: {
-    de: "Feld hinzufuegen",
+    de: "Feld hinzufügen",
     en: "Add field",
   },
   add_field_name_placeholder: {
@@ -108,7 +108,7 @@ const wording = {
     en: "Field name (e.g. note)",
   },
   add_field_button: {
-    de: "Hinzufuegen",
+    de: "Hinzufügen",
     en: "Add",
   },
   remove_field_button: {
@@ -120,7 +120,7 @@ const wording = {
     en: "Field already exists.",
   },
   add_field_empty_error: {
-    de: "Bitte einen gueltigen Feldnamen eingeben.",
+    de: "Bitte einen gültigen Feldnamen eingeben.",
     en: "Please enter a valid field name.",
   },
   config_field_header: {
@@ -172,7 +172,7 @@ const wording = {
     en: "No matches for this search.",
   },
   scan_preview_alt: {
-    de: "Scan Vorschau",
+    de: "Scan-Vorschau",
     en: "Scan preview",
   },
   scan_unavailable: {
@@ -180,12 +180,12 @@ const wording = {
     en: "Scan unavailable",
   },
   sidebar_previous_item_aria: {
-    de: "Vorheriges Item",
-    en: "Previous item",
+    de: "Vorheriger Eintrag",
+    en: "Previous entry",
   },
   sidebar_next_item_aria: {
-    de: "Nächstes Item",
-    en: "Next item",
+    de: "Nächster Eintrag",
+    en: "Next entry",
   },
   sidebar_scan_counter_prefix: {
     de: "Scan",
@@ -204,8 +204,8 @@ const wording = {
     en: "Please upload a JSON file.",
   },
   fullscreen: {
-    de: "Fullscreen",
-    en: "Fullscreen",
+    de: "Vollbild",
+    en: "Full screen",
   },
   close: {
     de: "Schließen",
