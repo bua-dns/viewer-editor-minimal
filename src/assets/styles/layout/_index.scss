@@ -35,14 +35,25 @@
   margin-top: var(--ve-space-2);
 }
 
+.app-tabs-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ve-space-3);
+  border-bottom: 1px solid var(--ve-color-border-default);
+}
+
+.app-tabs-row .language-switch {
+  margin-bottom: 0.35rem;
+}
+
 .app-tabs {
-  width: 100%;
+  flex: 1;
   margin: 0;
   display: flex;
   align-items: flex-end;
   gap: var(--ve-space-2);
   padding: 0;
-  border-bottom: 1px solid var(--ve-color-border-default);
+  overflow-y: hidden;
 }
 
 .app-tab-btn {
@@ -210,7 +221,33 @@
   .app-tabs {
     justify-content: flex-start;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: thin;
+  }
+
+  .app-tab-btn {
+    min-width: 8.5rem;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.95rem;
+  }
+
+  .app-tabs-row {
+    align-items: center;
+    flex-wrap: wrap;
+    padding-bottom: var(--ve-space-2);
+  }
+
+  .app-tabs-row .language-switch {
+    margin-bottom: 0;
+    margin-top: var(--ve-space-1);
+  }
+}
+
+@media (max-width: 420px) {
+  .app-tab-btn {
+    min-width: 7rem;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.9rem;
   }
 }
 

@@ -263,36 +263,46 @@ watch(
 <template>
   <div class="app-shell">
     <section class="app-tab-sheet">
-      <nav class="app-tabs" role="tablist" aria-label="App Bereiche">
-        <button
-          id="tab-edit"
-          type="button"
-          class="app-tab-btn"
-          role="tab"
-          aria-controls="panel-edit"
-          :aria-selected="activeTab === 'edit'"
-          :tabindex="activeTab === 'edit' ? 0 : -1"
-          :class="{ active: activeTab === 'edit' }"
-          @click="setActiveTab('edit')"
-          @keydown="onTabKeydown($event, 'edit')"
-        >
-          Editieren
-        </button>
-        <button
-          id="tab-info"
-          type="button"
-          class="app-tab-btn"
-          role="tab"
-          aria-controls="panel-info"
-          :aria-selected="activeTab === 'info'"
-          :tabindex="activeTab === 'info' ? 0 : -1"
-          :class="{ active: activeTab === 'info' }"
-          @click="setActiveTab('info')"
-          @keydown="onTabKeydown($event, 'info')"
-        >
-          Info
-        </button>
-      </nav>
+      <div class="app-tabs-row">
+      <nav class="app-tabs" role="tablist" :aria-label="t('appTabsAria', 'App sections')">
+          <button
+            id="tab-edit"
+            type="button"
+            class="app-tab-btn"
+            role="tab"
+            aria-controls="panel-edit"
+            :aria-selected="activeTab === 'edit'"
+            :tabindex="activeTab === 'edit' ? 0 : -1"
+            :class="{ active: activeTab === 'edit' }"
+            @click="setActiveTab('edit')"
+            @keydown="onTabKeydown($event, 'edit')"
+          >
+          {{ t('tabEdit', 'Edit') }}
+          </button>
+          <button
+            id="tab-info"
+            type="button"
+            class="app-tab-btn"
+            role="tab"
+            aria-controls="panel-info"
+            :aria-selected="activeTab === 'info'"
+            :tabindex="activeTab === 'info' ? 0 : -1"
+            :class="{ active: activeTab === 'info' }"
+            @click="setActiveTab('info')"
+            @keydown="onTabKeydown($event, 'info')"
+          >
+          {{ t('tabInfo', 'Info') }}
+          </button>
+        </nav>
+        <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
+          <button type="button" class="lang-btn" :class="{ active: language === 'de' }" @click="setLanguage('de')">
+            {{ t('languageButtonDe', 'DE') }}
+          </button>
+          <button type="button" class="lang-btn" :class="{ active: language === 'en' }" @click="setLanguage('en')">
+            {{ t('languageButtonEn', 'EN') }}
+          </button>
+        </div>
+      </div>
 
       <main
         v-if="activeTab === 'edit'"
@@ -315,24 +325,6 @@ watch(
             @mode-changed="onDataModeChanged"
             @load-sample-data="onLoadSampleData"
           />
-          <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
-            <button
-              type="button"
-              class="lang-btn"
-              :class="{ active: language === 'de' }"
-              @click="setLanguage('de')"
-            >
-              {{ t('languageButtonDe', 'DE') }}
-            </button>
-            <button
-              type="button"
-              class="lang-btn"
-              :class="{ active: language === 'en' }"
-              @click="setLanguage('en')"
-            >
-              {{ t('languageButtonEn', 'EN') }}
-            </button>
-          </div>
         </div>
       </header>
 

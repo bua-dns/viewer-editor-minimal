@@ -1,6 +1,9 @@
 <script setup>
 import githubLogo from '../../assets/logos/Octicons-mark-github.svg'
 import buaLogo from '../../assets/logos/dns-v1.svg'
+import { useAppConfigStore } from '../../stores/useAppConfigStore'
+
+const { t } = useAppConfigStore()
 </script>
 
 <template>
@@ -10,17 +13,19 @@ import buaLogo from '../../assets/logos/dns-v1.svg'
       href="https://github.com/bua-dns/viewer-editor-minimal/"
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="GitHub Repository"
+      :aria-label="t('footerGithubAria', 'GitHub repository')"
     >
       <img class="identity-logo identity-logo-github" :src="githubLogo" alt="GitHub" />
     </a>
+
+    <span class="identity-credit" v-html="t('footerIdentityCredit', 'A tool by the Digital Network for Collections, Berlin University Alliance')" />
 
     <a
       class="identity-link"
       href="https://berlin-university-collections.de/"
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Berlin University Collections"
+      :aria-label="t('footerBucAria', 'Berlin University Collections')"
     >
       <img class="identity-logo identity-logo-bua" :src="buaLogo" alt="Berlin University Collections" />
     </a>
@@ -33,6 +38,13 @@ import buaLogo from '../../assets/logos/dns-v1.svg'
   align-items: center;
   justify-content: flex-end;
   gap: 0.25rem;
+}
+
+.identity-credit {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  text-align: right;
+  max-width: 28rem;
 }
 
 .identity-link {
