@@ -31,13 +31,64 @@
   display: none;
 }
 
+.app-tab-sheet {
+  margin-top: var(--ve-space-2);
+}
+
+.app-tabs {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ve-space-2);
+  padding: 0 var(--ve-space-3);
+  border-bottom: 1px solid var(--ve-color-border-default);
+}
+
+.app-tab-btn {
+  margin-bottom: -1px;
+  background: color-mix(in srgb, var(--ve-color-secondary) 10%, #e5e7eb);
+  color: #253446;
+  border: 1px solid #c9d2dc;
+  border-bottom-color: transparent;
+  border-radius: 8px 8px 0 0;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease, border-color 140ms ease;
+}
+
+.app-tab-btn:hover {
+  transform: translateY(-1px);
+}
+
+.app-tab-btn.active {
+  background: #f6f8fb;
+  color: var(--ve-color-text-default);
+  border-color: #d6dee8;
+  border-bottom-color: #f6f8fb;
+  box-shadow: 0 -1px 0 #ffffff;
+}
+
+.info-tab-panel {
+  margin-top: 0;
+}
+
+.tab-sheet-panel {
+  margin-top: 0;
+  border: 1px solid var(--ve-color-border-default);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: #f6f8fb;
+  padding: var(--ve-space-3);
+}
+
 .content-grid {
-  margin-top: var(--ve-space-4);
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
-    'userconfig'
+    'topbar'
     'toolbar'
+    'userconfig'
     'list'
     'status';
   gap: var(--ve-space-4);
@@ -46,8 +97,9 @@
 .content-grid.content-grid-selected {
   grid-template-columns: 1fr 1fr 2fr;
   grid-template-areas:
-    'userconfig userconfig userconfig'
+    'topbar topbar topbar'
     'toolbar toolbar toolbar'
+    'userconfig userconfig userconfig'
     'list list sidebar'
     'status status status';
 }
@@ -131,8 +183,9 @@
   .content-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      'userconfig'
+      'topbar'
       'toolbar'
+      'userconfig'
       'list'
       'sidebar'
       'status';
@@ -168,4 +221,18 @@
   .search-wrap input {
     min-width: 0;
   }
+
+  .app-tabs {
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+}
+
+.content-grid-full {
+  grid-column: 1 / -1;
+}
+
+.content-grid-topbar {
+  grid-area: topbar;
 }

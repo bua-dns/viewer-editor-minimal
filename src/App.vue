@@ -13,6 +13,10 @@ import LightboxModal from './components/LightboxModal.vue'
 import ToolbarPanel from './components/ToolbarPanel.vue'
 import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
+import InfoPanel from './components/InfoPanel.vue'
+
+const tabs = ['edit', 'info']
+const activeTab = ref('edit')
 
 const {
   rawItems,
@@ -124,6 +128,44 @@ function hasListImageFailed(uid) {
   return failedListImages.value.has(uid)
 }
 
+function setActiveTab(tab) {
+  activeTab.value = tab
+}
+
+function onTabKeydown(event, tab) {
+  const currentIndex = tabs.indexOf(tab)
+  if (currentIndex === -1) return
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    setActiveTab(tabs[(currentIndex + 1) % tabs.length])
+    return
+  }
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    setActiveTab(tabs[(currentIndex - 1 + tabs.length) % tabs.length])
+    return
+  }
+
+  if (event.key === 'Home') {
+    event.preventDefault()
+    setActiveTab(tabs[0])
+    return
+  }
+
+  if (event.key === 'End') {
+    event.preventDefault()
+    setActiveTab(tabs[tabs.length - 1])
+    return
+  }
+
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    setActiveTab(tab)
+  }
+}
+
 const {
   selectedFilteredIndex,
   canGoPrevious,
@@ -220,41 +262,80 @@ watch(
 
 <template>
   <div class="app-shell">
-    <header class="topbar">
-      <h1>{{ appTitle }}</h1>
-      <div class="actions">
-        <DataTransferControls
-          :has-data="hasData"
-          :is-dirty="isDirty"
-          :show-sample-data-button="showSampleDataButton"
-          @file-selected="onDataFileSelected"
-          @download="onDownload"
-          @reset="onReset"
-          @mode-changed="onDataModeChanged"
-          @load-sample-data="onLoadSampleData"
-        />
-        <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
-          <button
-            type="button"
-            class="lang-btn"
-            :class="{ active: language === 'de' }"
-            @click="setLanguage('de')"
-          >
-            {{ t('languageButtonDe', 'DE') }}
-          </button>
-          <button
-            type="button"
-            class="lang-btn"
-            :class="{ active: language === 'en' }"
-            @click="setLanguage('en')"
-          >
-            {{ t('languageButtonEn', 'EN') }}
-          </button>
-        </div>
-      </div>
-    </header>
+    <section class="app-tab-sheet">
+      <nav class="app-tabs" role="tablist" aria-label="App Bereiche">
+        <button
+          id="tab-edit"
+          type="button"
+          class="app-tab-btn"
+          role="tab"
+          aria-controls="panel-edit"
+          :aria-selected="activeTab === 'edit'"
+          :tabindex="activeTab === 'edit' ? 0 : -1"
+          :class="{ active: activeTab === 'edit' }"
+          @click="setActiveTab('edit')"
+          @keydown="onTabKeydown($event, 'edit')"
+        >
+          Editieren
+        </button>
+        <button
+          id="tab-info"
+          type="button"
+          class="app-tab-btn"
+          role="tab"
+          aria-controls="panel-info"
+          :aria-selected="activeTab === 'info'"
+          :tabindex="activeTab === 'info' ? 0 : -1"
+          :class="{ active: activeTab === 'info' }"
+          @click="setActiveTab('info')"
+          @keydown="onTabKeydown($event, 'info')"
+        >
+          Info
+        </button>
+      </nav>
 
-    <main class="content-grid" :class="{ 'content-grid-selected': !!selectedRawItem }">
+      <main
+        v-if="activeTab === 'edit'"
+        id="panel-edit"
+        class="content-grid tab-sheet-panel"
+        role="tabpanel"
+        aria-labelledby="tab-edit"
+        :class="{ 'content-grid-selected': !!selectedRawItem }"
+      >
+      <header class="topbar content-grid-topbar content-grid-full">
+        <h1>{{ appTitle }}</h1>
+        <div class="actions">
+          <DataTransferControls
+            :has-data="hasData"
+            :is-dirty="isDirty"
+            :show-sample-data-button="showSampleDataButton"
+            @file-selected="onDataFileSelected"
+            @download="onDownload"
+            @reset="onReset"
+            @mode-changed="onDataModeChanged"
+            @load-sample-data="onLoadSampleData"
+          />
+          <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
+            <button
+              type="button"
+              class="lang-btn"
+              :class="{ active: language === 'de' }"
+              @click="setLanguage('de')"
+            >
+              {{ t('languageButtonDe', 'DE') }}
+            </button>
+            <button
+              type="button"
+              class="lang-btn"
+              :class="{ active: language === 'en' }"
+              @click="setLanguage('en')"
+            >
+              {{ t('languageButtonEn', 'EN') }}
+            </button>
+          </div>
+        </div>
+      </header>
+
       <ToolbarPanel
         :import-file-name="importFileName"
         :search-query="searchQuery"
@@ -356,7 +437,18 @@ watch(
         </div>
         <Identity />
       </section>
-    </main>
+      </main>
+
+      <section
+        v-else
+        id="panel-info"
+        class="info-tab-panel tab-sheet-panel"
+        role="tabpanel"
+        aria-labelledby="tab-info"
+      >
+        <InfoPanel />
+      </section>
+    </section>
 
     <LightboxModal
       :is-open="isLightboxOpen"
