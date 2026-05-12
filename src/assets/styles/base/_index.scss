@@ -1,0 +1,57 @@
+:root {
+  --color-primary: var(--ve-color-primary);
+  --color-secondary: var(--ve-color-secondary);
+  font-family: var(--ve-font-family-base);
+  color: var(--ve-color-text-default);
+  background: linear-gradient(160deg, #f6f9fc 0%, #eef3f8 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button {
+  border: 0;
+  background: var(--color-primary);
+  color: var(--ve-color-white);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+input[type='text'],
+input[type='number'],
+input[type='search'],
+textarea,
+select {
+  border: 1px solid var(--ve-color-border-soft);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+  width: 100%;
+}
+
+textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.error {
+  color: var(--ve-color-error);
+}
+
+pre {
+  overflow: auto;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem;
+}

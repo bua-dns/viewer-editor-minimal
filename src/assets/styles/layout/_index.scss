@@ -1,0 +1,171 @@
+.app-shell {
+  min-height: 100vh;
+  padding: var(--ve-space-4);
+}
+
+.topbar {
+  display: flex;
+  gap: var(--ve-space-4);
+  justify-content: space-between;
+  align-items: center;
+  background: var(--ve-color-surface-appbar);
+  border: 1px solid var(--ve-color-border-default);
+  border-radius: 12px;
+  padding: var(--ve-space-3) var(--ve-space-4);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.actions input[type='file'] {
+  display: none;
+}
+
+.content-grid {
+  margin-top: var(--ve-space-4);
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'userconfig'
+    'toolbar'
+    'list'
+    'status';
+  gap: var(--ve-space-4);
+}
+
+.content-grid.content-grid-selected {
+  grid-template-columns: 1fr 1fr 2fr;
+  grid-template-areas:
+    'userconfig userconfig userconfig'
+    'toolbar toolbar toolbar'
+    'list list sidebar'
+    'status status status';
+}
+
+.sidebar-panel {
+  grid-area: sidebar;
+}
+
+.sidebar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ve-space-3);
+  margin-bottom: var(--ve-space-3);
+}
+
+.sidebar-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.sidebar-nav button {
+  min-width: 42px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.sidebar-close {
+  min-width: 36px;
+  padding: 0.35rem 0.55rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.sidebar-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.4fr) minmax(0, 1.15fr);
+  gap: var(--ve-space-4);
+  align-items: start;
+}
+
+.scan-column {
+  min-width: 0;
+}
+
+.status-panel {
+  grid-area: status;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ve-space-4);
+}
+
+.status-content {
+  min-width: 0;
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--ve-space-2);
+}
+
+.search-wrap input {
+  min-width: 260px;
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'userconfig'
+      'toolbar'
+      'list'
+      'sidebar'
+      'status';
+  }
+
+  .content-grid.content-grid-selected {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-head {
+    gap: var(--ve-space-2);
+  }
+
+  .sidebar-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .status-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-wrap input {
+    min-width: 0;
+  }
+}

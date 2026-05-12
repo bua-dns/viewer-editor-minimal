@@ -99,3 +99,84 @@ function onListImageFailed(uid) {
     </ul>
   </section>
 </template>
+
+<style scoped lang="scss">
+.list-panel {
+  grid-area: list;
+}
+
+.meta {
+  margin: 0;
+  color: var(--ve-color-text-soft);
+}
+
+.card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ve-space-3);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+:global(.content-grid-selected) .card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.item-card {
+  width: 100%;
+  display: grid;
+  gap: var(--ve-space-2);
+  text-align: left;
+  background: var(--ve-color-surface-card);
+  color: var(--ve-color-text-default);
+  border: 1px solid var(--ve-color-border-default);
+  padding: var(--ve-space-2);
+}
+
+.item-card.active {
+  background: var(--color-primary);
+  color: var(--ve-color-white);
+  border-color: var(--color-primary);
+}
+
+.card-media {
+  border-radius: 10px;
+  overflow: hidden;
+  min-height: 240px;
+  background: var(--ve-color-surface-base);
+  border: 1px solid var(--ve-color-border-soft);
+  display: grid;
+  place-items: center;
+}
+
+.card-media img {
+  width: 100%;
+  height: 240px;
+  object-fit: contain;
+  display: block;
+}
+
+.card-caption {
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 0.15rem 0.1rem;
+  word-break: break-word;
+}
+
+.scan-fallback {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  border: 1px dashed var(--ve-color-border-soft);
+  border-radius: 10px;
+  color: var(--ve-color-text-soft);
+  background: var(--ve-color-surface-base);
+}
+
+@media (max-width: 768px) {
+  :global(.content-grid-selected) .card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

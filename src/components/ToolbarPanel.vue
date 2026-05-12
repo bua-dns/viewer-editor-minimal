@@ -49,3 +49,50 @@ function onSearchInput(event) {
     <p v-if="props.isDirty" class="dirty">{{ props.unsavedChangesLabel }}</p>
   </section>
 </template>
+
+<style scoped lang="scss">
+.toolbar-panel {
+  grid-area: toolbar;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ve-space-4);
+}
+
+.meta {
+  margin: 0;
+  color: var(--ve-color-text-soft);
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--ve-space-2);
+}
+
+.search-wrap input {
+  min-width: 260px;
+}
+
+.dirty {
+  margin: 0;
+  color: var(--ve-color-success);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .toolbar-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-wrap input {
+    min-width: 0;
+  }
+}
+</style>

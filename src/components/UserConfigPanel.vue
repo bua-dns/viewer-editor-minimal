@@ -97,3 +97,105 @@ function onAddField() {
     </div>
   </section>
 </template>
+
+<style scoped lang="scss">
+.user-config-panel {
+  grid-area: userconfig;
+}
+
+.user-config-head {
+  display: flex;
+  align-items: center;
+  gap: var(--ve-space-3);
+  margin-bottom: var(--ve-space-3);
+  cursor: pointer;
+}
+
+.user-config-title {
+  color: var(--ve-color-text-strong);
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-right: auto;
+}
+
+.user-config-toggle-icon {
+  background: transparent;
+  color: var(--ve-color-text-muted);
+  padding: 0.1rem 0.3rem;
+  border-radius: 6px;
+}
+
+.toggle-icon {
+  color: var(--ve-color-text-muted);
+  font-size: 1.3em;
+  line-height: 1;
+}
+
+.user-config-actions {
+  display: inline-flex;
+  gap: var(--ve-space-2);
+}
+
+.user-config-grid {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.user-config-add-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.6fr) auto;
+  gap: var(--ve-space-2);
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.user-config-error {
+  margin: 0 0 var(--ve-space-1);
+}
+
+.user-config-row {
+  display: grid;
+  grid-template-columns: 34px minmax(180px, 1.2fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(220px, 1.3fr) auto;
+  gap: var(--ve-space-2);
+  align-items: center;
+}
+
+.remove-field-btn {
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.user-config-row.is-dragging {
+  opacity: 0.55;
+}
+
+.drag-handle {
+  user-select: none;
+  cursor: grab;
+  text-align: center;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.user-config-row-head {
+  color: var(--ve-color-text-muted);
+  font-size: 0.9rem;
+}
+
+.field-key {
+  font-family: var(--ve-font-family-mono);
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+@media (max-width: 768px) {
+  .user-config-row {
+    grid-template-columns: 1fr;
+  }
+
+  .user-config-add-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

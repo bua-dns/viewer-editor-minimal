@@ -27,7 +27,7 @@ import buaLogo from '../../assets/logos/dns-v1.svg'
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .footer-identity {
   display: inline-flex;
   align-items: center;

@@ -67,3 +67,56 @@ function onModeChange(nextMode) {
 
   <input ref="fileInput" type="file" :accept="uploadAccept" @change="onFileChange" />
 </template>
+
+<style scoped lang="scss">
+.download-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ve-color-text-muted);
+  font-size: 0.95rem;
+}
+
+.data-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 35%, #cbd5e1);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-secondary) 8%, #f8fafc);
+}
+
+.mode-btn {
+  background: color-mix(in srgb, var(--color-secondary) 14%, #e2e8f0);
+  color: color-mix(in srgb, var(--color-secondary) 78%, #0f172a);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.mode-btn.active {
+  background: var(--color-secondary);
+  color: var(--ve-color-white);
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 2px var(--ve-color-white);
+}
+
+.transfer-btn {
+  white-space: nowrap;
+}
+
+.transfer-btn-mode {
+  width: 11.5rem;
+}
+
+.transfer-btn-reset {
+  min-width: 4.8rem;
+}
+
+.download-option input[type='checkbox'] {
+  width: auto;
+  accent-color: var(--color-primary);
+}
+</style>

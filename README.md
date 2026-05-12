@@ -32,6 +32,7 @@ Hinweis zur Bedienung:
 - Vue 3
 - Vite
 - Vitest
+- Sass (SCSS)
 
 ## Voraussetzungen
 
@@ -146,9 +147,20 @@ Hinweise:
 - `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Suchfeld, Hinweise, Dirty-Hinweis) als eigenstaendige SFC
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
-- `src/assets/styles.css` – Styling
+- `src/assets/styles/index.scss` - zentraler Styling-Einstieg
+- `src/assets/styles/tokens/_index.scss` - globale Design-Tokens als CSS-Variablen (`--ve-*`)
+- `src/assets/styles/base/_index.scss` - Base-Layer (Reset, Elemente, globale Utilities)
+- `src/assets/styles/layout/_index.scss` - Layout-Layer (App-Shell, Grid, responsive Struktur)
+- `src/assets/styles/legacy.scss` - temporaerer Migrations-Layer fuer bestehende globale Styles
+- `src/assets/styles/components/_index.scss` - optionaler Ausnahme-Layer fuer globale Sonderfaelle
 - `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
 - `config/wording.js` - Sprachvarianten je Wording-Handle
+
+## Styling-Architektur
+
+- Zentral in `src/assets/styles/`: Tokens, Base, Layout und globale Utilities.
+- Komponenten-spezifische Styles gehoeren in die jeweiligen SFCs (`<style scoped lang="scss">`).
+- `components/_index.scss` nur fuer Ausnahmen mit notwendiger globaler Wirkung (z. B. Third-Party-Overrides).
 
 ## Lizenz
 

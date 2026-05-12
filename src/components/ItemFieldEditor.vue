@@ -56,3 +56,15 @@ function onBooleanInput(key, event) {
     </template>
   </div>
 </template>
+
+<style scoped lang="scss">
+.field-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.field-row {
+  display: grid;
+  gap: 0.35rem;
+}
+</style>

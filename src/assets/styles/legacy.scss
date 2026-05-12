@@ -1,0 +1,74 @@
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.25rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-secondary) 35%, #cbd5e1);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-secondary) 8%, #f8fafc);
+}
+
+.lang-btn {
+  background: color-mix(in srgb, var(--color-secondary) 14%, #e2e8f0);
+  color: color-mix(in srgb, var(--color-secondary) 78%, #0f172a);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.lang-btn.active {
+  background: var(--color-secondary);
+  color: #ffffff;
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.toolbar-panel,
+.user-config-panel,
+.list-panel,
+.sidebar-panel,
+.status-panel {
+  background: var(--ve-color-surface-panel);
+  border: 1px solid var(--ve-color-border-default);
+  border-radius: 12px;
+  padding: var(--ve-space-4);
+}
+
+.sidebar-content {
+  border: 1px solid var(--ve-color-border-default);
+  border-radius: 12px;
+  background: var(--ve-color-surface-base);
+  padding: 0.8rem;
+}
+
+.scan-nav-index {
+  color: var(--ve-color-text-soft);
+  font-weight: 600;
+}
+
+.scan-preview-wrap {
+  margin-bottom: 0.35rem;
+}
+
+.scan-preview {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border: 1px solid var(--ve-color-border-soft);
+  border-radius: 10px;
+  background: var(--ve-color-surface-base);
+  cursor: zoom-in;
+}
+
+.scan-fallback {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  border: 1px dashed var(--ve-color-border-soft);
+  border-radius: 10px;
+  color: var(--ve-color-text-soft);
+  background: var(--ve-color-surface-base);
+}
+
