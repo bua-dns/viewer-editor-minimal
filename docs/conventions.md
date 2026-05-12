@@ -11,6 +11,7 @@
 - JSON akzeptiert entweder ein Top-Level-Array oder ein Objekt mit `data`-Array.
 - CSV erwartet eine Header-Zeile, danach Datensaetze.
 - Spaltennamen in CSV muessen eindeutig sein und duerfen nicht leer sein.
+- Wenn noch keine Datei geladen ist, koennen alternativ passende Beispieldaten je Modus geladen werden.
 
 ## Feldkonventionen
 
@@ -31,5 +32,6 @@
 
 ## Bedienung
 
+- Die App ist in zwei Tabs gegliedert: `Editieren` (Arbeitsbereich) und `Info` (Kurzanleitung).
 - `Escape` schliesst die Lightbox.
 - `Escape` hebt ausserdem eine aktive Sidebar-Auswahl auf.

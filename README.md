@@ -5,8 +5,10 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 ## Features
 
 - Datenmodus-Umschalter in der Topbar (`JSON | CSV`)
+- Tab-Navigation mit Bereichen `Editieren` und `Info`
 - JSON-Datei lokal hochladen (Top-Level-Array oder Objekt mit `data`-Array)
 - CSV-Datei lokal hochladen (erste Zeile = Header, danach Datensaetze)
+- Beispieldaten laden (`sample-data.json` / `sample-data.csv`) passend zum aktiven Datenmodus
 - Volltextsuche über alle Felder
 - Kartenansicht mit Bildvorschau (`scan`-URL)
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
@@ -23,6 +25,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Optionaler Timestamp im Export-Dateinamen (aktivierbar/deaktivierbar)
 - Lightbox für größere Scan-Ansicht
 - Keyboard-Shortcuts: `Escape` schliesst Lightbox bzw. Sidebar-Selektion
+- Footer-Identity mit Links zu GitHub-Repository und Berlin University Collections
 
 Hinweis zur Bedienung:
 - Datenmodus- und Sprach-Umschalter sind als aktive/inaktive Segmented Controls dargestellt.
@@ -131,6 +134,7 @@ Hinweise:
 ## Projektstruktur
 
 - `src/App.vue` – UI-Composition-Root (Orchestrierung von Komponenten, Stores und Composables)
+- `src/components/InfoPanel.vue` - rendert den Info-Tab aus `src/assets/texts/info.md`
 - `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Sidebar-Feldrendering
 - `src/composables/useDataImportExport.js` - Import/Export-Orchestrierung inkl. Dateimodus-Pruefung und Download-Flow
@@ -147,6 +151,8 @@ Hinweise:
 - `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Suchfeld, Hinweise, Dirty-Hinweis) als eigenstaendige SFC
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
+- `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
+- `src/assets/texts/info.md` - Markdown-Quelle fuer den Info-Tab
 - `src/assets/styles/index.scss` - zentraler Styling-Einstieg
 - `src/assets/styles/tokens/_index.scss` - globale Design-Tokens als CSS-Variablen (`--ve-*`)
 - `src/assets/styles/base/_index.scss` - Base-Layer (Reset, Elemente, globale Utilities)

@@ -8,6 +8,7 @@ Kernfunktionen:
 
 - JSON-Datei importieren und validieren
 - CSV-Datei importieren und validieren
+- Beispieldaten passend zum aktiven Datenmodus laden
 - Volltextsuche ueber alle Feldwerte
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
 - Dirty-State inkl. Warnung beim Verlassen der Seite
@@ -20,6 +21,7 @@ Kernfunktionen:
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 - Optionaler Timestamp im Export-Dateinamen
 - Keyboard-Shortcuts mit `Escape` (Lightbox schliessen / Sidebar-Auswahl aufheben)
+- Tab-Navigation mit zwei Bereichen (`Editieren`, `Info`)
 
 ## Tech Stack
 
@@ -35,6 +37,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `index.html` - Einstiegspunkt mit Mount-Node `#app`
 - `src/main.js` - Bootstrapping (`createApp(App).mount('#app')`)
 - `src/App.vue` - Haupt-UI und Interaktionen
+- `src/components/InfoPanel.vue` - rendert den Info-Bereich aus Markdown-Inhalt
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
@@ -49,6 +52,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Modus, Session, Dateinamenlogik)
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
+- `src/assets/texts/info.md` - editierbare Markdown-Inhalte fuer den Info-Tab
+- `src/components/footer/Identity.vue` - Footer-Identity mit externen Projektlinks
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
 - `config/wording.js` - uebersetzte Textvarianten je Handle
 - `vite.config.js` - Vite-Konfiguration mit Vue-Plugin
@@ -131,6 +136,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 - In der Topbar kann zwischen `JSON` und `CSV` umgeschaltet werden.
 - Der gewaehlte Modus wird unter `viewerEditor.dataMode.v1` in `sessionStorage` gespeichert.
 - Upload-Button-Label und `accept`-Filter passen sich an den Modus an.
+- Solange keine Daten geladen sind, ist zusaetzlich ein Button fuer passende Beispieldaten sichtbar.
 - Dateityp-Mismatch wird mit Fehlermeldung blockiert.
 - Die Umschalter fuer Datenmodus und Sprache sind als visuell aktive/inaktive Segmented Controls umgesetzt.
 - Download-Dateinamen koennen optional einen Timestamp enthalten (UI-Checkbox in `DataTransferControls.vue`).
@@ -212,18 +218,20 @@ Die Seite ist in mehrere Bereiche gegliedert:
 - Topbar: Upload, Download, Reset, Datenmodus-Umschalter JSON/CSV
 - Topbar: zusaetzlich DE/EN-Sprachumschalter
 - Topbar: zusaetzlich Option fuer Dateinamen mit Timestamp beim Download
+- Oberhalb des Inhalts: Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname, Suche, Trefferzaehler, Dirty-Hinweis
 - Konfiguration: eigenstaendige SFC (`UserConfigPanel`) fuer User-Config
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau
 - Sidebar: Felder des selektierten Items und groessere Scan-Vorschau
 - Statusbereich: Datei-/Fehlerstatus
+- Footer im Statusbereich: Identity-Links (GitHub, Berlin University Collections)
 
 Zusatzfunktionen:
 
 - Lightbox fuer `scan`-Bild mit Fullscreen-Umschaltung
 - Fallback-UI bei Bildladefehlern (Liste, Sidebar, Lightbox)
-- `beforeunload`-Warnung bei `isDirty`
+- `beforeunload`-Warnung bei `isDirty` oder nicht angewendeten User-Config-Aenderungen
 - `Escape` schliesst die Lightbox; bei offener Sidebar hebt `Escape` die aktuelle Auswahl auf
 
 Interne Script-Aufteilung:
@@ -301,7 +309,7 @@ Tests in `src/composables/userConfigValidation.test.js` pruefen:
 Testlauf:
 
 ```bash
-npm test
+npm run test
 ```
 
 ## Lokale Entwicklung

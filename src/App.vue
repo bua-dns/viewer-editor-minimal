@@ -338,13 +338,9 @@ watch(
 
       <ToolbarPanel
         :import-file-name="importFileName"
-        :search-query="searchQuery"
         :is-dirty="isDirty"
         :no-file-loaded-label="t('noFileLoaded', 'Noch keine Datei geladen')"
-        :search-label="t('searchLabel', 'Suche')"
-        :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')"
         :unsaved-changes-label="t('unsavedChanges', 'Ungespeicherte Aenderungen')"
-        @update:search-query="searchQuery = $event"
       />
 
       <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
@@ -353,6 +349,9 @@ watch(
         :item-label="itemLabel"
         :import-file-name="importFileName"
         :result-count-label="resultCountLabel"
+        :search-query="searchQuery"
+        :search-label="t('searchLabel', 'Suche')"
+        :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')"
         :has-data="hasData"
         :filtered-view-items="filteredViewItems"
         :selected-view-item="selectedViewItem"
@@ -365,6 +364,7 @@ watch(
         :has-list-image-failed="hasListImageFailed"
         @clear-selection="clearSelection"
         @select-item="selectItem"
+        @update:search-query="searchQuery = $event"
         @list-image-failed="listImageFailed"
       />
 

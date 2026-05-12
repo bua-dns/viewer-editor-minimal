@@ -12,6 +12,18 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  searchQuery: {
+    type: String,
+    default: '',
+  },
+  searchLabel: {
+    type: String,
+    required: true,
+  },
+  searchPlaceholder: {
+    type: String,
+    required: true,
+  },
   hasData: {
     type: Boolean,
     required: true,
@@ -54,7 +66,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['clear-selection', 'select-item', 'list-image-failed'])
+const emit = defineEmits(['clear-selection', 'select-item', 'list-image-failed', 'update:search-query'])
 
 function onClearSelection() {
   emit('clear-selection')
@@ -67,11 +79,27 @@ function onSelectItem(uid) {
 function onListImageFailed(uid) {
   emit('list-image-failed', uid)
 }
+
+function onSearchInput(event) {
+  emit('update:search-query', event.target.value)
+}
 </script>
 
 <template>
   <section class="list-panel" @click="onClearSelection">
-    <h2>{{ props.itemLabel }} <span v-if="props.importFileName">({{ props.resultCountLabel }})</span></h2>
+    <div class="list-panel-head">
+      <h2>{{ props.itemLabel }} <span v-if="props.importFileName">({{ props.resultCountLabel }})</span></h2>
+      <label class="search-wrap" @click.stop>
+        <span>{{ props.searchLabel }}</span>
+        <input
+          :value="props.searchQuery"
+          type="search"
+          :placeholder="props.searchPlaceholder"
+          :disabled="!props.hasData"
+          @input="onSearchInput"
+        />
+      </label>
+    </div>
     <p v-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
     <p v-else-if="props.filteredViewItems.length === 0" class="meta">{{ props.noSearchResultsLabel }}</p>
     <ul v-else class="card-grid">
@@ -108,6 +136,23 @@ function onListImageFailed(uid) {
 .meta {
   margin: 0;
   color: var(--ve-color-text-soft);
+}
+
+.list-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ve-space-3);
+}
+
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--ve-space-2);
+}
+
+.search-wrap input {
+  min-width: 260px;
 }
 
 .card-grid {
@@ -175,6 +220,21 @@ function onListImageFailed(uid) {
 }
 
 @media (max-width: 768px) {
+  .list-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-wrap {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-wrap input {
+    min-width: 0;
+  }
+
   :global(.content-grid-selected) .card-grid {
     grid-template-columns: 1fr;
   }
