@@ -102,7 +102,6 @@
   grid-template-columns: 1fr;
   grid-template-areas:
     'topbar'
-    'toolbar'
     'userconfig'
     'list'
     'status';
@@ -113,7 +112,6 @@
   grid-template-columns: 1fr 1fr 2fr;
   grid-template-areas:
     'topbar topbar topbar'
-    'toolbar toolbar toolbar'
     'userconfig userconfig userconfig'
     'list list sidebar'
     'status status status';
@@ -189,7 +187,6 @@
     grid-template-columns: 1fr;
     grid-template-areas:
       'topbar'
-      'toolbar'
       'userconfig'
       'list'
       'sidebar'

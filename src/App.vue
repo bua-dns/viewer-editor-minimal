@@ -10,7 +10,6 @@ import DataTransferControls from './components/DataTransferControls.vue'
 import UserConfigPanel from './components/UserConfigPanel.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
-import ToolbarPanel from './components/ToolbarPanel.vue'
 import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
 import InfoPanel from './components/InfoPanel.vue'
@@ -328,13 +327,6 @@ watch(
         </div>
       </header>
 
-      <ToolbarPanel
-        :import-file-name="importFileName"
-        :is-dirty="isDirty"
-        :no-file-loaded-label="t('noFileLoaded', 'Noch keine Datei geladen')"
-        :unsaved-changes-label="t('unsavedChanges', 'Ungespeicherte Aenderungen')"
-      />
-
       <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
 
       <ListPanel
@@ -425,7 +417,10 @@ watch(
           <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
           <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
           <p v-else-if="modeErrorMessage" class="error">{{ modeErrorMessage }}</p>
-          <p v-else-if="!hasData">{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
+          <template v-else-if="!hasData">
+            <p>{{ t('noDataLoaded', 'Noch keine Daten geladen') }}</p>
+            <p>{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
+          </template>
         </div>
         <Identity />
       </section>

@@ -87,6 +87,10 @@ const wording = {
     de: "Noch keine Datei geladen",
     en: "No file loaded yet",
   },
+  no_data_loaded: {
+    de: "Noch keine Daten geladen",
+    en: "No data loaded yet",
+  },
   search_label: {
     de: "Suche",
     en: "Search",

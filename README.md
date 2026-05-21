@@ -151,7 +151,7 @@ Hinweise:
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
-- `src/components/ToolbarPanel.vue` - Toolbar-Bereich (Hinweise, Dirty-Hinweis) als eigenstaendige SFC
+- Hinweise zum Ladezustand werden im `status-panel` in `src/App.vue` gerendert (inkl. Empty-State-Texte)
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
