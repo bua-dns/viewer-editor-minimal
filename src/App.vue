@@ -413,16 +413,10 @@ watch(
       </aside>
 
       <section class="status-panel">
-        <div class="status-content">
+        <div>
           <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
-          <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-          <p v-else-if="modeErrorMessage" class="error">{{ modeErrorMessage }}</p>
-          <template v-else-if="!hasData">
-            <p>{{ t('noDataLoaded', 'Noch keine Daten geladen') }}</p>
-            <p>{{ t('uploadPrompt', 'Bitte eine JSON-Datei hochladen.') }}</p>
-          </template>
+          <p v-else>{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
         </div>
-        <Identity />
       </section>
       </main>
 
@@ -435,6 +429,10 @@ watch(
       >
         <InfoPanel />
       </section>
+
+      <footer class="app-footer">
+        <Identity />
+      </footer>
     </section>
 
     <LightboxModal

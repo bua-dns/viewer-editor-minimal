@@ -27,7 +27,8 @@
 .user-config-panel,
 .list-panel,
 .sidebar-panel,
-.status-panel {
+.status-panel,
+.app-footer {
   background: var(--ve-color-surface-panel);
   border: 1px solid var(--ve-color-border-default);
   border-radius: 12px;

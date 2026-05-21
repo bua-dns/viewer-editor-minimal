@@ -162,10 +162,12 @@
 
 .status-panel {
   grid-area: status;
+}
+
+.app-footer {
+  margin-top: var(--ve-space-4);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--ve-space-4);
+  justify-content: flex-end;
 }
 
 .status-content {
@@ -210,9 +212,8 @@
     justify-content: space-between;
   }
 
-  .status-panel {
-    flex-direction: column;
-    align-items: stretch;
+  .app-footer {
+    justify-content: center;
   }
 
   .app-tabs {
