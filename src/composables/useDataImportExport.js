@@ -22,6 +22,23 @@ export function useDataImportExport({
   isDirty,
   resetToImportedSnapshot,
 }) {
+  const baseUrl = import.meta.env.BASE_URL || '/'
+
+  function resolvePublicAssetUrl(path) {
+    const normalized = String(path || '').replace(/^\/+/, '')
+    const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+    return `${normalizedBase}${normalized}`
+  }
+
+  function normalizeSampleScanUrls() {
+    rawItems.value.forEach((item) => {
+      if (!item || typeof item.scan !== 'string') return
+      const scanValue = item.scan.trim()
+      if (!scanValue.startsWith('/')) return
+      item.scan = resolvePublicAssetUrl(scanValue)
+    })
+  }
+
   function detectDataFileType(fileName) {
     const lowerFileName = fileName.toLowerCase()
     if (lowerFileName.endsWith('.json')) return 'json'
@@ -70,7 +87,9 @@ export function useDataImportExport({
   }
 
   async function onLoadSampleData() {
-    const samplePath = dataMode.value === 'csv' ? '/sample-data.csv' : '/sample-data.json'
+    const samplePath = dataMode.value === 'csv'
+      ? resolvePublicAssetUrl('sample-data.csv')
+      : resolvePublicAssetUrl('sample-data.json')
     const sampleFileName = dataMode.value === 'csv' ? 'sample-data.csv' : 'sample-data.json'
 
     try {
@@ -84,6 +103,8 @@ export function useDataImportExport({
       const text = await response.text()
       const success = parseDataFileContent(text, sampleFileName)
       if (!success) return
+
+      normalizeSampleScanUrls()
 
       initializeUserConfigForCurrentData()
       await applyImportedConfigIfPresent()
