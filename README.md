@@ -14,6 +14,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
 - App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
 - Sprachumschalter (DE/EN) in der Topbar
+- Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
 - Dirty-State mit Reset auf den importierten Stand
 - Export als neue `*-edited.json` (Format: `{ data, config }`)
 - Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
@@ -155,6 +156,7 @@ Hinweise:
 - Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
+- `src/components/ListPanel.vue` - Kartenliste mit trennbarem Kopf-/Body-Rendering (`renderHeader`/`renderBody`) fuer sticky Header-Komposition
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
 - `src/assets/texts/info.md` - Markdown-Quelle fuer den Info-Tab
 - `src/assets/styles/index.scss` - zentraler Styling-Einstieg

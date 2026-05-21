@@ -64,6 +64,14 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  renderHeader: {
+    type: Boolean,
+    default: true,
+  },
+  renderBody: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits(['clear-selection', 'select-item', 'list-image-failed', 'update:search-query'])
@@ -86,8 +94,8 @@ function onSearchInput(event) {
 </script>
 
 <template>
-  <section class="list-panel" @click="onClearSelection">
-    <div class="list-panel-head">
+  <section class="list-panel" :class="{ 'list-panel-head-only': props.renderHeader && !props.renderBody }" @click="props.renderBody ? onClearSelection() : null">
+    <div v-if="props.renderHeader" class="list-panel-head">
       <h2>{{ props.itemLabel }} <span v-if="props.importFileName">({{ props.resultCountLabel }})</span></h2>
       <label class="search-wrap" @click.stop>
         <span>{{ props.searchLabel }}</span>
@@ -100,9 +108,10 @@ function onSearchInput(event) {
         />
       </label>
     </div>
-    <p v-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
-    <p v-else-if="props.filteredViewItems.length === 0" class="meta">{{ props.noSearchResultsLabel }}</p>
-    <ul v-else class="card-grid">
+    <template v-if="props.renderBody">
+      <p v-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
+      <p v-else-if="props.filteredViewItems.length === 0" class="meta">{{ props.noSearchResultsLabel }}</p>
+      <ul v-else class="card-grid">
       <li v-for="item in props.filteredViewItems" :key="item._uid">
         <button
           type="button"
@@ -124,13 +133,20 @@ function onSearchInput(event) {
           </div>
         </button>
       </li>
-    </ul>
+      </ul>
+    </template>
   </section>
 </template>
 
 <style scoped lang="scss">
 .list-panel {
   grid-area: list;
+}
+
+.list-panel-head-only {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .meta {

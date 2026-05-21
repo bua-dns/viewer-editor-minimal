@@ -22,6 +22,7 @@ Kernfunktionen:
 - Optionaler Timestamp im Export-Dateinamen
 - Keyboard-Shortcuts mit `Escape` (Lightbox schliessen / Sidebar-Auswahl aufheben)
 - Tab-Navigation mit zwei Bereichen (`Editieren`, `Info`)
+- Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
 
 ## Tech Stack
 
@@ -43,6 +44,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
+- `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Typ/Placeholder/Sortierung
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useDataImportExport.js` - Import/Export-Flow inkl. Dateimodus-Validierung und Download-Ausleitung
@@ -218,16 +220,12 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 
 Die Seite ist in mehrere Bereiche gegliedert:
 
-- Topbar: Upload, Download, Reset, Datenmodus-Umschalter JSON/CSV
-- Topbar: zusaetzlich DE/EN-Sprachumschalter
-- Topbar: zusaetzlich Option fuer Dateinamen mit Timestamp beim Download
-- Oberhalb des Inhalts: Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
+- Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
+- Im Edit-Tab: sticky Header-Stack mit Titel/Transfer-Controls, Konfiguration und Listenkopf (`Digitalisate` + Suche)
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname-Hinweis und Dirty-Hinweis
-- Liste: Titel inkl. Trefferzaehler und Volltextsuche
-- Konfiguration: eigenstaendige SFC (`UserConfigPanel`) fuer User-Config
-- Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau
-- Sidebar: Felder des selektierten Items und groessere Scan-Vorschau
+- Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau (scrollbarer Hauptbereich)
+- Sidebar: Felder des selektierten Items und groessere Scan-Vorschau (desktop sticky mit internem Scroll)
 - Statusbereich: Datei-/Fehlerstatus
 - Footer im Statusbereich: Identity-Links (GitHub, Berlin University Collections)
 
@@ -279,6 +277,7 @@ Globaler Seitenhintergrund:
 Layoutverhalten:
 
 - Grid-Layout fuer Desktop (`topbar/userconfig/list/sidebar/status`)
+- Desktop nutzt zusaetzlich einen sticky Header-Stack im Edit-Tab; Hoehen werden in `App.vue` per `ResizeObserver` gemessen und als CSS-Variablen fuer Sticky-Offets gesetzt
 - Responsive Umschaltung auf einspaltiges Layout bei `max-width: 768px`
 - Kartenlayout fuer Item-Vorschau (`auto-fill`, `minmax(480px, 1fr)`)
 - Lightbox mit dunklem Overlay

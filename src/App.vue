@@ -16,6 +16,10 @@ import InfoPanel from './components/InfoPanel.vue'
 
 const tabs = ['edit', 'info']
 const activeTab = ref('edit')
+const appShellRef = ref(null)
+const appTabsRowRef = ref(null)
+const editStickyTopRef = ref(null)
+let stickyResizeObserver = null
 
 const {
   rawItems,
@@ -222,16 +226,38 @@ function keydownListener(event) {
   }
 }
 
+function updateStickyMeasurements() {
+  if (!appShellRef.value) return
+  const tabsHeight = appTabsRowRef.value?.offsetHeight || 0
+  const stickyTopHeight = editStickyTopRef.value?.offsetHeight || 0
+  appShellRef.value.style.setProperty('--ve-tabs-row-height', `${tabsHeight}px`)
+  appShellRef.value.style.setProperty('--ve-edit-sticky-stack-height', `${stickyTopHeight}px`)
+}
+
 onMounted(() => {
   document.documentElement.style.setProperty('--color-primary', primaryColor)
   loadDataModeFromSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
   window.addEventListener('keydown', keydownListener)
+  window.addEventListener('resize', updateStickyMeasurements)
+  stickyResizeObserver = new ResizeObserver(() => {
+    updateStickyMeasurements()
+  })
+  if (appTabsRowRef.value) stickyResizeObserver.observe(appTabsRowRef.value)
+  if (editStickyTopRef.value) stickyResizeObserver.observe(editStickyTopRef.value)
+  requestAnimationFrame(() => {
+    updateStickyMeasurements()
+  })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnloadListener)
   window.removeEventListener('keydown', keydownListener)
+  window.removeEventListener('resize', updateStickyMeasurements)
+  if (stickyResizeObserver) {
+    stickyResizeObserver.disconnect()
+    stickyResizeObserver = null
+  }
 })
 
 watch(
@@ -257,12 +283,23 @@ watch(
     initializeUserConfigForCurrentData()
   },
 )
+
+watch(
+  () => activeTab.value,
+  () => {
+    requestAnimationFrame(() => {
+      updateStickyMeasurements()
+      if (stickyResizeObserver && appTabsRowRef.value) stickyResizeObserver.observe(appTabsRowRef.value)
+      if (stickyResizeObserver && editStickyTopRef.value) stickyResizeObserver.observe(editStickyTopRef.value)
+    })
+  },
+)
 </script>
 
 <template>
-  <div class="app-shell">
-    <section class="app-tab-sheet">
-      <div class="app-tabs-row">
+  <div ref="appShellRef" class="app-shell">
+    <section class="app-tab-sheet" :class="{ 'edit-active': activeTab === 'edit' }">
+      <div ref="appTabsRowRef" class="app-tabs-row">
       <nav class="app-tabs" role="tablist" :aria-label="t('appTabsAria', 'App sections')">
           <button
             id="tab-edit"
@@ -303,6 +340,48 @@ watch(
         </div>
       </div>
 
+      <section v-if="activeTab === 'edit'" ref="editStickyTopRef" class="edit-sticky-top">
+        <header class="topbar content-grid-topbar content-grid-full">
+          <h1>{{ appTitle }}</h1>
+          <div class="actions">
+            <DataTransferControls
+              :has-data="hasData"
+              :is-dirty="isDirty"
+              :show-sample-data-button="showSampleDataButton"
+              @file-selected="onDataFileSelected"
+              @download="onDownload"
+              @reset="onReset"
+              @mode-changed="onDataModeChanged"
+              @load-sample-data="onLoadSampleData"
+            />
+          </div>
+        </header>
+
+        <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
+
+        <ListPanel
+          :item-label="itemLabel"
+          :import-file-name="importFileName"
+          :result-count-label="resultCountLabel"
+          :search-query="searchQuery"
+          :search-label="t('searchLabel', 'Suche')"
+          :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')"
+          :has-data="hasData"
+          :filtered-view-items="filteredViewItems"
+          :selected-view-item="selectedViewItem"
+          :raw-items="rawItems"
+          :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
+          :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
+          :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
+          :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
+          :looks-like-image-url="looksLikeImageUrl"
+          :has-list-image-failed="hasListImageFailed"
+          :render-header="true"
+          :render-body="false"
+          @update:search-query="searchQuery = $event"
+        />
+      </section>
+
       <main
         v-if="activeTab === 'edit'"
         id="panel-edit"
@@ -311,24 +390,6 @@ watch(
         aria-labelledby="tab-edit"
         :class="{ 'content-grid-selected': !!selectedRawItem }"
       >
-      <header class="topbar content-grid-topbar content-grid-full">
-        <h1>{{ appTitle }}</h1>
-        <div class="actions">
-          <DataTransferControls
-            :has-data="hasData"
-            :is-dirty="isDirty"
-            :show-sample-data-button="showSampleDataButton"
-            @file-selected="onDataFileSelected"
-            @download="onDownload"
-            @reset="onReset"
-            @mode-changed="onDataModeChanged"
-            @load-sample-data="onLoadSampleData"
-          />
-        </div>
-      </header>
-
-      <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
-
       <ListPanel
         :item-label="itemLabel"
         :import-file-name="importFileName"
@@ -346,6 +407,8 @@ watch(
         :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
         :looks-like-image-url="looksLikeImageUrl"
         :has-list-image-failed="hasListImageFailed"
+        :render-header="false"
+        :render-body="true"
         @clear-selection="clearSelection"
         @select-item="selectItem"
         @update:search-query="searchQuery = $event"
