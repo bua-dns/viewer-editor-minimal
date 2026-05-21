@@ -13,6 +13,8 @@ import LightboxModal from './components/LightboxModal.vue'
 import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
 import InfoPanel from './components/InfoPanel.vue'
+import maximizeIcon from './assets/icons/maximize-2.svg'
+import minimizeIcon from './assets/icons/minimize-2.svg'
 
 const tabs = ['edit', 'info']
 const activeTab = ref('edit')
@@ -49,6 +51,7 @@ const lightboxImageSrc = ref('')
 const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
+const isExtendedEditMode = ref(false)
 const {
   appendEditedTimestamp,
   dataMode,
@@ -209,6 +212,14 @@ function closeLightbox() {
   isLightboxOpen.value = false
 }
 
+function toggleExtendedEditMode() {
+  isExtendedEditMode.value = !isExtendedEditMode.value
+}
+
+function onSidebarClose() {
+  clearSelection()
+}
+
 function beforeUnloadListener(event) {
   if (!isDirty.value && !hasUnappliedUserConfigChanges.value) return
   event.preventDefault()
@@ -274,6 +285,15 @@ watch(
   () => selectedRawItem.value?.scan,
   () => {
     sidebarImageLoadFailed.value = false
+  },
+)
+
+watch(
+  () => selectedRawItem.value,
+  (nextSelectedRawItem) => {
+    if (!nextSelectedRawItem) {
+      isExtendedEditMode.value = false
+    }
   },
 )
 
@@ -388,9 +408,10 @@ watch(
         class="content-grid tab-sheet-panel"
         role="tabpanel"
         aria-labelledby="tab-edit"
-        :class="{ 'content-grid-selected': !!selectedRawItem }"
+        :class="{ 'content-grid-selected': !!selectedRawItem, 'content-grid-extended': !!selectedRawItem && isExtendedEditMode }"
       >
       <ListPanel
+        v-if="!isExtendedEditMode"
         :item-label="itemLabel"
         :import-file-name="importFileName"
         :result-count-label="resultCountLabel"
@@ -440,9 +461,29 @@ watch(
             </button>
           </div>
           <button
+            v-if="!isExtendedEditMode"
+            type="button"
+            class="sidebar-extend-toggle"
+            @click="toggleExtendedEditMode"
+            :aria-label="t('sidebarExtendAria', 'Editierbereich auf volle Breite erweitern')"
+            :title="t('sidebarExtendLabel', 'Volle Breite')"
+          >
+            <img :src="maximizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
+          </button>
+          <button
+            v-else
+            type="button"
+            class="sidebar-extend-toggle"
+            @click="toggleExtendedEditMode"
+            :aria-label="t('sidebarCollapseAria', 'Editierbereich auf Standardbreite reduzieren')"
+            :title="t('sidebarCollapseLabel', 'Standardbreite')"
+          >
+            <img :src="minimizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
+          </button>
+          <button
             type="button"
             class="sidebar-close"
-            @click="clearSelection"
+            @click="onSidebarClose"
             :aria-label="t('sidebarCloseAria', 'Sidebar schliessen')"
           >
             ×

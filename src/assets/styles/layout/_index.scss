@@ -101,8 +101,6 @@
   display: grid;
   grid-template-columns: 1fr;
   grid-template-areas:
-    'topbar'
-    'userconfig'
     'list'
     'status';
   gap: var(--ve-space-4);
@@ -111,10 +109,24 @@
 .content-grid.content-grid-selected {
   grid-template-columns: 1fr 1fr 2fr;
   grid-template-areas:
-    'topbar topbar topbar'
-    'userconfig userconfig userconfig'
     'list list sidebar'
     'status status status';
+}
+
+.content-grid.content-grid-selected.content-grid-extended {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'sidebar'
+    'status';
+  width: 100%;
+  max-width: none;
+}
+
+.content-grid.content-grid-selected.content-grid-extended .sidebar-panel {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
 }
 
 .sidebar-panel {
@@ -164,6 +176,13 @@
     max-height: calc(100vh - (var(--ve-sticky-top-offset) + var(--ve-tabs-row-height) + var(--ve-edit-sticky-stack-height) + var(--ve-space-4) + var(--ve-space-3)));
     overflow-y: auto;
   }
+
+  .content-grid.content-grid-selected.content-grid-extended .sidebar-panel {
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .sidebar-head {
@@ -194,11 +213,36 @@
   line-height: 1;
 }
 
+.sidebar-extend-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 0.35rem 0.55rem;
+  background: var(--ve-color-surface-base);
+  color: var(--ve-color-text-default);
+  border: 1px solid var(--ve-color-border-default);
+}
+
+.sidebar-extend-toggle:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ve-color-surface-base) 85%, var(--color-primary) 15%);
+}
+
+.sidebar-toggle-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
 .sidebar-detail-grid {
   display: grid;
   grid-template-columns: minmax(320px, 1.4fr) minmax(0, 1.15fr);
   gap: var(--ve-space-4);
   align-items: start;
+}
+
+.content-grid.content-grid-selected.content-grid-extended .sidebar-detail-grid {
+  grid-template-columns: minmax(320px, 1.34fr) minmax(0, 1.05fr);
 }
 
 .scan-column {
@@ -233,8 +277,6 @@
   .content-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
-      'topbar'
-      'userconfig'
       'list'
       'sidebar'
       'status';
@@ -242,6 +284,13 @@
 
   .content-grid.content-grid-selected {
     grid-template-columns: 1fr;
+  }
+
+  .content-grid.content-grid-selected.content-grid-extended {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'sidebar'
+      'status';
   }
 
   .sidebar-detail-grid {
@@ -259,6 +308,10 @@
 
   .app-footer {
     justify-content: center;
+  }
+
+  .sidebar-extend-toggle {
+    display: none;
   }
 
   .app-tabs {

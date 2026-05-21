@@ -153,12 +153,14 @@ Hinweise:
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
+- Sidebar im Edit-Bereich unterstuetzt einen erweiterten Modus (volle Breite) mit Maximize/Minimize-Icons.
 - Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste mit trennbarem Kopf-/Body-Rendering (`renderHeader`/`renderBody`) fuer sticky Header-Komposition
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
 - `src/assets/texts/info.md` - Markdown-Quelle fuer den Info-Tab
+- `src/assets/icons/` - SVG-Icons fuer Expand/Collapse-Steuerungen im Edit-Bereich
 - `src/assets/styles/index.scss` - zentraler Styling-Einstieg
 - `src/assets/styles/tokens/_index.scss` - globale Design-Tokens als CSS-Variablen (`--ve-*`)
 - `src/assets/styles/base/_index.scss` - Base-Layer (Reset, Elemente, globale Utilities)

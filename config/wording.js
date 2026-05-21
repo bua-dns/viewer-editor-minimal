@@ -211,6 +211,22 @@ const wording = {
     de: "Sidebar schließen",
     en: "Close sidebar",
   },
+  sidebar_extend_aria: {
+    de: "Editierbereich auf volle Breite erweitern",
+    en: "Expand edit area to full width",
+  },
+  sidebar_collapse_aria: {
+    de: "Editierbereich auf Standardbreite reduzieren",
+    en: "Collapse edit area to default width",
+  },
+  sidebar_extend_label: {
+    de: "Volle Breite",
+    en: "Full width",
+  },
+  sidebar_collapse_label: {
+    de: "Standardbreite",
+    en: "Default width",
+  },
   status_file_prefix: {
     de: "Datei",
     en: "File",
