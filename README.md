@@ -26,6 +26,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Lightbox für größere Scan-Ansicht
 - Keyboard-Shortcuts: `Escape` schliesst Lightbox bzw. Sidebar-Selektion
 - Footer-Identity mit Links zu GitHub-Repository und Berlin University Collections
+- Empty-State-Hinweise im Statusbereich: zuerst `Noch keine Daten geladen`, danach Upload-Hinweis
 
 Hinweis zur Bedienung:
 - Datenmodus- und Sprach-Umschalter sind als aktive/inaktive Segmented Controls dargestellt.
@@ -151,7 +152,7 @@ Hinweise:
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
-- Hinweise zum Ladezustand werden im `status-panel` in `src/App.vue` gerendert (inkl. Empty-State-Texte)
+- Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links

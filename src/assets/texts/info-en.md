@@ -6,7 +6,7 @@ This application helps you transcribe digitized records efficiently. It is desig
 
 ## Get Started with Sample Data
 
-If you want to try the features first, you can load built-in sample data directly from the toolbar.
+If you want to try the features first, you can load built-in sample data directly from the top control area.
 
 You can work with data from either CSV or JSON files. If you load the sample data as CSV (default), the tool first shows only the scans. In the **Configuration** section, you can create fields for structured capture of the information shown on the cards. If you load data in JSON mode, a configuration is already included, and you can adjust or extend it.
 

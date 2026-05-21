@@ -278,7 +278,7 @@ Globaler Seitenhintergrund:
 
 Layoutverhalten:
 
-- Grid-Layout fuer Desktop (`toolbar/list/sidebar/status`)
+- Grid-Layout fuer Desktop (`topbar/userconfig/list/sidebar/status`)
 - Responsive Umschaltung auf einspaltiges Layout bei `max-width: 768px`
 - Kartenlayout fuer Item-Vorschau (`auto-fill`, `minmax(480px, 1fr)`)
 - Lightbox mit dunklem Overlay

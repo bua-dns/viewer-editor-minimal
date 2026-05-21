@@ -6,7 +6,7 @@ Diese Anwendung ermöglicht es Ihnen, Digitalisate effizient zu transkribieren. 
 
 ## Mit Beispieldaten starten
 
-Wenn Sie die Funktionen erst einmal ausprobieren möchten, können Sie direkt über die Toolbar integrierte Beispieldaten laden. 
+Wenn Sie die Funktionen erst einmal ausprobieren moechten, koennen Sie integrierte Beispieldaten direkt ueber den oberen Steuerungsbereich laden.
 
 Sie können prinzipiell mit Daten aus einer CSV- oder einer JSON-Datei arbeiten. Wenn Sie die Beispieldaten als CSV laden (Voreinstellung) zeigt das Tool zunächst nur die Scans an. Im Bereich **Konfiguration** können Sie nun Felder anlegen, die für die strukturiere Erfassung der auf den Karten verzeichneten Informationen geeignet sind. Wenn Sie die Daten im JSON-Modus laden, ist bereits eine Konfiguration gegen, die sie anpassen und erweitern können.
 
