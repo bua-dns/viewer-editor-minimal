@@ -25,6 +25,12 @@
 - `config.fields` muss ein Objekt sein, dessen Schluessel den Feldnamen entsprechen.
 - Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`.
 
+## Replacements (JSON)
+
+- Falls die importierte JSON-Datei ein `replacements`-Objekt enthaelt, wird es unveraendert mitgenommen und beim JSON-Export wieder geschrieben (`{ data, config, replacements }`).
+- `replacements` muss ein Objekt sein. Die Struktur innerhalb wird derzeit nicht weiter validiert.
+- Beim CSV-Import oder Daten-Reset wird `replacements` zurueckgesetzt.
+
 ## Speichern und Dateinamen
 
 - Exportdateien erhalten den Suffix `-edited`.

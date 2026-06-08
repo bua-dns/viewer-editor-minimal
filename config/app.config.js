@@ -18,6 +18,7 @@ const appConfig = {
     appTabsAria: 'app_tabs_aria',
     tabEdit: 'tab_edit',
     tabInfo: 'tab_info',
+    tabConfig: 'tab_config',
     uploadModeMismatchError: 'upload_mode_mismatch_error',
     sampleDataLoadError: 'sample_data_load_error',
     csvNotImplementedError: 'csv_not_implemented_error',

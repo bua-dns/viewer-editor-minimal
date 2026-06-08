@@ -7,16 +7,16 @@ import { useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
 import DataTransferControls from './components/DataTransferControls.vue'
-import UserConfigPanel from './components/UserConfigPanel.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
 import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
 import InfoPanel from './components/InfoPanel.vue'
+import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 
-const tabs = ['edit', 'info']
+const tabs = ['edit', 'info', 'configuration']
 const activeTab = ref('edit')
 const appShellRef = ref(null)
 const appTabsRowRef = ref(null)
@@ -44,6 +44,7 @@ const {
   markAsSaved,
   isEditableSimpleValue,
   looksLikeImageUrl,
+  importedReplacements,
 } = useViewerData()
 
 const isLightboxOpen = ref(false)
@@ -204,6 +205,7 @@ const { onDataFileSelected, onDownload, onReset, onLoadSampleData } = useDataImp
   markAsSaved,
   createExportPayload,
   createUserConfigPayload,
+  importedReplacements,
   isDirty,
   resetToImportedSnapshot,
 })
@@ -318,6 +320,12 @@ watch(
 
 <template>
   <div ref="appShellRef" class="app-shell">
+    <section>
+      <div class="dev-output">
+        Dev Output:
+        {{ importedReplacements }}
+      </div>
+    </section>
     <section class="app-tab-sheet" :class="{ 'edit-active': activeTab === 'edit' }">
       <div ref="appTabsRowRef" class="app-tabs-row">
       <nav class="app-tabs" role="tablist" :aria-label="t('appTabsAria', 'App sections')">
@@ -349,6 +357,20 @@ watch(
           >
           {{ t('tabInfo', 'Info') }}
           </button>
+          <button
+            id="tab-configuration"
+            type="button"
+            class="app-tab-btn"
+            role="tab"
+            aria-controls="panel-configuration"
+            :aria-selected="activeTab === 'configuration'"
+            :tabindex="activeTab === 'configuration' ? 0 : -1"
+            :class="{ active: activeTab === 'configuration' }"
+            @click="setActiveTab('configuration')"
+            @keydown="onTabKeydown($event, 'configuration')"
+          >
+          {{ t('tabConfig', 'Configuration') }}
+          </button>
         </nav>
         <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
           <button type="button" class="lang-btn" :class="{ active: language === 'de' }" @click="setLanguage('de')">
@@ -376,8 +398,6 @@ watch(
             />
           </div>
         </header>
-
-        <UserConfigPanel :has-data="hasData" @apply="onApplyUserConfig" />
 
         <ListPanel
           :item-label="itemLabel"
@@ -525,13 +545,23 @@ watch(
       </main>
 
       <section
-        v-else
+        v-if="activeTab === 'info'"
         id="panel-info"
         class="info-tab-panel tab-sheet-panel"
         role="tabpanel"
         aria-labelledby="tab-info"
       >
         <InfoPanel />
+      </section>
+
+      <section
+        v-if="activeTab === 'configuration'"
+        id="panel-configuration"
+        class="configuration-tab-panel tab-sheet-panel"
+        role="tabpanel"
+        aria-labelledby="tab-configuration"
+      >
+        <ConfigurationPanel :has-data="hasData" @apply="onApplyUserConfig" />
       </section>
 
       <footer class="app-footer">

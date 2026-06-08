@@ -19,6 +19,7 @@ export function useDataImportExport({
   markAsSaved,
   createExportPayload,
   createUserConfigPayload,
+  importedReplacements,
   isDirty,
   resetToImportedSnapshot,
 }) {
@@ -140,6 +141,9 @@ export function useDataImportExport({
     const payload = {
       data: createExportPayload(),
       config: createUserConfigPayload(),
+    }
+    if (importedReplacements?.value) {
+      payload.replacements = importedReplacements.value
     }
     triggerBrowserDownload(JSON.stringify(payload, null, 2), 'application/json', downloadFileName)
     if (appendEditedTimestamp.value) {

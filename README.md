@@ -16,7 +16,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Sprachumschalter (DE/EN) in der Topbar
 - Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
 - Dirty-State mit Reset auf den importierten Stand
-- Export als neue `*-edited.json` (Format: `{ data, config }`)
+- Export als neue `*-edited.json` (Format: `{ data, config, replacements? }`)
 - Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
 - Felder koennen in der User-Config hinzugefuegt und entfernt werden
 - User-Config anwenden auf die Felddarstellung in der Sidebar
@@ -109,16 +109,20 @@ Beim Import werden zwei JSON-Formate akzeptiert:
         "placeholder": ""
       }
     }
+  },
+  "replacements": {
+    "abbreviations": { "Berl.": "Berlin" }
   }
 }
 ```
 
-Beim JSON-Export nutzt die App immer das kanonische Format mit `data` und `config`.
+Beim JSON-Export nutzt die App immer das kanonische Format mit `data` und `config`. Falls die importierte Datei zusätzlich ein `replacements`-Objekt enthält, wird dieses unverändert mit exportiert (`{ data, config, replacements }`).
 
 Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.
 - Falls `data` vorhanden ist, muss `data` ein Array sein.
 - Falls `config` vorhanden ist, muss `config` ein valides Objekt mit `fields` sein.
+- Falls `replacements` vorhanden ist, muss `replacements` ein Objekt sein. Inhalt wird derzeit nicht weiter validiert und beim Export unverändert durchgereicht.
 - Bei ungültigem JSON oder falscher Struktur zeigt die App eine Fehlermeldung.
 - Für die Bildvorschau muss `scan` eine direkt ladbare Bild-URL sein (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
 

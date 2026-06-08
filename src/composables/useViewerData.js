@@ -68,11 +68,20 @@ function parseJsonPayload(text) {
 
   const configFromPayload = hasConfigProperty ? parsed.config : null
 
+  const hasReplacementsProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'replacements')
+  if (hasReplacementsProperty && !isPlainObject(parsed.replacements)) {
+    return { ok: false, error: 'JSON-Feld "replacements" muss ein Objekt sein.' }
+  }
+
+  const replacementsFromPayload = hasReplacementsProperty ? parsed.replacements : null
+
   return {
     ok: true,
     data: rawData,
     hasConfig: configFromPayload !== null,
     config: configFromPayload,
+    hasReplacements: replacementsFromPayload !== null,
+    replacements: replacementsFromPayload,
   }
 }
 
@@ -202,6 +211,7 @@ export function useViewerData() {
   const isDirty = ref(false)
   const importFileName = ref('')
   const importedConfig = ref(null)
+  const importedReplacements = ref(null)
 
   const errorMessage = ref('')
 
@@ -239,6 +249,7 @@ export function useViewerData() {
     errorMessage.value = ''
     importFileName.value = fileName
     importedConfig.value = null
+    importedReplacements.value = null
   }
 
   function importFromJsonText(text, fileName = '') {
@@ -249,6 +260,7 @@ export function useViewerData() {
     }
     initializeFromJsonArray(result.data, fileName)
     importedConfig.value = result.hasConfig ? cloneData(result.config) : null
+    importedReplacements.value = result.hasReplacements ? cloneData(result.replacements) : null
     return true
   }
 
@@ -268,6 +280,7 @@ export function useViewerData() {
 
     initializeFromJsonArray(result.data, fileName)
     importedConfig.value = null
+    importedReplacements.value = null
     return true
   }
 
@@ -331,6 +344,7 @@ export function useViewerData() {
     isDirty,
     importFileName,
     importedConfig,
+    importedReplacements,
     errorMessage,
     hasData,
     selectedViewItem,

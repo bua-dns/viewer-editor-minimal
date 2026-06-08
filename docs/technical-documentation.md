@@ -118,6 +118,7 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 - `isDirty`: ungespeicherte Aenderungen vorhanden
 - `importFileName`: Name der importierten Datei
 - `importedConfig`: optional eingebettete JSON-Config aus dem letzten JSON-Import
+- `importedReplacements`: optional eingebettetes `replacements`-Objekt aus dem letzten JSON-Import (Pass-through-Metadaten, derzeit nicht weiter verarbeitet)
 - `errorMessage`: Validierungs- oder Parse-Fehler
 
 ### Computed Values
@@ -157,7 +158,8 @@ Importweg:
    - entweder Top-Level-Array, oder Objekt mit `data`-Array
    - jedes Datenelement ist ein Plain Object
    - falls vorhanden: `config` ist Objekt
-4. Bei Erfolg initialisiert `initializeFromJsonArray` alle States neu und uebernimmt optionale `config` in `importedConfig`.
+   - falls vorhanden: `replacements` ist Objekt
+4. Bei Erfolg initialisiert `initializeFromJsonArray` alle States neu und uebernimmt optionale `config` in `importedConfig` sowie optionale `replacements` in `importedReplacements`.
 5. `App.vue` validiert und appliziert eingebettete `config` strikt (bei Fehler harter Abbruch mit Fehlermeldung).
 6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
 
@@ -246,8 +248,8 @@ Interne Script-Aufteilung:
 ## Export und Reset
 
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
-- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config> }`.
-- CSV-Export schreibt nur Nutzdaten (ohne Config).
+- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config> }`. Wenn `importedReplacements` gesetzt ist (aus dem letzten JSON-Import), wird `replacements` zusätzlich unverändert mit exportiert.
+- CSV-Export schreibt nur Nutzdaten (ohne Config, ohne `replacements`).
 - Download wird in `useDataImportExport.js` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
 - Falls aktiviert: Dateiname mit Timestamp im Format `<importName>-edited-YYYY-MM-DD_hh-mm-ss.<json|csv>`.

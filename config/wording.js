@@ -55,6 +55,10 @@ const wording = {
     de: "Info",
     en: "Info",
   },
+  tab_config: {
+    de: "Konfiguration",
+    en: "Configuration",
+  },
   upload_mode_mismatch_error: {
     de: "Dateityp passt nicht zum gewählten Modus.",
     en: "File type does not match selected mode.",

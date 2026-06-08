@@ -1,9 +1,11 @@
 <script setup>
+import { computed } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
 
 const props = defineProps({
   hasData: { type: Boolean, required: true },
+  forceOpen: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['apply'])
@@ -23,7 +25,10 @@ const {
   endDrag,
 } = useUserConfigStore()
 
+const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
+
 function onTogglePanel() {
+  if (props.forceOpen) return
   isUserConfigOpen.value = !isUserConfigOpen.value
 }
 
@@ -34,19 +39,23 @@ function onAddField() {
 
 <template>
   <section class="user-config-panel" v-if="props.hasData">
-    <div class="user-config-head" @click="onTogglePanel">
+    <div
+      class="user-config-head"
+      :class="{ 'is-static': props.forceOpen }"
+      @click="onTogglePanel"
+    >
       <div class="user-config-title">{{ t('configurationTitle', 'Konfiguration') }}</div>
-      <div v-if="isUserConfigOpen" class="user-config-actions">
+      <div v-if="isPanelOpen" class="user-config-actions">
         <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="emit('apply')">
           {{ t('applyConfiguration', 'Konfiguration anwenden') }}
         </button>
       </div>
-      <span class="user-config-toggle-icon" aria-hidden="true">
-        <span class="toggle-icon">{{ isUserConfigOpen ? '▴' : '▾' }}</span>
+      <span v-if="!props.forceOpen" class="user-config-toggle-icon" aria-hidden="true">
+        <span class="toggle-icon">{{ isPanelOpen ? '▴' : '▾' }}</span>
       </span>
     </div>
 
-    <div v-if="isUserConfigOpen" class="user-config-grid">
+    <div v-if="isPanelOpen" class="user-config-grid">
       <div class="user-config-add-row">
         <strong>{{ t('addConfigurationField', 'Feld hinzufuegen') }}</strong>
         <input
@@ -109,6 +118,10 @@ function onAddField() {
   gap: var(--ve-space-3);
   margin-bottom: var(--ve-space-3);
   cursor: pointer;
+}
+
+.user-config-head.is-static {
+  cursor: default;
 }
 
 .user-config-title {
