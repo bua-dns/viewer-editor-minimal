@@ -1,78 +1,78 @@
 //config\wording.js
 const wording = {
-  app_title: {
+  appTitle: {
     de: "Viewer-Editor für Findmittel",
     en: "Viewer Editor for Finding Aids",
   },
-  items_label: {
+  itemsLabel: {
     de: "Digitalisate",
     en: "Scans",
   },
-  download_with_timestamp: {
+  downloadWithTimestamp: {
     de: "Dateiname mit Timestamp",
     en: "Filename with timestamp",
   },
-  upload_json: {
+  uploadJson: {
     de: "JSON hochladen",
     en: "Upload JSON",
   },
-  upload_csv: {
+  uploadCsv: {
     de: "CSV hochladen",
     en: "Upload CSV",
   },
-  use_sample_data: {
+  useSampleData: {
     de: "Mit Beispieldaten arbeiten",
     en: "Use sample data",
   },
-  download_json: {
+  downloadJson: {
     de: "JSON herunterladen",
     en: "Download JSON",
   },
-  download_csv: {
+  downloadCsv: {
     de: "CSV herunterladen",
     en: "Download CSV",
   },
-  data_mode_json: {
+  dataModeJson: {
     de: "JSON",
     en: "JSON",
   },
-  data_mode_csv: {
+  dataModeCsv: {
     de: "CSV",
     en: "CSV",
   },
-  data_mode_aria: {
+  dataModeAria: {
     de: "Datenmodus wählen",
     en: "Choose data mode",
   },
-  app_tabs_aria: {
+  appTabsAria: {
     de: "App-Bereiche",
     en: "App sections",
   },
-  tab_edit: {
+  tabEdit: {
     de: "Editieren",
     en: "Edit",
   },
-  tab_info: {
+  tabInfo: {
     de: "Info",
     en: "Info",
   },
-  tab_config: {
+  tabConfig: {
     de: "Konfiguration",
     en: "Configuration",
   },
-  tab_replacements: {
+  tabReplacements: {
     de: "Ersetzungen",
     en: "Replacements",
   },
-  upload_mode_mismatch_error: {
+  uploadModeMismatchError: {
     de: "Dateityp passt nicht zum gewählten Modus.",
     en: "File type does not match selected mode.",
   },
-  sample_data_load_error: {
+  sampleDataLoadError: {
     de: "Beispieldaten konnten nicht geladen werden.",
     en: "Could not load sample data.",
   },
-  csv_not_implemented_error: {
+  csvNotImplementedError: {
     de: "CSV-Import folgt im nächsten Schritt.",
     en: "CSV import will be implemented in the next step.",
   },
@@ -80,167 +80,171 @@ const wording = {
     de: "Reset",
     en: "Reset",
   },
-  language_switch_aria: {
+  languageSwitchAria: {
     de: "Sprache wählen",
     en: "Choose language",
   },
-  language_button_de: {
+  languageButtonDe: {
     de: "DE",
     en: "DE",
   },
-  language_button_en: {
+  languageButtonEn: {
     de: "EN",
     en: "EN",
   },
-  no_file_loaded: {
+  noFileLoaded: {
     de: "Noch keine Datei geladen",
     en: "No file loaded yet",
   },
-  no_data_loaded: {
+  noDataLoaded: {
     de: "Noch keine Daten geladen",
     en: "No data loaded yet",
   },
-  search_label: {
+  searchLabel: {
     de: "Suche",
     en: "Search",
   },
-  search_placeholder: {
+  searchPlaceholder: {
     de: "Volltext über alle Felder",
     en: "Full text across all fields",
   },
-  unsaved_changes: {
+  unsavedChanges: {
     de: "Ungespeicherte Änderungen",
     en: "Unsaved changes",
   },
-  configuration_title: {
+  configurationTitle: {
     de: "Konfiguration",
     en: "Configuration",
   },
-  apply_configuration: {
+  replacementsTitle: {
+    de: "Ersetzungen",
+    en: "Replacements",
+  },
+  applyConfiguration: {
     de: "Konfiguration anwenden",
     en: "Apply configuration",
   },
-  download_configuration: {
+  downloadConfiguration: {
     de: "Konfiguration herunterladen",
     en: "Download configuration",
   },
-  add_configuration_field: {
+  addConfigurationField: {
     de: "Feld hinzufügen",
     en: "Add field",
   },
-  add_field_name_placeholder: {
+  addFieldNamePlaceholder: {
     de: "Feldname (z. B. bemerkung)",
     en: "Field name (e.g. note)",
   },
-  add_field_button: {
+  addFieldButton: {
     de: "Hinzufügen",
     en: "Add",
   },
-  remove_field_button: {
+  removeFieldButton: {
     de: "Feld entfernen",
     en: "Remove field",
   },
-  add_field_duplicate_error: {
+  addFieldDuplicateError: {
     de: "Feld existiert bereits.",
     en: "Field already exists.",
   },
-  add_field_empty_error: {
+  addFieldEmptyError: {
     de: "Bitte einen gültigen Feldnamen eingeben.",
     en: "Please enter a valid field name.",
   },
-  config_field_header: {
+  configFieldHeader: {
     de: "Feld",
     en: "Field",
   },
-  config_type_header: {
+  configTypeHeader: {
     de: "Typ",
     en: "Type",
   },
-  config_label_header: {
+  configLabelHeader: {
     de: "Beschriftung",
     en: "Label",
   },
-  config_placeholder_header: {
+  configPlaceholderHeader: {
     de: "Eingabehinweis",
     en: "Input hint",
   },
-  config_type_normal: {
+  configTypeNormal: {
     de: "normal (string)",
     en: "normal (string)",
   },
-  config_type_text: {
+  configTypeText: {
     de: "Textfeld (text)",
     en: "Text area (text)",
   },
-  config_type_integer: {
+  configTypeInteger: {
     de: "Zahl (integer)",
     en: "Number (integer)",
   },
-  config_type_checkbox: {
+  configTypeCheckbox: {
     de: "Ja/Nein (checkbox)",
     en: "Yes/No (checkbox)",
   },
-  config_label_input_placeholder: {
+  configLabelInputPlaceholder: {
     de: "Label",
     en: "Label",
   },
-  config_hint_input_placeholder: {
+  configHintInputPlaceholder: {
     de: "Hinweis",
     en: "Hint",
   },
-  list_empty_after_upload: {
+  listEmptyAfterUpload: {
     de: "Nach dem Upload erscheinen hier die Einträge.",
     en: "Entries appear here after upload.",
   },
-  no_search_results: {
+  noSearchResults: {
     de: "Keine Treffer zur Suchanfrage.",
     en: "No matches for this search.",
   },
-  scan_preview_alt: {
+  scanPreviewAlt: {
     de: "Scan-Vorschau",
     en: "Scan preview",
   },
-  scan_unavailable: {
+  scanUnavailable: {
     de: "Scan nicht verfügbar",
     en: "Scan unavailable",
   },
-  sidebar_previous_item_aria: {
+  sidebarPreviousItemAria: {
     de: "Vorheriger Eintrag",
     en: "Previous entry",
   },
-  sidebar_next_item_aria: {
+  sidebarNextItemAria: {
     de: "Nächster Eintrag",
     en: "Next entry",
   },
-  sidebar_scan_counter_prefix: {
+  sidebarScanCounterPrefix: {
     de: "Scan",
     en: "Scan",
   },
-  sidebar_close_aria: {
+  sidebarCloseAria: {
     de: "Sidebar schließen",
     en: "Close sidebar",
   },
-  sidebar_extend_aria: {
+  sidebarExtendAria: {
     de: "Editierbereich auf volle Breite erweitern",
     en: "Expand edit area to full width",
   },
-  sidebar_collapse_aria: {
+  sidebarCollapseAria: {
     de: "Editierbereich auf Standardbreite reduzieren",
     en: "Collapse edit area to default width",
   },
-  sidebar_extend_label: {
+  sidebarExtendLabel: {
     de: "Volle Breite",
     en: "Full width",
   },
-  sidebar_collapse_label: {
+  sidebarCollapseLabel: {
     de: "Standardbreite",
     en: "Default width",
   },
-  status_file_prefix: {
+  statusFilePrefix: {
     de: "Datei",
     en: "File",
   },
-  upload_prompt: {
+  uploadPrompt: {
     de: "Bitte eine JSON-Datei hochladen.",
     en: "Please upload a JSON file.",
   },
@@ -252,23 +256,23 @@ const wording = {
     de: "Schließen",
     en: "Close",
   },
-  lightbox_image_alt: {
+  lightboxImageAlt: {
     de: "Scan groß",
     en: "Large scan",
   },
-  reset_confirm: {
+  resetConfirm: {
     de: "Änderungen verwerfen und auf Import zurücksetzen?",
     en: "Discard changes and reset to imported data?",
   },
-  footer_identity_credit: {
+  footerIdentityCredit: {
     de: "Ein Tool von Digitales Netzwerk Sammlungen<br>Berlin University Alliance",
     en: "A tool by the Digital Network for Collections<br>Berlin University Alliance",
   },
-  footer_github_aria: {
+  footerGithubAria: {
     de: "GitHub-Repository",
     en: "GitHub repository",
   },
-  footer_buc_aria: {
+  footerBucAria: {
     de: "Berlin University Collections",
     en: "Berlin University Collections",
   },

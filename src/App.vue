@@ -65,7 +65,7 @@ const {
   createEditedFileName,
 } = useDataTransferStore()
 
-const { title: appTitle, primaryColor, language, itemLabel, setLanguage, t } = useAppConfigStore()
+const { primaryColor, language, setLanguage, t } = useAppConfigStore()
 
 const {
   initializeUserConfig,
@@ -400,7 +400,7 @@ watch(
 
       <section v-if="activeTab === 'edit'" ref="editStickyTopRef" class="edit-sticky-top">
         <header class="topbar content-grid-topbar content-grid-full">
-          <h1>{{ appTitle }}</h1>
+          <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
           <div class="actions">
             <DataTransferControls
               :has-data="hasData"
@@ -416,7 +416,7 @@ watch(
         </header>
 
         <ListPanel
-          :item-label="itemLabel"
+          :item-label="t('itemsLabel', 'Items')"
           :import-file-name="importFileName"
           :result-count-label="resultCountLabel"
           :search-query="searchQuery"
@@ -448,7 +448,7 @@ watch(
       >
       <ListPanel
         v-if="!isExtendedEditMode"
-        :item-label="itemLabel"
+        :item-label="t('itemsLabel', 'Items')"
         :import-file-name="importFileName"
         :result-count-label="resultCountLabel"
         :search-query="searchQuery"
