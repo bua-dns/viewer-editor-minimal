@@ -18,7 +18,7 @@ import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 
-const tabs = ['edit', 'info', 'configuration']
+const tabs = ['edit', 'configuration', 'replacements', 'info']
 const activeTab = ref('edit')
 const appShellRef = ref(null)
 const appTabsRowRef = ref(null)
