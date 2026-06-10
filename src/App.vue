@@ -330,62 +330,30 @@ watch(
     </section>
     <section class="app-tab-sheet" :class="{ 'edit-active': activeTab === 'edit' }">
       <div ref="appTabsRowRef" class="app-tabs-row">
-      <nav class="app-tabs" role="tablist" :aria-label="t('appTabsAria', 'App sections')">
-          <button
-            id="tab-edit"
-            type="button"
-            class="app-tab-btn"
-            role="tab"
-            aria-controls="panel-edit"
-            :aria-selected="activeTab === 'edit'"
-            :tabindex="activeTab === 'edit' ? 0 : -1"
-            :class="{ active: activeTab === 'edit' }"
-            @click="setActiveTab('edit')"
-            @keydown="onTabKeydown($event, 'edit')"
-          >
-          {{ t('tabEdit', 'Edit') }}
-        </button>
-        <button
-          id="tab-configuration"
-          type="button"
-          class="app-tab-btn"
-          role="tab"
-          aria-controls="panel-configuration"
-          :aria-selected="activeTab === 'configuration'"
-          :tabindex="activeTab === 'configuration' ? 0 : -1"
-          :class="{ active: activeTab === 'configuration' }"
-          @click="setActiveTab('configuration')"
-          @keydown="onTabKeydown($event, 'configuration')"
-        >
-        {{ t('tabConfig', 'Configuration') }}
-        </button>
-        <button
-          id="tab-replacements"
-          type="button"
-          class="app-tab-btn"
-          role="tab"
-          aria-controls="panel-replacements"
-          :aria-selected="activeTab === 'replacements'"
-          :tabindex="activeTab === 'replacements' ? 0 : -1"
-          :class="{ active: activeTab === 'replacements' }"
-          @click="setActiveTab('replacements')"
-          @keydown="onTabKeydown($event, 'replacements')"
-        >
-        {{ t('tabReplacements', 'Replacements') }}
-        </button>
-          <button
-            id="tab-info"
-            type="button"
-            class="app-tab-btn"
-            role="tab"
-            aria-controls="panel-info"
-            :aria-selected="activeTab === 'info'"
-            :tabindex="activeTab === 'info' ? 0 : -1"
-            :class="{ active: activeTab === 'info' }"
-            @click="setActiveTab('info')"
-            @keydown="onTabKeydown($event, 'info')"
-          >
-          {{ t('tabInfo', 'Info') }}
+        <nav class="app-tabs" role="tablist" :aria-label="t('appTabsAria', 'App sections')">
+          <button id="tab-edit" type="button" class="app-tab-btn" role="tab" aria-controls="panel-edit"
+            :aria-selected="activeTab === 'edit'" :tabindex="activeTab === 'edit' ? 0 : -1"
+            :class="{ active: activeTab === 'edit' }" @click="setActiveTab('edit')"
+            @keydown="onTabKeydown($event, 'edit')">
+            {{ t('tabEdit', 'Edit') }}
+          </button>
+          <button id="tab-configuration" type="button" class="app-tab-btn" role="tab"
+            aria-controls="panel-configuration" :aria-selected="activeTab === 'configuration'"
+            :tabindex="activeTab === 'configuration' ? 0 : -1" :class="{ active: activeTab === 'configuration' }"
+            @click="setActiveTab('configuration')" @keydown="onTabKeydown($event, 'configuration')">
+            {{ t('tabConfig', 'Configuration') }}
+          </button>
+          <button id="tab-replacements" type="button" class="app-tab-btn" role="tab" aria-controls="panel-replacements"
+            :aria-selected="activeTab === 'replacements'" :tabindex="activeTab === 'replacements' ? 0 : -1"
+            :class="{ active: activeTab === 'replacements' }" @click="setActiveTab('replacements')"
+            @keydown="onTabKeydown($event, 'replacements')">
+            {{ t('tabReplacements', 'Replacements') }}
+          </button>
+          <button id="tab-info" type="button" class="app-tab-btn" role="tab" aria-controls="panel-info"
+            :aria-selected="activeTab === 'info'" :tabindex="activeTab === 'info' ? 0 : -1"
+            :class="{ active: activeTab === 'info' }" @click="setActiveTab('info')"
+            @keydown="onTabKeydown($event, 'info')">
+            {{ t('tabInfo', 'Info') }}
           </button>
         </nav>
         <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
@@ -402,194 +370,112 @@ watch(
         <header class="topbar content-grid-topbar content-grid-full">
           <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
           <div class="actions">
-            <DataTransferControls
-              :has-data="hasData"
-              :is-dirty="isDirty"
-              :show-sample-data-button="showSampleDataButton"
-              @file-selected="onDataFileSelected"
-              @download="onDownload"
-              @reset="onReset"
-              @mode-changed="onDataModeChanged"
-              @load-sample-data="onLoadSampleData"
-            />
+            <DataTransferControls :has-data="hasData" :is-dirty="isDirty"
+              :show-sample-data-button="showSampleDataButton" @file-selected="onDataFileSelected" @download="onDownload"
+              @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
           </div>
         </header>
 
-        <ListPanel
-          :item-label="t('itemsLabel', 'Items')"
-          :import-file-name="importFileName"
-          :result-count-label="resultCountLabel"
-          :search-query="searchQuery"
-          :search-label="t('searchLabel', 'Suche')"
-          :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')"
-          :has-data="hasData"
-          :filtered-view-items="filteredViewItems"
-          :selected-view-item="selectedViewItem"
-          :raw-items="rawItems"
+        <ListPanel :item-label="t('itemsLabel', 'Items')" :import-file-name="importFileName"
+          :result-count-label="resultCountLabel" :search-query="searchQuery" :search-label="t('searchLabel', 'Suche')"
+          :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
+          :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
           :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
           :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
           :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
           :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
-          :looks-like-image-url="looksLikeImageUrl"
-          :has-list-image-failed="hasListImageFailed"
-          :render-header="true"
-          :render-body="false"
-          @update:search-query="searchQuery = $event"
-        />
+          :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
+          :render-body="false" @update:search-query="searchQuery = $event" />
       </section>
 
       <main class="tab-content">
-      <section
-        v-if="activeTab === 'edit'"
-        id="panel-edit"
-        class="content-grid tab-sheet-panel"
-        role="tabpanel"
-        aria-labelledby="tab-edit"
-        :class="{ 'content-grid-selected': !!selectedRawItem, 'content-grid-extended': !!selectedRawItem && isExtendedEditMode }"
-      >
-      <ListPanel
-        v-if="!isExtendedEditMode"
-        :item-label="t('itemsLabel', 'Items')"
-        :import-file-name="importFileName"
-        :result-count-label="resultCountLabel"
-        :search-query="searchQuery"
-        :search-label="t('searchLabel', 'Suche')"
-        :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')"
-        :has-data="hasData"
-        :filtered-view-items="filteredViewItems"
-        :selected-view-item="selectedViewItem"
-        :raw-items="rawItems"
-        :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
-        :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
-        :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
-        :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
-        :looks-like-image-url="looksLikeImageUrl"
-        :has-list-image-failed="hasListImageFailed"
-        :render-header="false"
-        :render-body="true"
-        @clear-selection="clearSelection"
-        @select-item="selectItem"
-        @update:search-query="searchQuery = $event"
-        @list-image-failed="listImageFailed"
-      />
+        <section v-if="activeTab === 'edit'" id="panel-edit" class="content-grid tab-sheet-panel" role="tabpanel"
+          aria-labelledby="tab-edit"
+          :class="{ 'content-grid-selected': !!selectedRawItem, 'content-grid-extended': !!selectedRawItem && isExtendedEditMode }">
+          <ListPanel v-if="!isExtendedEditMode" :item-label="t('itemsLabel', 'Items')"
+            :import-file-name="importFileName" :result-count-label="resultCountLabel" :search-query="searchQuery"
+            :search-label="t('searchLabel', 'Suche')"
+            :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
+            :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
+            :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
+            :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
+            :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
+            :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
+            :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="false"
+            :render-body="true" @clear-selection="clearSelection" @select-item="selectItem"
+            @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed" />
 
-      <aside v-if="selectedRawItem" class="sidebar-panel">
-        <div class="sidebar-head">
-          <div class="sidebar-nav" v-if="filteredViewItems.length > 1">
-            <button
-              type="button"
-              :disabled="!canGoPrevious"
-              @click="selectPreviousItem"
-              :aria-label="t('sidebarPreviousItemAria', 'Vorheriges Item')"
-            >
-              ←
-            </button>
-            <span class="scan-nav-index"
-              >{{ t('sidebarScanCounterPrefix', 'Scan') }} {{ selectedFilteredIndex + 1 }} /
-              {{ filteredViewItems.length }}</span
-            >
-            <button
-              type="button"
-              :disabled="!canGoNext"
-              @click="selectNextItem"
-              :aria-label="t('sidebarNextItemAria', 'Naechstes Item')"
-            >
-              →
-            </button>
-          </div>
-          <button
-            v-if="!isExtendedEditMode"
-            type="button"
-            class="sidebar-extend-toggle"
-            @click="toggleExtendedEditMode"
-            :aria-label="t('sidebarExtendAria', 'Editierbereich auf volle Breite erweitern')"
-            :title="t('sidebarExtendLabel', 'Volle Breite')"
-          >
-            <img :src="maximizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
-          </button>
-          <button
-            v-else
-            type="button"
-            class="sidebar-extend-toggle"
-            @click="toggleExtendedEditMode"
-            :aria-label="t('sidebarCollapseAria', 'Editierbereich auf Standardbreite reduzieren')"
-            :title="t('sidebarCollapseLabel', 'Standardbreite')"
-          >
-            <img :src="minimizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
-          </button>
-          <button
-            type="button"
-            class="sidebar-close"
-            @click="onSidebarClose"
-            :aria-label="t('sidebarCloseAria', 'Sidebar schliessen')"
-          >
-            ×
-          </button>
-        </div>
-        <div class="sidebar-content">
-          <div class="sidebar-detail-grid">
-            <div class="scan-column">
-              <div class="scan-preview-wrap" v-if="looksLikeImageUrl(selectedRawItem.scan)">
-                <img
-                  v-if="!sidebarImageLoadFailed"
-                  :src="selectedRawItem.scan"
-                  :alt="t('scanPreviewAlt', 'Scan Vorschau')"
-                  class="scan-preview"
-                  @error="sidebarImageLoadFailed = true"
-                  @click="openLightbox(selectedRawItem.scan)"
-                />
-                <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+          <aside v-if="selectedRawItem" class="sidebar-panel">
+            <div class="sidebar-head">
+              <div class="sidebar-nav" v-if="filteredViewItems.length > 1">
+                <button type="button" :disabled="!canGoPrevious" @click="selectPreviousItem"
+                  :aria-label="t('sidebarPreviousItemAria', 'Vorheriges Item')">
+                  ←
+                </button>
+                <span class="scan-nav-index">{{ t('sidebarScanCounterPrefix', 'Scan') }} {{ selectedFilteredIndex + 1 }}
+                  /
+                  {{ filteredViewItems.length }}</span>
+                <button type="button" :disabled="!canGoNext" @click="selectNextItem"
+                  :aria-label="t('sidebarNextItemAria', 'Naechstes Item')">
+                  →
+                </button>
               </div>
-              <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+              <button v-if="!isExtendedEditMode" type="button" class="sidebar-extend-toggle"
+                @click="toggleExtendedEditMode"
+                :aria-label="t('sidebarExtendAria', 'Editierbereich auf volle Breite erweitern')"
+                :title="t('sidebarExtendLabel', 'Volle Breite')">
+                <img :src="maximizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
+              </button>
+              <button v-else type="button" class="sidebar-extend-toggle" @click="toggleExtendedEditMode"
+                :aria-label="t('sidebarCollapseAria', 'Editierbereich auf Standardbreite reduzieren')"
+                :title="t('sidebarCollapseLabel', 'Standardbreite')">
+                <img :src="minimizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
+              </button>
+              <button type="button" class="sidebar-close" @click="onSidebarClose"
+                :aria-label="t('sidebarCloseAria', 'Sidebar schliessen')">
+                ×
+              </button>
             </div>
+            <div class="sidebar-content">
+              <div class="sidebar-detail-grid">
+                <div class="scan-column">
+                  <div class="scan-preview-wrap" v-if="looksLikeImageUrl(selectedRawItem.scan)">
+                    <img v-if="!sidebarImageLoadFailed" :src="selectedRawItem.scan"
+                      :alt="t('scanPreviewAlt', 'Scan Vorschau')" class="scan-preview"
+                      @error="sidebarImageLoadFailed = true" @click="openLightbox(selectedRawItem.scan)" />
+                    <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+                  </div>
+                  <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+                </div>
 
-            <ItemFieldEditor
-              :selected-raw-item="selectedRawItem"
-              :is-editable-simple-value="isEditableSimpleValue"
-              @field-input="onFieldInput"
-              @boolean-change="onBooleanChange"
-            />
-          </div>
-        </div>
-      </aside>
+                <ItemFieldEditor :selected-raw-item="selectedRawItem" :is-editable-simple-value="isEditableSimpleValue"
+                  @field-input="onFieldInput" @boolean-change="onBooleanChange" />
+              </div>
+            </div>
+          </aside>
 
-      <section class="status-panel">
-        <div>
-          <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
-          <p v-else>{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
-        </div>
-      </section>
-      </section>
+          <section class="status-panel">
+            <div>
+              <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
+              <p v-else>{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
+            </div>
+          </section>
+        </section>
 
-      <section
-        v-if="activeTab === 'configuration'"
-        id="panel-configuration"
-        class="configuration-tab-panel tab-sheet-panel"
-        role="tabpanel"
-        aria-labelledby="tab-configuration"
-      >
-        <ConfigurationPanel :has-data="hasData" @apply="onApplyUserConfig" />
-      </section>
+        <section v-if="activeTab === 'configuration'" id="panel-configuration"
+          class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
+          <ConfigurationPanel :has-data="hasData" @apply="onApplyUserConfig" />
+        </section>
 
-      <section
-        v-if="activeTab === 'replacements'"
-        id="panel-replacements"
-        class="replacements-tab-panel tab-sheet-panel"
-        role="tabpanel"
-        aria-labelledby="tab-replacements"
-      >
-        <ReplacementsPanel />
-      </section>
+        <section v-if="activeTab === 'replacements'" id="panel-replacements"
+          class="replacements-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-replacements">
+          <ReplacementsPanel />
+        </section>
 
-      <section
-        v-if="activeTab === 'info'"
-        id="panel-info"
-        class="info-tab-panel tab-sheet-panel"
-        role="tabpanel"
-        aria-labelledby="tab-info"
-      >
-        <InfoPanel />
-      </section>
+        <section v-if="activeTab === 'info'" id="panel-info" class="info-tab-panel tab-sheet-panel" role="tabpanel"
+          aria-labelledby="tab-info">
+          <InfoPanel />
+        </section>
       </main>
 
       <footer class="app-footer">
@@ -597,15 +483,9 @@ watch(
       </footer>
     </section>
 
-    <LightboxModal
-      :is-open="isLightboxOpen"
-      :image-src="lightboxImageSrc"
-      :image-load-failed="lightboxImageLoadFailed"
-      :close-label="t('close', 'Schliessen')"
-      :image-alt="t('lightboxImageAlt', 'Scan gross')"
-      :unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
-      @close="closeLightbox"
-      @image-error="lightboxImageLoadFailed = true"
-    />
+    <LightboxModal :is-open="isLightboxOpen" :image-src="lightboxImageSrc" :image-load-failed="lightboxImageLoadFailed"
+      :close-label="t('close', 'Schliessen')" :image-alt="t('lightboxImageAlt', 'Scan gross')"
+      :unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')" @close="closeLightbox"
+      @image-error="lightboxImageLoadFailed = true" />
   </div>
 </template>
