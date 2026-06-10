@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { useReplacementsStore } from '../stores/useReplacementsStore'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -211,7 +212,8 @@ export function useViewerData() {
   const isDirty = ref(false)
   const importFileName = ref('')
   const importedConfig = ref(null)
-  const importedReplacements = ref(null)
+
+  const { initializeReplacements, clearReplacements } = useReplacementsStore()
 
   const errorMessage = ref('')
 
@@ -249,18 +251,18 @@ export function useViewerData() {
     errorMessage.value = ''
     importFileName.value = fileName
     importedConfig.value = null
-    importedReplacements.value = null
   }
 
   function importFromJsonText(text, fileName = '') {
     const result = parseJsonPayload(text)
     if (!result.ok) {
       errorMessage.value = result.error
+      clearReplacements()
       return false
     }
     initializeFromJsonArray(result.data, fileName)
     importedConfig.value = result.hasConfig ? cloneData(result.config) : null
-    importedReplacements.value = result.hasReplacements ? cloneData(result.replacements) : null
+    initializeReplacements(result.replacements)
     return true
   }
 
@@ -275,12 +277,13 @@ export function useViewerData() {
 
     if (!result.ok) {
       errorMessage.value = result.error
+      clearReplacements()
       return false
     }
 
     initializeFromJsonArray(result.data, fileName)
     importedConfig.value = null
-    importedReplacements.value = null
+    clearReplacements()
     return true
   }
 
@@ -344,7 +347,6 @@ export function useViewerData() {
     isDirty,
     importFileName,
     importedConfig,
-    importedReplacements,
     errorMessage,
     hasData,
     selectedViewItem,

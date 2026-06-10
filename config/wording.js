@@ -120,6 +120,26 @@ const wording = {
     de: "Ersetzungen",
     en: "Replacements",
   },
+  field_label: {
+    de: "Feld",
+    en: "Field",
+  },
+  allFields: {
+    de: "alle Felder",
+    en: "all fields",
+  },
+  replace_string: {
+    de: "Ersetze",
+    en: "Replace",
+  },
+  replace_with: {
+    de: "mit",
+    en: "with",
+  },
+  add_to_replacements_list: {
+    de: "zur Ersetzungsliste hinzufügen",
+    en: "add to replacements list",
+  },
   applyConfiguration: {
     de: "Konfiguration anwenden",
     en: "Apply configuration",

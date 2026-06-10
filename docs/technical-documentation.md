@@ -118,7 +118,8 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 - `isDirty`: ungespeicherte Aenderungen vorhanden
 - `importFileName`: Name der importierten Datei
 - `importedConfig`: optional eingebettete JSON-Config aus dem letzten JSON-Import
-- `importedReplacements`: optional eingebettetes `replacements`-Objekt aus dem letzten JSON-Import (Pass-through-Metadaten, derzeit nicht weiter verarbeitet)
+- `replacements` (Store): `src/stores/useReplacementsStore.js` speichert und exportiert `replacements`
+- `replacementsSnapshot` (Store): Snapshot der importierten `replacements` fuer Change-Tracking
 - `errorMessage`: Validierungs- oder Parse-Fehler
 
 ### Computed Values
@@ -159,7 +160,7 @@ Importweg:
    - jedes Datenelement ist ein Plain Object
    - falls vorhanden: `config` ist Objekt
    - falls vorhanden: `replacements` ist Objekt
-4. Bei Erfolg initialisiert `initializeFromJsonArray` alle States neu und uebernimmt optionale `config` in `importedConfig` sowie optionale `replacements` in `importedReplacements`.
+4. Bei Erfolg initialisiert `initializeFromJsonArray` die Datenstates, uebernimmt optionale `config` in `importedConfig` und uebergibt `replacements` an den Replacements-Store.
 5. `App.vue` validiert und appliziert eingebettete `config` strikt (bei Fehler harter Abbruch mit Fehlermeldung).
 6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
 
@@ -223,7 +224,8 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 Die Seite ist in mehrere Bereiche gegliedert:
 
 - Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
-- Im Edit-Tab: sticky Header-Stack mit Titel/Transfer-Controls, Konfiguration und Listenkopf (`Digitalisate` + Suche)
+- Topbar (Titel + Transfer-Controls) steht oberhalb der Tabs und bleibt damit immer sichtbar
+- Im Edit-Tab: sticky Header-Stack mit Konfiguration und Listenkopf (`Digitalisate` + Suche)
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname-Hinweis und Dirty-Hinweis
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau (scrollbarer Hauptbereich)
@@ -231,6 +233,7 @@ Die Seite ist in mehrere Bereiche gegliedert:
 - Erweiterter Edit-Modus: Sidebar kann auf volle Inhaltsbreite umgeschaltet werden (eigener Expand/Collapse-Button mit SVG-Icons)
 - Statusbereich: Datei-/Fehlerstatus
 - Footer im Statusbereich: Identity-Links (GitHub, Berlin University Collections)
+- Replacements-Tab: gruppierte Tabellen je Feld, nur Felder mit Eintraegen; Eingabe im Edit-Panel mit Feld-Dropdown inkl. `alle Felder`
 
 Zusatzfunktionen:
 
@@ -248,12 +251,14 @@ Interne Script-Aufteilung:
 ## Export und Reset
 
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
-- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config> }`. Wenn `importedReplacements` gesetzt ist (aus dem letzten JSON-Import), wird `replacements` zusätzlich unverändert mit exportiert.
+- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config>, replacements: <replacements> }` und nutzt die Store-Daten.
 - CSV-Export schreibt nur Nutzdaten (ohne Config, ohne `replacements`).
 - Download wird in `useDataImportExport.js` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
 - Falls aktiviert: Dateiname mit Timestamp im Format `<importName>-edited-YYYY-MM-DD_hh-mm-ss.<json|csv>`.
 - Reset nutzt `importSnapshot` und stellt den Zustand des letzten gueltigen Imports wieder her.
+- Download-Button wird aktiviert, wenn entweder Daten oder `replacements` gegen den Snapshot abweichen.
+- Reset stellt ebenfalls die `replacements` auf den Snapshot zurueck.
 
 ## Styling und Responsiveness
 

@@ -19,9 +19,11 @@ export function useDataImportExport({
   markAsSaved,
   createExportPayload,
   createUserConfigPayload,
-  importedReplacements,
+  createReplacementsPayload,
   isDirty,
+  hasPendingChanges,
   resetToImportedSnapshot,
+  resetReplacements,
 }) {
   const baseUrl = import.meta.env.BASE_URL || '/'
 
@@ -142,9 +144,7 @@ export function useDataImportExport({
       data: createExportPayload(),
       config: createUserConfigPayload(),
     }
-    if (importedReplacements?.value) {
-      payload.replacements = importedReplacements.value
-    }
+    payload.replacements = createReplacementsPayload()
     triggerBrowserDownload(JSON.stringify(payload, null, 2), 'application/json', downloadFileName)
     if (appendEditedTimestamp.value) {
       markAsSaved(downloadFileName)
@@ -152,10 +152,11 @@ export function useDataImportExport({
   }
 
   function onReset() {
-    if (!isDirty.value) return
+    if (!hasPendingChanges.value) return
     const confirmed = globalThis.confirm(t('resetConfirm', 'Aenderungen verwerfen und auf Import zuruecksetzen?'))
     if (!confirmed) return
     resetToImportedSnapshot()
+    resetReplacements()
   }
 
   return {

@@ -7,6 +7,7 @@ import { useSelectionNavigation } from './composables/useSelectionNavigation'
 import { useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
+import { useReplacementsStore } from './stores/useReplacementsStore'
 import DataTransferControls from './components/DataTransferControls.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
@@ -47,7 +48,6 @@ const {
   markAsSaved,
   isEditableSimpleValue,
   looksLikeImageUrl,
-  importedReplacements,
 } = useViewerData()
 
 const isLightboxOpen = ref(false)
@@ -77,12 +77,16 @@ const {
   hasUnappliedUserConfigChanges,
 } = useUserConfigStore()
 
+const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
+
 const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
   return `${filteredViewItems.value.length} / ${rawItems.value.length}`
 })
 
 const showSampleDataButton = computed(() => !hasData.value)
+
+const hasPendingChanges = computed(() => isDirty.value || hasReplacementsChanges.value)
 
 const availableFieldKeys = computed(() => {
   const keys = new Set()
@@ -208,9 +212,11 @@ const { onDataFileSelected, onDownload, onReset, onLoadSampleData } = useDataImp
   markAsSaved,
   createExportPayload,
   createUserConfigPayload,
-  importedReplacements,
+  createReplacementsPayload,
   isDirty,
+  hasPendingChanges,
   resetToImportedSnapshot,
+  resetReplacements,
 })
 
 function closeLightbox() {
@@ -226,7 +232,7 @@ function onSidebarClose() {
 }
 
 function beforeUnloadListener(event) {
-  if (!isDirty.value && !hasUnappliedUserConfigChanges.value) return
+  if (!hasPendingChanges.value && !hasUnappliedUserConfigChanges.value) return
   event.preventDefault()
   event.returnValue = ''
 }
@@ -323,12 +329,14 @@ watch(
 
 <template>
   <div ref="appShellRef" class="app-shell">
-    <section>
-      <div class="dev-output">
-        Dev Output:
-        {{ importedReplacements }}
+    <header class="topbar content-grid-topbar content-grid-full">
+      <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
+      <div class="actions">
+        <DataTransferControls :has-data="hasData" :is-dirty="hasPendingChanges"
+          :show-sample-data-button="showSampleDataButton" @file-selected="onDataFileSelected" @download="onDownload"
+          @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
       </div>
-    </section>
+    </header>
     <section class="app-tab-sheet" :class="{ 'edit-active': activeTab === 'edit' }">
       <div ref="appTabsRowRef" class="app-tabs-row">
         <nav class="app-tabs" role="tablist" :aria-label="t('appTabsAria', 'App sections')">
@@ -368,15 +376,6 @@ watch(
       </div>
 
       <section v-if="activeTab === 'edit'" ref="editStickyTopRef" class="edit-sticky-top">
-        <header class="topbar content-grid-topbar content-grid-full">
-          <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
-          <div class="actions">
-            <DataTransferControls :has-data="hasData" :is-dirty="isDirty"
-              :show-sample-data-button="showSampleDataButton" @file-selected="onDataFileSelected" @download="onDownload"
-              @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
-          </div>
-        </header>
-
         <ListPanel :item-label="t('itemsLabel', 'Items')" :import-file-name="importFileName"
           :result-count-label="resultCountLabel" :search-query="searchQuery" :search-label="t('searchLabel', 'Suche')"
           :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
