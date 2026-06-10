@@ -15,6 +15,7 @@ import Identity from './components/footer/Identity.vue'
 import InfoPanel from './components/InfoPanel.vue'
 import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import ReplacementsPanel from './components/ReplacementsPanel.vue'
+import ReplacementsUnit from './components/ReplacementsUnit.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 
@@ -446,6 +447,7 @@ watch(
                     <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
                   </div>
                   <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+                  <ReplacementsUnit/>
                 </div>
 
                 <ItemFieldEditor :selected-raw-item="selectedRawItem" :is-editable-simple-value="isEditableSimpleValue"
