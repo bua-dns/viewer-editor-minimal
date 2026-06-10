@@ -438,7 +438,8 @@ watch(
         />
       </section>
 
-      <main
+      <main class="tab-content">
+      <section
         v-if="activeTab === 'edit'"
         id="panel-edit"
         class="content-grid tab-sheet-panel"
@@ -558,16 +559,6 @@ watch(
           <p v-else>{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
         </div>
       </section>
-      </main>
-
-      <section
-        v-if="activeTab === 'info'"
-        id="panel-info"
-        class="info-tab-panel tab-sheet-panel"
-        role="tabpanel"
-        aria-labelledby="tab-info"
-      >
-        <InfoPanel />
       </section>
 
       <section
@@ -589,6 +580,17 @@ watch(
       >
         <ReplacementsPanel />
       </section>
+
+      <section
+        v-if="activeTab === 'info'"
+        id="panel-info"
+        class="info-tab-panel tab-sheet-panel"
+        role="tabpanel"
+        aria-labelledby="tab-info"
+      >
+        <InfoPanel />
+      </section>
+      </main>
 
       <footer class="app-footer">
         <Identity />
