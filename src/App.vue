@@ -1,4 +1,5 @@
 <script setup>
+//src\App.vue
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useDataImportExport } from './composables/useDataImportExport'
@@ -13,6 +14,7 @@ import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
 import InfoPanel from './components/InfoPanel.vue'
 import ConfigurationPanel from './components/ConfigurationPanel.vue'
+import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 
@@ -342,7 +344,35 @@ watch(
             @keydown="onTabKeydown($event, 'edit')"
           >
           {{ t('tabEdit', 'Edit') }}
-          </button>
+        </button>
+        <button
+          id="tab-configuration"
+          type="button"
+          class="app-tab-btn"
+          role="tab"
+          aria-controls="panel-configuration"
+          :aria-selected="activeTab === 'configuration'"
+          :tabindex="activeTab === 'configuration' ? 0 : -1"
+          :class="{ active: activeTab === 'configuration' }"
+          @click="setActiveTab('configuration')"
+          @keydown="onTabKeydown($event, 'configuration')"
+        >
+        {{ t('tabConfig', 'Configuration') }}
+        </button>
+        <button
+          id="tab-replacements"
+          type="button"
+          class="app-tab-btn"
+          role="tab"
+          aria-controls="panel-replacements"
+          :aria-selected="activeTab === 'replacements'"
+          :tabindex="activeTab === 'replacements' ? 0 : -1"
+          :class="{ active: activeTab === 'replacements' }"
+          @click="setActiveTab('replacements')"
+          @keydown="onTabKeydown($event, 'replacements')"
+        >
+        {{ t('tabReplacements', 'Replacements') }}
+        </button>
           <button
             id="tab-info"
             type="button"
@@ -356,20 +386,6 @@ watch(
             @keydown="onTabKeydown($event, 'info')"
           >
           {{ t('tabInfo', 'Info') }}
-          </button>
-          <button
-            id="tab-configuration"
-            type="button"
-            class="app-tab-btn"
-            role="tab"
-            aria-controls="panel-configuration"
-            :aria-selected="activeTab === 'configuration'"
-            :tabindex="activeTab === 'configuration' ? 0 : -1"
-            :class="{ active: activeTab === 'configuration' }"
-            @click="setActiveTab('configuration')"
-            @keydown="onTabKeydown($event, 'configuration')"
-          >
-          {{ t('tabConfig', 'Configuration') }}
           </button>
         </nav>
         <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
@@ -562,6 +578,16 @@ watch(
         aria-labelledby="tab-configuration"
       >
         <ConfigurationPanel :has-data="hasData" @apply="onApplyUserConfig" />
+      </section>
+
+      <section
+        v-if="activeTab === 'replacements'"
+        id="panel-replacements"
+        class="replacements-tab-panel tab-sheet-panel"
+        role="tabpanel"
+        aria-labelledby="tab-replacements"
+      >
+        <ReplacementsPanel />
       </section>
 
       <footer class="app-footer">

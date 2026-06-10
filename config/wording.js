@@ -1,3 +1,4 @@
+//config\wording.js
 const wording = {
   app_title: {
     de: "Viewer-Editor für Findmittel",
@@ -58,6 +59,10 @@ const wording = {
   tab_config: {
     de: "Konfiguration",
     en: "Configuration",
+  },
+  tab_replacements: {
+    de: "Ersetzungen",
+    en: "Replacements",
   },
   upload_mode_mismatch_error: {
     de: "Dateityp passt nicht zum gewählten Modus.",

@@ -1,3 +1,5 @@
+
+//config\app.config.js
 import wording from './wording'
 
 const appConfig = {
