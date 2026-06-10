@@ -53,7 +53,7 @@ function onImageError() {
 .lightbox {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 40;
   background: rgba(15, 23, 42, 0.82);
   display: grid;
   place-items: center;
