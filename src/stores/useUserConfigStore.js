@@ -16,6 +16,27 @@ const isUserConfigOpen = ref(false)
 const newFieldName = ref('')
 const addFieldError = ref('')
 
+const DEFAULT_AUTOSUGGEST_CONFIG = Object.freeze({
+  searchLanguages: ['de', 'en'],
+  resultLanguage: 'de',
+  minChars: 2,
+  limit: 10,
+  prioritize: {
+    claimPresence: {
+      weight: 0,
+      includeInEmitData: false,
+      showInSuggestion: false,
+      defs: [],
+    },
+    claimValueMatch: {
+      weight: 0,
+      includeInEmitData: false,
+      showInSuggestion: false,
+      defs: [],
+    },
+  },
+})
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -24,10 +45,20 @@ function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
+function createDefaultAutosuggestConfig() {
+  return cloneValue(DEFAULT_AUTOSUGGEST_CONFIG)
+}
+
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
-  const autosuggest = isPlainObject(source.autosuggest) ? cloneValue(source.autosuggest) : undefined
+  const type = source.type || 'normal'
+  const autosuggest =
+    type === 'wikidata-autosuggest' && isPlainObject(source.autosuggest)
+      ? cloneValue(source.autosuggest)
+      : type === 'wikidata-autosuggest'
+        ? createDefaultAutosuggestConfig()
+        : undefined
   return {
-    type: source.type || 'normal',
+    type,
     label: source.label || '',
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',
@@ -212,7 +243,11 @@ function endDrag() {
 }
 
 function createUserConfigPayload() {
-  return { version: 1, fields: userConfigFields.value }
+  const normalizedFields = {}
+  Object.keys(userConfigFields.value).forEach((key, index) => {
+    normalizedFields[key] = normalizeUserConfigField(userConfigFields.value[key], index)
+  })
+  return { version: 1, fields: normalizedFields }
 }
 
 function applyImportedConfigPayload(configPayload) {

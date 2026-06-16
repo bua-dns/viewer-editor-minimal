@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useWikidataSearch } from '../composables/useWikidataSearch'
 
 const props = defineProps({
   config: { type: Object, default: null },
@@ -8,42 +9,104 @@ const props = defineProps({
 
 const emit = defineEmits(['select'])
 
+const DEFAULT_CONFIG = {
+  searchLanguages: ['de', 'en'],
+  resultLanguage: 'de',
+  minChars: 2,
+  limit: 10,
+  prioritize: {
+    claimPresence: {
+      weight: 0,
+      includeInEmitData: false,
+      showInSuggestion: false,
+      defs: [],
+    },
+    claimValueMatch: {
+      weight: 0,
+      includeInEmitData: false,
+      showInSuggestion: false,
+      defs: [],
+    },
+  },
+}
+
 const query = ref('')
 const suggestions = ref([])
 const isLoading = ref(false)
 const requestError = ref('')
 
 let debounceTimer = null
-let activeAbortController = null
+let requestId = 0
 
-const minChars = computed(() => {
-  const value = Number(props.config?.minChars)
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 2
+const mergedConfig = computed(() => {
+  const incomingConfig = props.config || {}
+  const incomingPrioritize = incomingConfig.prioritize || {}
+
+  return {
+    ...DEFAULT_CONFIG,
+    ...incomingConfig,
+    prioritize: {
+      ...DEFAULT_CONFIG.prioritize,
+      ...incomingPrioritize,
+      claimPresence: {
+        ...DEFAULT_CONFIG.prioritize.claimPresence,
+        ...(incomingPrioritize.claimPresence || {}),
+      },
+      claimValueMatch: {
+        ...DEFAULT_CONFIG.prioritize.claimValueMatch,
+        ...(incomingPrioritize.claimValueMatch || {}),
+      },
+    },
+  }
 })
 
-const resultLimit = computed(() => {
-  const value = Number(props.config?.limit)
-  if (!Number.isFinite(value) || value <= 0) return 8
-  return Math.min(Math.floor(value), 20)
+const minChars = computed(() => Number(mergedConfig.value.minChars) || DEFAULT_CONFIG.minChars)
+const effectiveLimit = computed(() => {
+  const parsed = Number(mergedConfig.value.limit)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_CONFIG.limit
+  }
+  return Math.min(Math.floor(parsed), 50)
 })
 
-const searchLanguages = computed(() => {
-  const fromConfig = props.config?.searchLanguages
-  if (Array.isArray(fromConfig)) {
-    const normalized = fromConfig
-      .map((entry) => String(entry || '').trim().toLowerCase())
-      .filter(Boolean)
-    if (normalized.length) return normalized
+function getPropertyIdsForPrioritizeRule(ruleName, defs) {
+  if (!Array.isArray(defs)) {
+    return []
   }
 
-  const fallbackLanguage = String(props.config?.resultLanguage || 'en').trim().toLowerCase()
-  return fallbackLanguage ? [fallbackLanguage] : ['en']
-})
+  if (ruleName === 'claimPresence') {
+    return defs.filter((propertyId) => typeof propertyId === 'string' && propertyId.trim())
+  }
 
-const resultLanguage = computed(() => {
-  const configured = String(props.config?.resultLanguage || '').trim().toLowerCase()
-  return configured || searchLanguages.value[0] || 'en'
-})
+  if (ruleName === 'claimValueMatch') {
+    return defs
+      .map((definition) => definition?.property)
+      .filter((propertyId) => typeof propertyId === 'string' && propertyId.trim())
+  }
+
+  return []
+}
+
+function collectPropertyIdsByFlag(flagName) {
+  const prioritizeConfig = mergedConfig.value.prioritize || {}
+  const propertyIds = new Set()
+
+  for (const [ruleName, ruleConfig] of Object.entries(prioritizeConfig)) {
+    if (!ruleConfig?.[flagName]) {
+      continue
+    }
+
+    for (const propertyId of getPropertyIdsForPrioritizeRule(ruleName, ruleConfig.defs)) {
+      propertyIds.add(propertyId)
+    }
+  }
+
+  return Array.from(propertyIds)
+}
+
+const suggestionPropertyIds = computed(() => collectPropertyIdsByFlag('showInSuggestion'))
+const emitPropertyIds = computed(() => collectPropertyIdsByFlag('includeInEmitData'))
+const showSuggestionMetadata = computed(() => suggestionPropertyIds.value.length > 0)
 
 const parsedManualEntity = computed(() => {
   const normalized = query.value.trim()
@@ -63,94 +126,65 @@ const parsedManualEntity = computed(() => {
 })
 
 function selectEntity(entity) {
-  emit('select', entity)
+  emit('select', getEmitItem(entity))
   query.value = ''
   suggestions.value = []
   requestError.value = ''
 }
 
-function normalizeWikidataSearchResult(entry) {
-  const id = typeof entry?.id === 'string' ? entry.id.trim() : ''
-  if (!id) return null
-
-  const label = typeof entry?.label === 'string' && entry.label.trim() ? entry.label : id
-  const result = {
-    id,
-    label,
+function filterPrioritizationValues(prioritizationValues, propertyIds) {
+  if (!prioritizationValues || typeof prioritizationValues !== 'object' || !propertyIds.length) {
+    return {}
   }
 
-  if (typeof entry?.description === 'string' && entry.description.trim()) {
-    result.description = entry.description
-  }
+  const filteredValues = {}
 
-  return result
-}
-
-function dedupeById(entries) {
-  const seen = new Set()
-  return entries.filter((entry) => {
-    if (!entry?.id || seen.has(entry.id)) return false
-    seen.add(entry.id)
-    return true
-  })
-}
-
-async function fetchSearchResults(searchText) {
-  if (activeAbortController) {
-    activeAbortController.abort()
-  }
-
-  const abortController = new AbortController()
-  activeAbortController = abortController
-
-  isLoading.value = true
-  requestError.value = ''
-
-  try {
-    const requests = searchLanguages.value.map(async (language) => {
-      const queryParams = new URLSearchParams({
-        action: 'wbsearchentities',
-        format: 'json',
-        type: 'item',
-        search: searchText,
-        language,
-        uselang: resultLanguage.value,
-        limit: String(resultLimit.value),
-        origin: '*',
-      })
-
-      const response = await fetch(`https://www.wikidata.org/w/api.php?${queryParams.toString()}`, {
-        signal: abortController.signal,
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      const payload = await response.json()
-      return Array.isArray(payload?.search) ? payload.search : []
-    })
-
-    const responses = await Promise.all(requests)
-    const merged = dedupeById(
-      responses
-        .flat()
-        .map((entry) => normalizeWikidataSearchResult(entry))
-        .filter(Boolean),
-    )
-
-    suggestions.value = merged.slice(0, resultLimit.value)
-  } catch (error) {
-    if (error?.name === 'AbortError') return
-    suggestions.value = []
-    requestError.value = 'Could not fetch Wikidata results.'
-  } finally {
-    if (activeAbortController === abortController) {
-      isLoading.value = false
-      activeAbortController = null
+  for (const propertyId of propertyIds) {
+    const values = prioritizationValues[propertyId]
+    if (Array.isArray(values) && values.length) {
+      filteredValues[propertyId] = values
     }
   }
+
+  return filteredValues
 }
+
+function getSuggestionPrioritizationValuesText(item) {
+  const filteredValues = filterPrioritizationValues(
+    item?.prioritizationValues,
+    suggestionPropertyIds.value,
+  )
+
+  const parts = Object.entries(filteredValues)
+    .filter(([, values]) => Array.isArray(values) && values.length)
+    .map(([propertyId, values]) => `${propertyId}: ${values.join(', ')}`)
+
+  return parts.join(' | ')
+}
+
+function getEmitItem(item) {
+  const nextItem = { ...item }
+  const shouldIncludeClaimData = emitPropertyIds.value.length > 0
+
+  if (!shouldIncludeClaimData) {
+    delete nextItem.ranking
+    delete nextItem.prioritizationValues
+    return nextItem
+  }
+
+  nextItem.prioritizationValues = filterPrioritizationValues(
+    item?.prioritizationValues,
+    emitPropertyIds.value,
+  )
+
+  if (!Object.keys(nextItem.prioritizationValues).length) {
+    delete nextItem.prioritizationValues
+  }
+
+  return nextItem
+}
+
+const { search } = useWikidataSearch()
 
 watch(
   () => query.value,
@@ -165,15 +199,35 @@ watch(
       suggestions.value = []
       requestError.value = ''
       isLoading.value = false
-      if (activeAbortController) {
-        activeAbortController.abort()
-        activeAbortController = null
-      }
       return
     }
 
-    debounceTimer = setTimeout(() => {
-      fetchSearchResults(normalized)
+    debounceTimer = setTimeout(async () => {
+      const currentRequestId = ++requestId
+      isLoading.value = true
+      requestError.value = ''
+
+      try {
+        const searchResults = await search(normalized, {
+          searchLanguages: mergedConfig.value.searchLanguages,
+          resultLanguage: mergedConfig.value.resultLanguage,
+          limit: effectiveLimit.value,
+          prioritize: mergedConfig.value.prioritize,
+        })
+
+        if (currentRequestId === requestId) {
+          suggestions.value = searchResults
+        }
+      } catch (error) {
+        if (currentRequestId === requestId) {
+          suggestions.value = []
+          requestError.value = error instanceof Error ? error.message : 'Could not fetch Wikidata results.'
+        }
+      } finally {
+        if (currentRequestId === requestId) {
+          isLoading.value = false
+        }
+      }
     }, 250)
   },
 )
@@ -191,7 +245,6 @@ function onEnterKey() {
 
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
-  if (activeAbortController) activeAbortController.abort()
 })
 </script>
 
@@ -217,6 +270,15 @@ onBeforeUnmount(() => {
           <span class="wikidata-suggestion-main">
             <strong>{{ entry.label || entry.id }}</strong>
             <small v-if="entry.description">{{ entry.description }}</small>
+            <small v-if="showSuggestionMetadata && entry.ranking" class="wikidata-suggestion-meta">
+              Rank: {{ entry.ranking.score }}
+            </small>
+            <small
+              v-if="showSuggestionMetadata && getSuggestionPrioritizationValuesText(entry)"
+              class="wikidata-suggestion-meta wikidata-suggestion-meta--mono"
+            >
+              {{ getSuggestionPrioritizationValuesText(entry) }}
+            </small>
           </span>
           <span class="wikidata-suggestion-id">{{ entry.id }}</span>
         </button>
@@ -271,6 +333,14 @@ onBeforeUnmount(() => {
 
 .wikidata-suggestion-main small {
   color: var(--ve-color-text-muted);
+}
+
+.wikidata-suggestion-meta {
+  font-size: 0.75rem;
+}
+
+.wikidata-suggestion-meta--mono {
+  font-family: var(--ve-font-family-mono);
 }
 
 .wikidata-suggestion-id {

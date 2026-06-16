@@ -38,6 +38,13 @@ export function validateImportedConfigPayload(configPayload) {
       return { ok: false, error: `JSON-Config ist ungueltig: order bei ${key} muss eine Zahl sein.` }
     }
 
+    if (fieldConfig.autosuggest != null && type !== 'wikidata-autosuggest') {
+      return {
+        ok: false,
+        error: `JSON-Config ist ungueltig: autosuggest bei ${key} ist nur fuer wikidata-autosuggest erlaubt.`,
+      }
+    }
+
     if (fieldConfig.autosuggest != null && !isPlainObject(fieldConfig.autosuggest)) {
       return {
         ok: false,

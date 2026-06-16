@@ -65,4 +65,19 @@ describe('validateImportedConfigPayload', () => {
 
     expect(result.ok).toBe(false)
   })
+
+  test('rejects autosuggest on non-wikidata field types', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'normal',
+          autosuggest: {
+            minChars: 2,
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
 })

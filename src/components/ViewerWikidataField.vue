@@ -14,6 +14,15 @@ const emit = defineEmits(['update:modelValue'])
 
 const selectedEntities = computed(() => normalizeWikidataAutosuggestValue(props.modelValue))
 
+function getPrioritizationValuesText(entity) {
+  if (!entity?.prioritizationValues || typeof entity.prioritizationValues !== 'object') return ''
+
+  return Object.entries(entity.prioritizationValues)
+    .filter(([, values]) => Array.isArray(values) && values.length)
+    .map(([propertyId, values]) => `${propertyId}: ${values.join(', ')}`)
+    .join(' | ')
+}
+
 function onSelectEntity(entity) {
   const normalized = normalizeWikidataAutosuggestValue(entity)
   if (!normalized.length) return
@@ -41,6 +50,16 @@ function removeEntity(idToRemove) {
         <div class="selected-entity-main">
           <strong>{{ entity.label }}</strong>
           <span>{{ entity.id }}</span>
+          <small v-if="entity.description">{{ entity.description }}</small>
+          <small v-if="entity.ranking" class="selected-entity-meta">
+            Rank: {{ entity.ranking.score }}
+          </small>
+          <small
+            v-if="getPrioritizationValuesText(entity)"
+            class="selected-entity-meta selected-entity-meta--mono"
+          >
+            {{ getPrioritizationValuesText(entity) }}
+          </small>
         </div>
         <button type="button" @click="removeEntity(entity.id)">Remove</button>
       </li>
@@ -82,5 +101,14 @@ function removeEntity(idToRemove) {
   color: var(--ve-color-text-muted);
   font-family: var(--ve-font-family-mono);
   font-size: 0.82rem;
+}
+
+.selected-entity-main small {
+  color: var(--ve-color-text-muted);
+  font-size: 0.8rem;
+}
+
+.selected-entity-meta--mono {
+  font-family: var(--ve-font-family-mono);
 }
 </style>
