@@ -16,6 +16,27 @@ describe('validateImportedConfigPayload', () => {
     expect(result.ok).toBe(true)
   })
 
+  test('accepts autosuggest object on wikidata-autosuggest fields', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            searchLanguages: ['de', 'en'],
+            prioritize: {
+              claimValueMatch: {
+                property: 'P31',
+                value: 'Q5',
+              },
+            },
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
   test('rejects missing fields object', () => {
     const result = validateImportedConfigPayload({ version: 1 })
     expect(result.ok).toBe(false)
@@ -29,6 +50,19 @@ describe('validateImportedConfigPayload', () => {
         },
       },
     })
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects non-object autosuggest config', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: ['de'],
+        },
+      },
+    })
+
     expect(result.ok).toBe(false)
   })
 })

@@ -112,4 +112,58 @@ describe('useViewerData flow', () => {
     expect(model.rawItems.value[0].scan).toBe('https://example.com/a.jpg')
     expect(model.importFileName.value).toBe('sample.csv')
   })
+
+  test('updates wikidata-autosuggest fields as entity arrays', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([
+      {
+        inventory_number: 'A1',
+        subject: null,
+      },
+    ])
+
+    model.selectItem(model.viewItems.value[0]._uid)
+
+    const updated = model.updateField(
+      'subject',
+      [{ id: 'Q42', label: 'Douglas Adams', description: 'English writer' }],
+      'wikidata-autosuggest',
+    )
+
+    expect(updated).toBe(true)
+    expect(model.rawItems.value[0].subject).toEqual([
+      { id: 'Q42', label: 'Douglas Adams', description: 'English writer' },
+    ])
+  })
+
+  test('preserves entity metadata across export-import roundtrip', () => {
+    const model = useViewerData()
+    const source = [
+      {
+        inventory_number: 'A1',
+        subject: [
+          {
+            id: 'Q42',
+            label: 'Douglas Adams',
+            description: 'English writer',
+            ranking: { score: 10 },
+          },
+        ],
+      },
+    ]
+
+    model.initializeFromJsonArray(source)
+    const exportPayload = model.createExportPayload()
+    const importResult = model.importFromJsonText(JSON.stringify({ data: exportPayload }), 'roundtrip.json')
+
+    expect(importResult).toBe(true)
+    expect(model.rawItems.value[0].subject).toEqual([
+      {
+        id: 'Q42',
+        label: 'Douglas Adams',
+        description: 'English writer',
+        ranking: { score: 10 },
+      },
+    ])
+  })
 })

@@ -16,12 +16,22 @@ const isUserConfigOpen = ref(false)
 const newFieldName = ref('')
 const addFieldError = ref('')
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function cloneValue(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
+  const autosuggest = isPlainObject(source.autosuggest) ? cloneValue(source.autosuggest) : undefined
   return {
     type: source.type || 'normal',
     label: source.label || '',
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',
+    ...(autosuggest ? { autosuggest } : {}),
   }
 }
 

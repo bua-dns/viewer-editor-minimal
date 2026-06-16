@@ -12,6 +12,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Volltextsuche über alle Felder
 - Kartenansicht mit Bildvorschau (`scan`-URL)
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
+- Neuer Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell (`[{ id, label, ... }]`)
 - App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
 - Sprachumschalter (DE/EN) in der Topbar
 - Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
@@ -157,6 +158,8 @@ Hinweise:
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
+- `src/components/ViewerWikidataField.vue` - Wrapper fuer `wikidata-autosuggest` (Selection/Chips/Remove)
+- `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe, erhaelt `autosuggest`-Config als pass-through
 - Sidebar im Edit-Bereich unterstuetzt einen erweiterten Modus (volle Breite) mit Maximize/Minimize-Icons.
 - Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC

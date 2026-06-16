@@ -17,13 +17,13 @@
 
 - Das Feld `scan` ist fuer die Bildvorschau reserviert.
 - Fuer die automatische Vorschau sollte `scan` auf eine direkt ladbare Bild-URL zeigen (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
-- Alle uebrigen Felder koennen ueber die Konfiguration als `normal`, `text`, `integer` oder `checkbox` typisiert werden.
+- Alle uebrigen Felder koennen ueber die Konfiguration als `normal`, `text`, `integer`, `checkbox` oder `wikidata-autosuggest` typisiert werden.
 
 ## Konfiguration (JSON)
 
 - Beim JSON-Export wird immer das kanonische Format `{ data, config }` geschrieben.
 - `config.fields` muss ein Objekt sein, dessen Schluessel den Feldnamen entsprechen.
-- Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`.
+- Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`; fuer `wikidata-autosuggest` zusaetzlich optional `autosuggest` als pass-through Objekt.
 
 ## Replacements (JSON)
 

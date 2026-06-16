@@ -204,6 +204,10 @@ const wording = {
     de: "Ja/Nein (checkbox)",
     en: "Yes/No (checkbox)",
   },
+  configTypeWikidataAutosuggest: {
+    de: "Wikidata Autosuggest",
+    en: "Wikidata autosuggest",
+  },
   configLabelInputPlaceholder: {
     de: "Label",
     en: "Label",

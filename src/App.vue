@@ -111,8 +111,8 @@ function onDataModeChanged() {
   initializeUserConfigForCurrentData()
 }
 
-function onFieldChange(key, value) {
-  updateField(key, value)
+function onFieldChange(key, value, configuredType) {
+  updateField(key, value, configuredType)
 }
 
 function onApplyUserConfig() {

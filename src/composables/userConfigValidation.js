@@ -37,6 +37,13 @@ export function validateImportedConfigPayload(configPayload) {
     if (fieldConfig.order != null && !Number.isFinite(fieldConfig.order)) {
       return { ok: false, error: `JSON-Config ist ungueltig: order bei ${key} muss eine Zahl sein.` }
     }
+
+    if (fieldConfig.autosuggest != null && !isPlainObject(fieldConfig.autosuggest)) {
+      return {
+        ok: false,
+        error: `JSON-Config ist ungueltig: autosuggest bei ${key} muss ein Objekt sein.`,
+      }
+    }
   }
 
   return { ok: true }

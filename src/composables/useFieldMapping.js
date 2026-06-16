@@ -13,11 +13,13 @@ export function useFieldMapping() {
   }
 
   function getFieldEditorBinding(key, value) {
+    const fieldConfig = appliedUserConfigFields.value[key]
     return createFieldEditorBinding({
       fieldId: `field-${key}`,
-      configuredType: appliedUserConfigFields.value[key]?.type,
+      configuredType: fieldConfig?.type,
       value,
       placeholder: getFieldPlaceholder(key),
+      autosuggestConfig: fieldConfig?.autosuggest,
     })
   }
 

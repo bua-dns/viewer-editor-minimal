@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useFieldMapping } from '../composables/useFieldMapping'
+import ViewerWikidataField from './ViewerWikidataField.vue'
 
 const props = defineProps({
   selectedRawItem: { type: Object, required: true },
@@ -26,7 +27,17 @@ const fieldRows = computed(() =>
 )
 
 function onFieldDomEvent(row, event) {
-  emit('field-change', row.key, row.editorBinding.readEventValue(event))
+  emit('field-change', row.key, row.editorBinding.readEventValue(event), row.editorBinding.resolvedType)
+}
+
+function resolveEditorComponent(componentId) {
+  if (componentId === 'ViewerWikidataField') return ViewerWikidataField
+  return componentId
+}
+
+function shouldRenderEditor(row) {
+  if (row.editorBinding.resolvedType === 'wikidata-autosuggest') return true
+  return props.isEditableSimpleValue(row.value)
 }
 </script>
 
@@ -36,8 +47,8 @@ function onFieldDomEvent(row, event) {
       <div class="field-row">
         <label :for="`field-${row.key}`">{{ row.label }}</label>
         <component
-          :is="row.editorBinding.component"
-          v-if="props.isEditableSimpleValue(row.value)"
+          :is="resolveEditorComponent(row.editorBinding.component)"
+          v-if="shouldRenderEditor(row)"
           v-bind="row.editorBinding.componentProps"
           @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
         />

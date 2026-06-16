@@ -1,3 +1,5 @@
+import { normalizeWikidataAutosuggestValue } from './wikidataAutosuggestField'
+
 const FALLBACK_FIELD_TYPE = 'normal'
 
 function toDomValue(value) {
@@ -109,6 +111,32 @@ const FIELD_REGISTRY = Object.freeze({
       return currentValue
     },
   },
+  'wikidata-autosuggest': {
+    key: 'wikidata-autosuggest',
+    labelKey: 'configTypeWikidataAutosuggest',
+    labelFallback: 'Wikidata Autosuggest',
+    createEditorBinding({ fieldId, value, placeholder, autosuggestConfig }) {
+      return {
+        component: 'ViewerWikidataField',
+        componentProps: {
+          fieldId,
+          modelValue: value,
+          placeholder,
+          autosuggestConfig,
+        },
+        eventName: 'update:modelValue',
+        readEventValue(nextValue) {
+          return nextValue
+        },
+      }
+    },
+    createDefaultValue() {
+      return []
+    },
+    normalizeValueForConfigApply(currentValue) {
+      return normalizeWikidataAutosuggestValue(currentValue)
+    },
+  },
 })
 
 const REGISTERED_FIELD_TYPES = Object.freeze(Object.keys(FIELD_REGISTRY))
@@ -149,10 +177,20 @@ export function resolveFieldTypeForEditor(configuredType, value) {
   return inferFieldTypeFromValue(value)
 }
 
-export function createFieldEditorBinding({ fieldId, configuredType, value, placeholder = '' }) {
+export function createFieldEditorBinding({
+  fieldId,
+  configuredType,
+  value,
+  placeholder = '',
+  autosuggestConfig = null,
+}) {
   const resolvedType = resolveFieldTypeForEditor(configuredType, value)
   const definition = FIELD_REGISTRY[resolvedType]
-  return definition.createEditorBinding({ fieldId, value, placeholder })
+  const binding = definition.createEditorBinding({ fieldId, value, placeholder, autosuggestConfig })
+  return {
+    ...binding,
+    resolvedType,
+  }
 }
 
 export function createDefaultValueForFieldType(configuredType) {
@@ -165,7 +203,13 @@ export function normalizeValueForConfiguredType(configuredType, currentValue) {
   return FIELD_REGISTRY[resolvedType].normalizeValueForConfigApply(currentValue)
 }
 
-export function normalizeUpdatedFieldValue(currentValue, nextRawValue) {
+export function normalizeUpdatedFieldValue(currentValue, nextRawValue, configuredType = null) {
+  const resolvedType = resolveConfiguredFieldType(configuredType)
+
+  if (resolvedType === 'wikidata-autosuggest') {
+    return { ok: true, value: normalizeWikidataAutosuggestValue(nextRawValue) }
+  }
+
   if (typeof currentValue === 'number') {
     const parsedNumber = Number(nextRawValue)
     if (Number.isNaN(parsedNumber)) {

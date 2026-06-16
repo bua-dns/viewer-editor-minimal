@@ -11,6 +11,7 @@ Kernfunktionen:
 - Beispieldaten passend zum aktiven Datenmodus laden
 - Volltextsuche ueber alle Feldwerte
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
+- Strukturierter Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell
 - Dirty-State inkl. Warnung beim Verlassen der Seite
 - Reset auf Import-Snapshot
 - Export der bearbeiteten Daten als neue JSON- oder CSV-Datei
@@ -44,6 +45,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
+- `src/components/ViewerWikidataField.vue` - Viewer-spezifischer Wrapper fuer den Feldtyp `wikidata-autosuggest`
+- `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (erhaelt Konfiguration als pass-through)
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Sortierung und Binding zur Feld-Registry
@@ -83,7 +86,7 @@ Im UI gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload
 
 Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 
-- `type`: `normal`, `text`, `integer`, `checkbox`
+- `type`: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`
 - `label`: alternative Feldbeschriftung
 - `placeholder`: Eingabehinweis
 - Reihenfolge via Drag-and-Drop
@@ -99,7 +102,7 @@ Verhalten:
 - Falls beim Anwenden der Konfiguration der Datenmodus auf `CSV` steht, schaltet die App automatisch auf `JSON` um.
 - Das konkrete Feld-Rendering wird ueber die Registry aufgeloest (statt ueber Bedingungen in `ItemFieldEditor.vue`).
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
-- Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''` bzw. `false` bei `checkbox`).
+- Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''`, `false` oder `[]` je nach Feldtyp).
 - Konfigurationszustand (`fields`, `appliedFields`) wird unter `viewerEditor.userConfig.v1` in `sessionStorage` gespeichert.
 
 ## Datenmodell und State
@@ -195,14 +198,15 @@ Beispiel:
 
 ## Bearbeitungslogik
 
-`updateField(key, nextRawValue)` bearbeitet nur einfache Typen:
+`updateField(key, nextRawValue, configuredType?)` bearbeitet einfache Typen sowie strukturierte Registry-Typen:
 
 - Die konkrete Normalisierung laeuft ueber den Registry-Hook `normalizeUpdatedFieldValue(...)`.
 - Verhalten bleibt identisch:
   - `number`: String-Input wird mit `Number(...)` geparst; `NaN` wird verworfen
   - `boolean`: Wert wird auf `Boolean(...)` normalisiert
   - `null`: leerer String wird wieder `null`, sonst String
-  - `string`: direkte Uebernahme
+- `string`: direkte Uebernahme
+- `wikidata-autosuggest`: Wert wird auf ein dedupliziertes Entity-Array normalisiert
 
 Nach erfolgreicher Aenderung:
 
@@ -215,11 +219,13 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 ## Sidebar Field Editor Modularization
 
 - `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
-- `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`).
+- `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`).
 - Jeder Feldtyp implementiert denselben Contract:
   - `createEditorBinding(...)` fuer UI-Bindings (`component`, Props, Event, Event-Value-Mapping)
   - `createDefaultValue()` fuer neu hinzugefuegte Felder
   - `normalizeValueForConfigApply(...)` fuer Konfigurations-Anwendung auf bestehende Daten
+- Der Feldtyp `wikidata-autosuggest` rendert ueber `ViewerWikidataField.vue` und speichert immer ein Array von Entity-Objekten mit stabiler `id`.
+- Der Wrapper reicht `field.autosuggest` unveraendert an `WikidataAutosuggestInput.vue` weiter; die Viewer-Core-Logik interpretiert keine autosuggest-spezifischen Schluessel.
 - `useFieldMapping.js` liefert weiterhin Label-/Sortier-Mapping und delegiert Feld-Rendering an die Registry.
 - `App.vue` orchestriert nur noch die Feld-Update-Events und reicht sie an `useViewerData` weiter.
 

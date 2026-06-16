@@ -292,15 +292,17 @@ export function useViewerData() {
     selectedUid.value = uidValue
   }
 
-  function updateField(key, nextRawValue) {
+  function updateField(key, nextRawValue, configuredType = null) {
     if (!selectedViewItem.value) return false
 
     const itemIndex = selectedViewItem.value._index
     const item = rawItems.value[itemIndex]
     if (!item || !Object.prototype.hasOwnProperty.call(item, key)) return false
-    if (!isEditableSimpleValue(item[key])) return false
 
-    const normalization = normalizeUpdatedFieldValue(item[key], nextRawValue)
+    const isStructuredField = configuredType === 'wikidata-autosuggest'
+    if (!isStructuredField && !isEditableSimpleValue(item[key])) return false
+
+    const normalization = normalizeUpdatedFieldValue(item[key], nextRawValue, configuredType)
     if (!normalization.ok) return false
 
     item[key] = normalization.value
