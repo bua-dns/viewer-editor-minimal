@@ -1,4 +1,5 @@
 import { useUserConfigStore } from '../stores/useUserConfigStore'
+import { createFieldEditorBinding } from '../fields/fieldRegistry'
 
 export function useFieldMapping() {
   const { appliedUserConfigFields } = useUserConfigStore()
@@ -7,19 +8,17 @@ export function useFieldMapping() {
     return appliedUserConfigFields.value[key]?.label?.trim() || key
   }
 
-  function getFieldInputType(key, value) {
-    const configuredType = appliedUserConfigFields.value[key]?.type || 'normal'
-    if (configuredType === 'integer') return 'number'
-    if (configuredType === 'checkbox') return 'checkbox'
-    if (configuredType === 'text') return 'textarea'
-    if (configuredType === 'normal') return 'text'
-    if (typeof value === 'number') return 'number'
-    if (typeof value === 'boolean') return 'checkbox'
-    return 'text'
-  }
-
   function getFieldPlaceholder(key) {
     return appliedUserConfigFields.value[key]?.placeholder || ''
+  }
+
+  function getFieldEditorBinding(key, value) {
+    return createFieldEditorBinding({
+      fieldId: `field-${key}`,
+      configuredType: appliedUserConfigFields.value[key]?.type,
+      value,
+      placeholder: getFieldPlaceholder(key),
+    })
   }
 
   function getDisplayedFieldKeys(selectedRawItem) {
@@ -35,8 +34,8 @@ export function useFieldMapping() {
 
   return {
     getFieldLabel,
-    getFieldInputType,
     getFieldPlaceholder,
+    getFieldEditorBinding,
     getDisplayedFieldKeys,
   }
 }

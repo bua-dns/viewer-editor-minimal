@@ -111,12 +111,8 @@ function onDataModeChanged() {
   initializeUserConfigForCurrentData()
 }
 
-function onFieldInput(key, value) {
+function onFieldChange(key, value) {
   updateField(key, value)
-}
-
-function onBooleanChange(key, checked) {
-  updateField(key, checked)
 }
 
 function onApplyUserConfig() {
@@ -450,7 +446,7 @@ watch(
                 </div>
 
                 <ItemFieldEditor :selected-raw-item="selectedRawItem" :is-editable-simple-value="isEditableSimpleValue"
-                  @field-input="onFieldInput" @boolean-change="onBooleanChange" />
+                  @field-change="onFieldChange" />
               </div>
             </div>
           </aside>

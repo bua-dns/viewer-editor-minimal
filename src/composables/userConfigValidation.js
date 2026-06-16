@@ -1,3 +1,5 @@
+import { getRegisteredFieldTypes } from '../fields/fieldRegistry'
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -11,7 +13,7 @@ export function validateImportedConfigPayload(configPayload) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config.fields muss ein Objekt sein.' }
   }
 
-  const allowedTypes = new Set(['normal', 'text', 'integer', 'checkbox'])
+  const allowedTypes = new Set(getRegisteredFieldTypes())
   const fieldEntries = Object.entries(configPayload.fields)
 
   for (const [key, fieldConfig] of fieldEntries) {

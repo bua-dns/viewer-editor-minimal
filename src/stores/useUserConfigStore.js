@@ -1,6 +1,10 @@
 //src\stores\useUserConfigStore.js
 import { computed, ref } from 'vue'
 import { validateImportedConfigPayload } from '../composables/userConfigValidation'
+import {
+  createDefaultValueForFieldType,
+  normalizeValueForConfiguredType,
+} from '../fields/fieldRegistry'
 
 const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 
@@ -129,23 +133,16 @@ function applyUserConfigToRawItems(rawItems) {
   Object.entries(userConfigFields.value).forEach(([key, config]) => {
     rawItems.forEach((item) => {
       if (!Object.prototype.hasOwnProperty.call(item, key)) {
-        item[key] = config.type === 'checkbox' ? false : ''
+        item[key] = createDefaultValueForFieldType(config.type)
       }
     })
   })
 
   rawItems.forEach((item) => {
     Object.keys(userConfigFields.value).forEach((key) => {
-      const configuredType = userConfigFields.value[key]?.type || 'normal'
+      const configuredType = userConfigFields.value[key]?.type
       const currentValue = item[key]
-      if (configuredType !== 'checkbox' && typeof currentValue === 'boolean') {
-        item[key] = String(currentValue)
-      }
-      if (configuredType === 'checkbox' && typeof currentValue === 'string') {
-        const normalized = currentValue.trim().toLowerCase()
-        if (normalized === 'true') item[key] = true
-        if (normalized === 'false') item[key] = false
-      }
+      item[key] = normalizeValueForConfiguredType(configuredType, currentValue)
     })
   })
 

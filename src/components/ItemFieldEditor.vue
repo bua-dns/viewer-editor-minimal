@@ -7,51 +7,41 @@ const props = defineProps({
   isEditableSimpleValue: { type: Function, required: true },
 })
 
-const emit = defineEmits(['field-input', 'boolean-change'])
+const emit = defineEmits(['field-change'])
 
-const { getFieldLabel, getFieldInputType, getFieldPlaceholder, getDisplayedFieldKeys } = useFieldMapping()
+const { getFieldLabel, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
 
 const displayedFieldKeys = computed(() => getDisplayedFieldKeys(props.selectedRawItem))
 
-function onInput(key, event) {
-  emit('field-input', key, event.target.value)
-}
+const fieldRows = computed(() =>
+  displayedFieldKeys.value.map((key) => {
+    const value = props.selectedRawItem[key]
+    return {
+      key,
+      value,
+      label: getFieldLabel(key),
+      editorBinding: getFieldEditorBinding(key, value),
+    }
+  }),
+)
 
-function onBooleanInput(key, event) {
-  emit('boolean-change', key, event.target.checked)
+function onFieldDomEvent(row, event) {
+  emit('field-change', row.key, row.editorBinding.readEventValue(event))
 }
 </script>
 
 <template>
   <div class="field-grid">
-    <template v-for="key in displayedFieldKeys" :key="key">
+    <template v-for="row in fieldRows" :key="row.key">
       <div class="field-row">
-        <label :for="`field-${key}`">{{ getFieldLabel(key) }}</label>
-        <template v-if="props.isEditableSimpleValue(props.selectedRawItem[key])">
-          <textarea
-            v-if="getFieldInputType(key, props.selectedRawItem[key]) === 'textarea'"
-            :id="`field-${key}`"
-            :placeholder="getFieldPlaceholder(key)"
-            :value="props.selectedRawItem[key] === null ? '' : props.selectedRawItem[key]"
-            @input="onInput(key, $event)"
-          />
-          <input
-            v-else-if="getFieldInputType(key, props.selectedRawItem[key]) !== 'checkbox'"
-            :id="`field-${key}`"
-            :type="getFieldInputType(key, props.selectedRawItem[key])"
-            :placeholder="getFieldPlaceholder(key)"
-            :value="props.selectedRawItem[key] === null ? '' : props.selectedRawItem[key]"
-            @input="onInput(key, $event)"
-          />
-          <input
-            v-else
-            :id="`field-${key}`"
-            type="checkbox"
-            :checked="Boolean(props.selectedRawItem[key])"
-            @change="onBooleanInput(key, $event)"
-          />
-        </template>
-        <pre v-else>{{ JSON.stringify(props.selectedRawItem[key]) }}</pre>
+        <label :for="`field-${row.key}`">{{ row.label }}</label>
+        <component
+          :is="row.editorBinding.component"
+          v-if="props.isEditableSimpleValue(row.value)"
+          v-bind="row.editorBinding.componentProps"
+          @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
+        />
+        <pre v-else>{{ JSON.stringify(row.value) }}</pre>
       </div>
     </template>
   </div>

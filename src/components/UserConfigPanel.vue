@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
+import { getRegisteredFieldTypeOptions } from '../fields/fieldRegistry'
 
 const props = defineProps({
   hasData: { type: Boolean, required: true },
@@ -26,6 +27,7 @@ const {
 } = useUserConfigStore()
 
 const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
+const fieldTypeOptions = getRegisteredFieldTypeOptions()
 
 function onTogglePanel() {
   if (props.forceOpen) return
@@ -92,10 +94,9 @@ function onAddField() {
         <div class="drag-handle" aria-hidden="true">⋮⋮</div>
         <div class="field-key">{{ entry[0] }}</div>
         <select v-model="entry[1].type">
-          <option value="normal">{{ t('configTypeNormal', 'normal (string)') }}</option>
-          <option value="text">{{ t('configTypeText', 'Textfeld (text)') }}</option>
-          <option value="integer">{{ t('configTypeInteger', 'Zahl (integer)') }}</option>
-          <option value="checkbox">{{ t('configTypeCheckbox', 'Ja/Nein (checkbox)') }}</option>
+          <option v-for="option in fieldTypeOptions" :key="option.value" :value="option.value">
+            {{ t(option.labelKey, option.labelFallback) }}
+          </option>
         </select>
         <input v-model="entry[1].label" type="text" :placeholder="t('configLabelInputPlaceholder', 'Label')" />
         <input v-model="entry[1].placeholder" type="text" :placeholder="t('configHintInputPlaceholder', 'Hinweis')" />

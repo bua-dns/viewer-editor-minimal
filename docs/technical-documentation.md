@@ -44,8 +44,9 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
+- `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
-- `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Typ/Placeholder/Sortierung
+- `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Sortierung und Binding zur Feld-Registry
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useDataImportExport.js` - Import/Export-Flow inkl. Dateimodus-Validierung und Download-Ausleitung
 - `src/composables/useSelectionNavigation.js` - Auswahlindex-Berechnung und Vor/Zurueck-Navigation
@@ -96,7 +97,7 @@ Verhalten:
 
 - `Konfiguration anwenden` uebernimmt die aktuelle Konfiguration in die Darstellung der Sidebar-Felder.
 - Falls beim Anwenden der Konfiguration der Datenmodus auf `CSV` steht, schaltet die App automatisch auf `JSON` um.
-- Bei `type = text` wird ein `textarea` gerendert, sonst entsprechend `input`/`checkbox`.
+- Das konkrete Feld-Rendering wird ueber die Registry aufgeloest (statt ueber Bedingungen in `ItemFieldEditor.vue`).
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
 - Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''` bzw. `false` bei `checkbox`).
 - Konfigurationszustand (`fields`, `appliedFields`) wird unter `viewerEditor.userConfig.v1` in `sessionStorage` gespeichert.
@@ -196,10 +197,12 @@ Beispiel:
 
 `updateField(key, nextRawValue)` bearbeitet nur einfache Typen:
 
-- `number`: String-Input wird mit `Number(...)` geparst; `NaN` wird verworfen
-- `boolean`: Wert wird auf `Boolean(...)` normalisiert
-- `null`: leerer String wird wieder `null`, sonst String
-- `string`: direkte Uebernahme
+- Die konkrete Normalisierung laeuft ueber den Registry-Hook `normalizeUpdatedFieldValue(...)`.
+- Verhalten bleibt identisch:
+  - `number`: String-Input wird mit `Number(...)` geparst; `NaN` wird verworfen
+  - `boolean`: Wert wird auf `Boolean(...)` normalisiert
+  - `null`: leerer String wird wieder `null`, sonst String
+  - `string`: direkte Uebernahme
 
 Nach erfolgreicher Aenderung:
 
@@ -212,12 +215,19 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 ## Sidebar Field Editor Modularization
 
 - `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
-- `useFieldMapping.js` kapselt die Mapping-Regeln fuer:
-  - Feldlabel
-  - Input-Typ (`text`, `textarea`, `checkbox`, `number`)
-  - Placeholder
-  - Feldreihenfolge
+- `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`).
+- Jeder Feldtyp implementiert denselben Contract:
+  - `createEditorBinding(...)` fuer UI-Bindings (`component`, Props, Event, Event-Value-Mapping)
+  - `createDefaultValue()` fuer neu hinzugefuegte Felder
+  - `normalizeValueForConfigApply(...)` fuer Konfigurations-Anwendung auf bestehende Daten
+- `useFieldMapping.js` liefert weiterhin Label-/Sortier-Mapping und delegiert Feld-Rendering an die Registry.
 - `App.vue` orchestriert nur noch die Feld-Update-Events und reicht sie an `useViewerData` weiter.
+
+### Neues Feld hinzufuegen
+
+1. In `src/fields/fieldRegistry.js` einen neuen Feldtyp mit Contract-Funktionen ergaenzen.
+2. Der Feldtyp steht danach automatisch in der Config-Auswahl und in der Config-Validierung zur Verfuegung.
+3. Optionales feldspezifisches Verhalten fuer Config-Apply oder Edit-Normalisierung ebenfalls im Registry-Eintrag definieren.
 
 ## UI-Architektur (`App.vue`)
 

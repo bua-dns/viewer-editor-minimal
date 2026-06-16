@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
+import { normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -299,18 +300,10 @@ export function useViewerData() {
     if (!item || !Object.prototype.hasOwnProperty.call(item, key)) return false
     if (!isEditableSimpleValue(item[key])) return false
 
-    let normalizedValue = nextRawValue
-    if (typeof item[key] === 'number') {
-      const parsedNumber = Number(nextRawValue)
-      if (Number.isNaN(parsedNumber)) return false
-      normalizedValue = parsedNumber
-    } else if (typeof item[key] === 'boolean') {
-      normalizedValue = Boolean(nextRawValue)
-    } else if (item[key] === null) {
-      normalizedValue = nextRawValue === '' ? null : nextRawValue
-    }
+    const normalization = normalizeUpdatedFieldValue(item[key], nextRawValue)
+    if (!normalization.ok) return false
 
-    item[key] = normalizedValue
+    item[key] = normalization.value
     selectedViewItem.value._searchText = toSearchText(item)
     isDirty.value = true
     return true
