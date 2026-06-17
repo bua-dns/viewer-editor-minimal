@@ -292,6 +292,14 @@ const wording = {
     de: "Definition hinzufuegen",
     en: "Add definition",
   },
+  autosuggestOptions: {
+    de: "Optionen",
+    en: "Options",
+  },
+  autosuggestShowOptions: {
+    de: "Optionen anzeigen",
+    en: "Show options",
+  },
   listEmptyAfterUpload: {
     de: "Nach dem Upload erscheinen hier die Einträge.",
     en: "Entries appear here after upload.",

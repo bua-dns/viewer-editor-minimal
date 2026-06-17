@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
 import { getRegisteredFieldTypeOptions } from '../fields/fieldRegistry'
@@ -31,6 +31,7 @@ const {
 
 const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
 const fieldTypeOptions = getRegisteredFieldTypeOptions()
+const autosuggestAdvancedCollapseToken = ref(0)
 
 function onTogglePanel() {
   if (props.forceOpen) return
@@ -48,6 +49,11 @@ function onFieldTypeChange(fieldKey, nextType) {
 function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
   updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig)
 }
+
+function onApplyConfiguration() {
+  emit('apply')
+  autosuggestAdvancedCollapseToken.value += 1
+}
 </script>
 
 <template>
@@ -59,7 +65,7 @@ function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
     >
       <div class="user-config-title">{{ t('configurationTitle', 'Konfiguration') }}</div>
       <div v-if="isPanelOpen" class="user-config-actions">
-        <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="emit('apply')">
+        <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="onApplyConfiguration">
           {{ t('applyConfiguration', 'Konfiguration anwenden') }}
         </button>
       </div>
@@ -95,7 +101,10 @@ function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
         v-for="entry in sortedConfigFieldEntries"
         :key="entry[0]"
         class="user-config-row"
-        :class="{ 'is-dragging': draggedFieldKey === entry[0] }"
+        :class="{
+          'is-dragging': draggedFieldKey === entry[0],
+          'has-autosuggest-config': entry[1].type === 'wikidata-autosuggest',
+        }"
         draggable="true"
         @dragstart="startDrag(entry[0])"
         @dragover.prevent
@@ -119,6 +128,7 @@ function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
           <AutosuggestFieldConfig
             :model-value="entry[1].autosuggest"
             :t="t"
+            :collapse-advanced-token="autosuggestAdvancedCollapseToken"
             @update:model-value="onAutosuggestConfigChange(entry[0], $event)"
           />
         </div>
@@ -193,9 +203,19 @@ function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
   align-items: center;
 }
 
+.user-config-row.has-autosuggest-config {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+  padding: 0.45rem;
+}
+
 .user-config-autosuggest-row {
   grid-column: 2 / -1;
-  padding: 0.1rem 0 0.45rem 34px;
+  padding: 0.1rem 0 0.45rem;
+}
+
+.user-config-row.has-autosuggest-config .user-config-autosuggest-row {
+  padding: 0.2rem 0 0;
 }
 
 .remove-field-btn {
@@ -234,10 +254,6 @@ function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
 
   .user-config-add-row {
     grid-template-columns: 1fr;
-  }
-
-  .user-config-autosuggest-row {
-    padding-left: 0;
   }
 }
 </style>
