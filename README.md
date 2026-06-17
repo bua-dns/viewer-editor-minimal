@@ -13,12 +13,14 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Kartenansicht mit Bildvorschau (`scan`-URL)
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
 - Neuer Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell (`[{ id, label, ... }]`)
+- `wikidata-autosuggest` unterstuetzt konfigurierbare Priorisierung (`claimPresence`, `claimValueMatch`) inkl. optionaler Emit-Metadaten
 - App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
 - Sprachumschalter (DE/EN) in der Topbar
 - Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
 - Dirty-State mit Reset auf den importierten Stand
 - Export als neue `*-edited.json` (Format: `{ data, config, replacements? }`)
 - Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
+- Fuer `wikidata-autosuggest` Felder: GUI-Config fuer Suchoptionen und Priorisierung (`claimPresence`, `claimValueMatch`)
 - Felder koennen in der User-Config hinzugefuegt und entfernt werden
 - User-Config anwenden auf die Felddarstellung in der Sidebar
 - Bei aktivem CSV-Modus wechselt `Konfiguration anwenden` automatisch auf JSON-Modus
@@ -160,6 +162,8 @@ Hinweise:
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
 - `src/components/ViewerWikidataField.vue` - Wrapper fuer `wikidata-autosuggest` (Selection/Chips/Remove)
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe, erhaelt `autosuggest`-Config als pass-through
+- `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer `autosuggest` Feldkonfiguration in der Konfigurationsansicht
+- `src/composables/useWikidataSearch.js` - Wikidata-Suche inkl. optionaler Priorisierung und Claim-Metadaten
 - Sidebar im Edit-Bereich unterstuetzt einen erweiterten Modus (volle Breite) mit Maximize/Minimize-Icons.
 - Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC

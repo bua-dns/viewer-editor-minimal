@@ -216,6 +216,82 @@ const wording = {
     de: "Hinweis",
     en: "Hint",
   },
+  autosuggestConfigTitle: {
+    de: "Autosuggest Optionen",
+    en: "Autosuggest options",
+  },
+  autosuggestSearchLanguages: {
+    de: "Suchsprachen",
+    en: "Search languages",
+  },
+  autosuggestSearchLanguagesPlaceholder: {
+    de: "de, en",
+    en: "de, en",
+  },
+  autosuggestResultLanguage: {
+    de: "Ergebnis-Sprache",
+    en: "Result language",
+  },
+  autosuggestResultLanguagePlaceholder: {
+    de: "de",
+    en: "de",
+  },
+  autosuggestMinChars: {
+    de: "Minimale Zeichen",
+    en: "Minimum characters",
+  },
+  autosuggestLimit: {
+    de: "Trefferlimit",
+    en: "Result limit",
+  },
+  autosuggestClaimPresenceTitle: {
+    de: "claimPresence",
+    en: "claimPresence",
+  },
+  autosuggestClaimValueMatchTitle: {
+    de: "claimValueMatch",
+    en: "claimValueMatch",
+  },
+  autosuggestWeight: {
+    de: "Gewicht",
+    en: "Weight",
+  },
+  autosuggestDefs: {
+    de: "Definitionen",
+    en: "Definitions",
+  },
+  autosuggestClaimPresenceDefsPlaceholder: {
+    de: "P7715, P227",
+    en: "P7715, P227",
+  },
+  autosuggestIncludeInEmitData: {
+    de: "Metadaten in Auswahl speichern",
+    en: "Include metadata in emitted selection",
+  },
+  autosuggestShowInSuggestion: {
+    de: "Metadaten in Vorschlaegen anzeigen",
+    en: "Show metadata in suggestions",
+  },
+  autosuggestProperty: {
+    de: "Property",
+    en: "Property",
+  },
+  autosuggestValue: {
+    de: "Value",
+    en: "Value",
+  },
+  autosuggestPropertyPlaceholder: {
+    de: "P31",
+    en: "P31",
+  },
+  autosuggestValuePlaceholder: {
+    de: "Q5",
+    en: "Q5",
+  },
+  autosuggestAddDefinition: {
+    de: "Definition hinzufuegen",
+    en: "Add definition",
+  },
   listEmptyAfterUpload: {
     de: "Nach dem Upload erscheinen hier die Einträge.",
     en: "Entries appear here after upload.",

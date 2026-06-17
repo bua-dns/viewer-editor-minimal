@@ -12,6 +12,7 @@ Kernfunktionen:
 - Volltextsuche ueber alle Feldwerte
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
 - Strukturierter Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell
+- Konfigurierbare Priorisierung fuer `wikidata-autosuggest` (`claimPresence`, `claimValueMatch`)
 - Dirty-State inkl. Warnung beim Verlassen der Seite
 - Reset auf Import-Snapshot
 - Export der bearbeiteten Daten als neue JSON- oder CSV-Datei
@@ -47,6 +48,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
 - `src/components/ViewerWikidataField.vue` - Viewer-spezifischer Wrapper fuer den Feldtyp `wikidata-autosuggest`
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (erhaelt Konfiguration als pass-through)
+- `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer autosuggest-spezifische Feldoptionen in der Konfigurationsansicht
+- `src/composables/useWikidataSearch.js` - Suche ueber Wikidata API inkl. Priorisierungslogik und Claim-Metadaten
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Sortierung und Binding zur Feld-Registry
@@ -90,6 +93,12 @@ Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 - `label`: alternative Feldbeschriftung
 - `placeholder`: Eingabehinweis
 - Reihenfolge via Drag-and-Drop
+
+Fuer `wikidata-autosuggest` zusaetzlich:
+
+- GUI-Editierung von `autosuggest` Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
+- GUI-Editierung der Priorisierungsbloecke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`, `includeInEmitData`, `showInSuggestion`
+- Unknown Nested Keys bleiben erhalten, sofern sie nicht durch GUI-Control-Felder explizit geaendert werden
 
 Zusaetzlich:
 
@@ -226,8 +235,23 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
   - `normalizeValueForConfigApply(...)` fuer Konfigurations-Anwendung auf bestehende Daten
 - Der Feldtyp `wikidata-autosuggest` rendert ueber `ViewerWikidataField.vue` und speichert immer ein Array von Entity-Objekten mit stabiler `id`.
 - Der Wrapper reicht `field.autosuggest` unveraendert an `WikidataAutosuggestInput.vue` weiter; die Viewer-Core-Logik interpretiert keine autosuggest-spezifischen Schluessel.
+- Die Priorisierung wird in `useWikidataSearch.js` ausgefuehrt: Ergebnisse werden nach `score` sortiert (Tie-Break: originale Wikidata-Reihenfolge).
+- Bei aktivierten Flags koennen selektierte Entities zusaetzlich `ranking` und gefilterte `prioritizationValues` enthalten.
 - `useFieldMapping.js` liefert weiterhin Label-/Sortier-Mapping und delegiert Feld-Rendering an die Registry.
 - `App.vue` orchestriert nur noch die Feld-Update-Events und reicht sie an `useViewerData` weiter.
+
+## Wikidata Autosuggest Priorisierung
+
+- Suchbasis: `wbsearchentities` je Sprache aus `autosuggest.searchLanguages`.
+- Deduplizierung: Merge nach Entity-`id`.
+- Falls `autosuggest.prioritize` konfiguriert ist, werden benoetigte Claims per `wbgetentities` nachgeladen.
+- Unterstuetzte Regelbloecke:
+  - `claimPresence`: Match, wenn mindestens eine Property aus `defs` vorhanden ist.
+  - `claimValueMatch`: Match, wenn mindestens ein `{ property, value }`-Paar aus `defs` zutrifft.
+- Scoring: Summe der Block-`weight`-Werte (je Block maximal einmal pro Entity).
+- Sortierung: `score` absteigend, dann originale Result-Reihenfolge.
+- `showInSuggestion`: zeigt priorisierungsbezogene Metadaten in der Trefferliste.
+- `includeInEmitData`: behaelt priorisierungsbezogene Metadaten (`ranking`, `prioritizationValues`) im selektierten Entity-Payload.
 
 ### Neues Feld hinzufuegen
 

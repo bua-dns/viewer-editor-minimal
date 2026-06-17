@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
 import { getRegisteredFieldTypeOptions } from '../fields/fieldRegistry'
+import AutosuggestFieldConfig from './config/AutosuggestFieldConfig.vue'
 
 const props = defineProps({
   hasData: { type: Boolean, required: true },
@@ -20,6 +21,8 @@ const {
   newFieldName,
   addFieldError,
   addUserConfigField,
+  setFieldType,
+  updateFieldAutosuggestConfig,
   removeUserConfigField,
   startDrag,
   dropAt,
@@ -36,6 +39,14 @@ function onTogglePanel() {
 
 function onAddField() {
   addUserConfigField(t)
+}
+
+function onFieldTypeChange(fieldKey, nextType) {
+  setFieldType(fieldKey, nextType)
+}
+
+function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
+  updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig)
 }
 </script>
 
@@ -93,7 +104,7 @@ function onAddField() {
       >
         <div class="drag-handle" aria-hidden="true">⋮⋮</div>
         <div class="field-key">{{ entry[0] }}</div>
-        <select v-model="entry[1].type">
+        <select :value="entry[1].type" @change="onFieldTypeChange(entry[0], $event.target.value)">
           <option v-for="option in fieldTypeOptions" :key="option.value" :value="option.value">
             {{ t(option.labelKey, option.labelFallback) }}
           </option>
@@ -103,6 +114,14 @@ function onAddField() {
         <button type="button" class="remove-field-btn" @click.stop="removeUserConfigField(entry[0])">
           {{ t('removeFieldButton', 'Feld entfernen') }}
         </button>
+
+        <div v-if="entry[1].type === 'wikidata-autosuggest'" class="user-config-autosuggest-row">
+          <AutosuggestFieldConfig
+            :model-value="entry[1].autosuggest"
+            :t="t"
+            @update:model-value="onAutosuggestConfigChange(entry[0], $event)"
+          />
+        </div>
       </div>
     </div>
   </section>
@@ -174,6 +193,11 @@ function onAddField() {
   align-items: center;
 }
 
+.user-config-autosuggest-row {
+  grid-column: 2 / -1;
+  padding: 0.1rem 0 0.45rem 34px;
+}
+
 .remove-field-btn {
   background: var(--color-surface);
   color: var(--color-text-secondary);
@@ -210,6 +234,10 @@ function onAddField() {
 
   .user-config-add-row {
     grid-template-columns: 1fr;
+  }
+
+  .user-config-autosuggest-row {
+    padding-left: 0;
   }
 }
 </style>

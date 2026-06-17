@@ -16,27 +16,6 @@ const isUserConfigOpen = ref(false)
 const newFieldName = ref('')
 const addFieldError = ref('')
 
-const DEFAULT_AUTOSUGGEST_CONFIG = Object.freeze({
-  searchLanguages: ['de', 'en'],
-  resultLanguage: 'de',
-  minChars: 2,
-  limit: 10,
-  prioritize: {
-    claimPresence: {
-      weight: 0,
-      includeInEmitData: false,
-      showInSuggestion: false,
-      defs: [],
-    },
-    claimValueMatch: {
-      weight: 0,
-      includeInEmitData: false,
-      showInSuggestion: false,
-      defs: [],
-    },
-  },
-})
-
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -45,8 +24,8 @@ function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
-function createDefaultAutosuggestConfig() {
-  return cloneValue(DEFAULT_AUTOSUGGEST_CONFIG)
+function createMinimalAutosuggestConfig() {
+  return {}
 }
 
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
@@ -55,7 +34,7 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
     type === 'wikidata-autosuggest' && isPlainObject(source.autosuggest)
       ? cloneValue(source.autosuggest)
       : type === 'wikidata-autosuggest'
-        ? createDefaultAutosuggestConfig()
+        ? createMinimalAutosuggestConfig()
         : undefined
   return {
     type,
@@ -250,6 +229,34 @@ function createUserConfigPayload() {
   return { version: 1, fields: normalizedFields }
 }
 
+function setFieldType(fieldKey, nextType) {
+  const field = userConfigFields.value[fieldKey]
+  if (!field) return false
+
+  field.type = nextType
+
+  if (nextType === 'wikidata-autosuggest') {
+    if (!isPlainObject(field.autosuggest)) {
+      field.autosuggest = createMinimalAutosuggestConfig()
+    }
+  } else {
+    delete field.autosuggest
+  }
+
+  persistUserConfigToSession()
+  return true
+}
+
+function updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig) {
+  const field = userConfigFields.value[fieldKey]
+  if (!field || field.type !== 'wikidata-autosuggest') return false
+  if (!isPlainObject(nextAutosuggestConfig)) return false
+
+  field.autosuggest = cloneValue(nextAutosuggestConfig)
+  persistUserConfigToSession()
+  return true
+}
+
 function applyImportedConfigPayload(configPayload) {
   const validation = validateImportedConfigPayload(configPayload)
   if (!validation.ok) {
@@ -284,6 +291,8 @@ export function useUserConfigStore() {
     clearUserConfigSession,
     applyUserConfigToRawItems,
     addUserConfigField,
+    setFieldType,
+    updateFieldAutosuggestConfig,
     removeUserConfigField,
     startDrag,
     dropAt,
