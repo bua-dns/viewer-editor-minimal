@@ -49,6 +49,116 @@ export function useDataImportExport({
     return 'unknown'
   }
 
+  function isValidAbsoluteHttpUrl(value) {
+    try {
+      const parsed = new URL(value)
+      return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }
+
+  function splitCsvLine(line, delimiter = ',') {
+    const values = []
+    let current = ''
+    let inQuotes = false
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i]
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"'
+          i += 1
+        } else {
+          inQuotes = !inQuotes
+        }
+        continue
+      }
+
+      if (char === delimiter && !inQuotes) {
+        values.push(current)
+        current = ''
+        continue
+      }
+
+      current += char
+    }
+
+    values.push(current)
+    return values
+  }
+
+  function collectUrlsFromCsvText(csvText) {
+    const lines = String(csvText || '')
+      .replace(/^\uFEFF/, '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+    if (!lines.length) {
+      return { ok: false, error: t('startFromScratchCsvEmpty', 'CSV ist leer.') }
+    }
+
+    const rows = lines.map((line) => splitCsvLine(line))
+    const headerCells = rows[0].map((cell) => String(cell || '').trim().toLowerCase())
+    const scanColumnIndex = headerCells.indexOf('scan')
+    const dataRows = scanColumnIndex === -1 ? rows : rows.slice(1)
+    const rowOffset = scanColumnIndex === -1 ? 1 : 2
+
+    const scannedRows = dataRows
+      .map((row, rowIndex) => {
+        const cellValue = scanColumnIndex === -1 ? row[0] : row[scanColumnIndex]
+        return {
+          rowNumber: rowIndex + rowOffset,
+          url: String(cellValue || '').trim(),
+        }
+      })
+      .filter((entry) => entry.url)
+
+    if (!scannedRows.length) {
+      return { ok: false, error: t('startFromScratchNoUrls', 'Keine URLs im CSV gefunden.') }
+    }
+
+    const invalidEntry = scannedRows.find((entry) => !isValidAbsoluteHttpUrl(entry.url))
+    if (invalidEntry) {
+      return {
+        ok: false,
+        error: `${t('startFromScratchScanInvalidRow', 'Ungueltige URL in Zeile')} ${invalidEntry.rowNumber}: ${invalidEntry.url}`,
+      }
+    }
+
+    return { ok: true, urls: scannedRows.map((entry) => entry.url) }
+  }
+
+  function collectStartFromScratchUrls(input = {}) {
+    if (input.mode === 'csv') {
+      return collectUrlsFromCsvText(input.csvText)
+    }
+
+    const singleUrl = String(input.singleUrl || '').trim()
+    if (!isValidAbsoluteHttpUrl(singleUrl)) {
+      return {
+        ok: false,
+        error: t('startFromScratchScanInvalid', 'Ungueltige URL. Bitte eine absolute http/https-URL eingeben.'),
+      }
+    }
+
+    return { ok: true, urls: [singleUrl] }
+  }
+
+  function createStartFromScratchPayload(scanUrls) {
+    return {
+      data: scanUrls.map((scanUrl) => ({ scan: scanUrl })),
+      config: {
+        version: 1,
+        fields: {},
+      },
+      replacements: {
+        allFields: {},
+      },
+    }
+  }
+
   function isSelectedFileTypeMatchingMode(fileName) {
     return detectDataFileType(fileName) === dataMode.value
   }
@@ -151,6 +261,30 @@ export function useDataImportExport({
     }
   }
 
+  async function onStartFromScratch(input = {}) {
+    if (dataMode.value !== 'json') return
+
+    const urlsResult = collectStartFromScratchUrls(input)
+    if (!urlsResult.ok) {
+      return urlsResult
+    }
+
+    const payload = createStartFromScratchPayload(urlsResult.urls)
+    const payloadText = JSON.stringify(payload, null, 2)
+    const fileName = createEditedFileName('dataset.viewer-ready.json', '.json')
+
+    setModeErrorMessage('')
+    const success = importFromJsonText(payloadText, fileName)
+    if (!success) {
+      return { ok: false, error: errorMessage.value }
+    }
+
+    initializeUserConfigForCurrentData()
+    await applyImportedConfigIfPresent()
+    isDirty.value = true
+    return { ok: true }
+  }
+
   function onReset() {
     if (!hasPendingChanges.value) return
     const confirmed = globalThis.confirm(t('resetConfirm', 'Aenderungen verwerfen und auf Import zuruecksetzen?'))
@@ -163,6 +297,7 @@ export function useDataImportExport({
     onDataFileSelected,
     onLoadSampleData,
     onDownload,
+    onStartFromScratch,
     onReset,
   }
 }

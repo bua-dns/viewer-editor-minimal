@@ -7,9 +7,10 @@ const props = defineProps({
   hasData: { type: Boolean, required: true },
   isDirty: { type: Boolean, required: true },
   showSampleDataButton: { type: Boolean, default: true },
+  showStartFromScratchButton: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['file-selected', 'download', 'reset', 'mode-changed', 'load-sample-data'])
+const emit = defineEmits(['file-selected', 'download', 'start-from-scratch', 'reset', 'mode-changed', 'load-sample-data'])
 
 const fileInput = ref(null)
 const { t } = useAppConfigStore()
@@ -60,6 +61,9 @@ function onModeChange(nextMode) {
   <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerUpload">{{ uploadButtonLabel }}</button>
   <button type="button" class="transfer-btn transfer-btn-mode" :disabled="!props.hasData || !props.isDirty" @click="emit('download')">
     {{ downloadButtonLabel }}
+  </button>
+  <button v-if="props.showStartFromScratchButton" type="button" class="transfer-btn transfer-btn-mode" @click="emit('start-from-scratch')">
+    {{ t('startFromScratch', 'Neu beginnen') }}
   </button>
   <button type="button" class="transfer-btn transfer-btn-reset" :disabled="!props.isDirty" @click="emit('reset')">
     {{ t('reset', 'Reset') }}

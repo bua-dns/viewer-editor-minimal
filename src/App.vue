@@ -9,6 +9,7 @@ import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
 import { useReplacementsStore } from './stores/useReplacementsStore'
 import DataTransferControls from './components/DataTransferControls.vue'
+import StartFromScratchModal from './components/StartFromScratchModal.vue'
 import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
 import ListPanel from './components/ListPanel.vue'
@@ -56,6 +57,8 @@ const lightboxImageLoadFailed = ref(false)
 const sidebarImageLoadFailed = ref(false)
 const failedListImages = ref(new Set())
 const isExtendedEditMode = ref(false)
+const isStartFromScratchModalOpen = ref(false)
+const startFromScratchModalError = ref('')
 const {
   appendEditedTimestamp,
   dataMode,
@@ -85,6 +88,7 @@ const resultCountLabel = computed(() => {
 })
 
 const showSampleDataButton = computed(() => !hasData.value)
+const showStartFromScratchButton = computed(() => dataMode.value === 'json' && !hasData.value)
 
 const hasPendingChanges = computed(() => isDirty.value || hasReplacementsChanges.value)
 
@@ -189,7 +193,7 @@ const {
   selectItem,
 })
 
-const { onDataFileSelected, onDownload, onReset, onLoadSampleData } = useDataImportExport({
+const { onDataFileSelected, onDownload, onStartFromScratch, onReset, onLoadSampleData } = useDataImportExport({
   dataMode,
   t,
   setModeErrorMessage,
@@ -214,6 +218,27 @@ const { onDataFileSelected, onDownload, onReset, onLoadSampleData } = useDataImp
   resetToImportedSnapshot,
   resetReplacements,
 })
+
+function onStartFromScratchOpen() {
+  startFromScratchModalError.value = ''
+  isStartFromScratchModalOpen.value = true
+}
+
+function onStartFromScratchClose() {
+  startFromScratchModalError.value = ''
+  isStartFromScratchModalOpen.value = false
+}
+
+async function onStartFromScratchSubmit(input) {
+  const result = await onStartFromScratch(input)
+  if (result?.ok) {
+    onStartFromScratchClose()
+    return
+  }
+  if (result?.error) {
+    startFromScratchModalError.value = result.error
+  }
+}
 
 function closeLightbox() {
   isLightboxOpen.value = false
@@ -329,7 +354,8 @@ watch(
       <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
       <div class="actions">
         <DataTransferControls :has-data="hasData" :is-dirty="hasPendingChanges"
-          :show-sample-data-button="showSampleDataButton" @file-selected="onDataFileSelected" @download="onDownload"
+          :show-sample-data-button="showSampleDataButton" :show-start-from-scratch-button="showStartFromScratchButton"
+          @file-selected="onDataFileSelected" @download="onDownload" @start-from-scratch="onStartFromScratchOpen"
           @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
       </div>
     </header>
@@ -484,5 +510,8 @@ watch(
       :close-label="t('close', 'Schliessen')" :image-alt="t('lightboxImageAlt', 'Scan gross')"
       :unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')" @close="closeLightbox"
       @image-error="lightboxImageLoadFailed = true" />
+
+    <StartFromScratchModal :is-open="isStartFromScratchModalOpen" :error-message="startFromScratchModalError"
+      @close="onStartFromScratchClose" @submit="onStartFromScratchSubmit" />
   </div>
 </template>

@@ -28,6 +28,74 @@ const wording = {
     de: "JSON herunterladen",
     en: "Download JSON",
   },
+  startFromScratch: {
+    de: "Neu beginnen",
+    en: "Start from scratch",
+  },
+  startFromScratchScanPrompt: {
+    de: "Scan-URL fuer neuen Datensatz eingeben (http/https):",
+    en: "Enter scan URL for a new dataset (http/https):",
+  },
+  startFromScratchScanInvalid: {
+    de: "Ungueltige URL. Bitte eine absolute http/https-URL eingeben.",
+    en: "Invalid URL. Please enter an absolute http/https URL.",
+  },
+  startFromScratchDialogTitle: {
+    de: "Neu beginnen",
+    en: "Start from scratch",
+  },
+  startFromScratchSingleMode: {
+    de: "Einzelne URL",
+    en: "Single URL",
+  },
+  startFromScratchCsvMode: {
+    de: "URL-Liste (CSV)",
+    en: "URL list (CSV)",
+  },
+  startFromScratchSingleLabel: {
+    de: "Scan-URL",
+    en: "Scan URL",
+  },
+  startFromScratchCsvLabel: {
+    de: "CSV-Inhalt",
+    en: "CSV content",
+  },
+  startFromScratchCsvPlaceholder: {
+    de: "scan\nhttps://example.org/1.jpg\nhttps://example.org/2.jpg",
+    en: "scan\nhttps://example.org/1.jpg\nhttps://example.org/2.jpg",
+  },
+  startFromScratchCsvHint: {
+    de: "CSV mit Spalte 'scan' oder nur einer URL pro Zeile.",
+    en: "CSV with 'scan' column or one URL per line.",
+  },
+  startFromScratchCsvUploadFile: {
+    de: "CSV-Datei hochladen",
+    en: "Upload CSV file",
+  },
+  startFromScratchCsvFileReadError: {
+    de: "CSV-Datei konnte nicht gelesen werden.",
+    en: "Could not read CSV file.",
+  },
+  startFromScratchCreate: {
+    de: "Erstellen",
+    en: "Create",
+  },
+  cancel: {
+    de: "Abbrechen",
+    en: "Cancel",
+  },
+  startFromScratchCsvEmpty: {
+    de: "CSV ist leer.",
+    en: "CSV is empty.",
+  },
+  startFromScratchNoUrls: {
+    de: "Keine URLs im CSV gefunden.",
+    en: "No URLs found in CSV.",
+  },
+  startFromScratchScanInvalidRow: {
+    de: "Ungueltige URL in Zeile",
+    en: "Invalid URL in row",
+  },
   downloadCsv: {
     de: "CSV herunterladen",
     en: "Download CSV",
