@@ -96,8 +96,9 @@ Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 
 Fuer `wikidata-autosuggest` zusaetzlich:
 
-- GUI-Editierung von `autosuggest` Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
-- GUI-Editierung der Priorisierungsbloecke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`, `includeInEmitData`, `showInSuggestion`
+- GUI-Editierung aller `autosuggest`-Optionen in einem einklappbaren `Optionen`-Bereich
+  - Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
+  - Priorisierungsbloecke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`, `includeInEmitData`, `showInSuggestion`
 - Unknown Nested Keys bleiben erhalten, sofern sie nicht durch GUI-Control-Felder explizit geaendert werden
 
 Zusaetzlich:
@@ -108,6 +109,8 @@ Zusaetzlich:
 Verhalten:
 
 - `Konfiguration anwenden` uebernimmt die aktuelle Konfiguration in die Darstellung der Sidebar-Felder.
+- Nach `Konfiguration anwenden` werden geoeffnete `Optionen`-Bereiche von `wikidata-autosuggest` wieder eingeklappt.
+- Bei bereits vorkonfigurierten `wikidata-autosuggest` Feldern startet der `Optionen`-Bereich eingeklappt; bei neu angelegten Feldern ausgeklappt.
 - Falls beim Anwenden der Konfiguration der Datenmodus auf `CSV` steht, schaltet die App automatisch auf `JSON` um.
 - Das konkrete Feld-Rendering wird ueber die Registry aufgeloest (statt ueber Bedingungen in `ItemFieldEditor.vue`).
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.

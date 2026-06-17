@@ -25,7 +25,10 @@ function cloneValue(value) {
 }
 
 function createMinimalAutosuggestConfig() {
-  return {}
+  return {
+    minChars: 2,
+    limit: 50,
+  }
 }
 
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {

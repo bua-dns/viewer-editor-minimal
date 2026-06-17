@@ -36,7 +36,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
     expect(updated).toBe(true)
     expect(store.userConfigFields.value.collector.type).toBe('wikidata-autosuggest')
-    expect(store.userConfigFields.value.collector.autosuggest).toEqual({})
+    expect(store.userConfigFields.value.collector.autosuggest).toEqual({ minChars: 2, limit: 50 })
   })
 
   test('preserves unknown autosuggest keys during gui-style updates', () => {

@@ -20,7 +20,9 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Dirty-State mit Reset auf den importierten Stand
 - Export als neue `*-edited.json` (Format: `{ data, config, replacements? }`)
 - Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
-- Fuer `wikidata-autosuggest` Felder: GUI-Config fuer Suchoptionen und Priorisierung (`claimPresence`, `claimValueMatch`)
+- Fuer `wikidata-autosuggest` Felder: alle Feldoptionen in einklappbarem `Optionen`-Bereich (Suchoptionen + Priorisierung mit `claimPresence`/`claimValueMatch`)
+- Bei bereits vorkonfigurierten `wikidata-autosuggest` Feldern startet der `Optionen`-Bereich eingeklappt; bei neu angelegten Feldern ausgeklappt
+- Nach `Konfiguration anwenden` werden geoeffnete `Optionen`-Bereiche wieder eingeklappt
 - Felder koennen in der User-Config hinzugefuegt und entfernt werden
 - User-Config anwenden auf die Felddarstellung in der Sidebar
 - Bei aktivem CSV-Modus wechselt `Konfiguration anwenden` automatisch auf JSON-Modus
