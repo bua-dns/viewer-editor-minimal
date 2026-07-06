@@ -59,6 +59,89 @@ function normalizeNonCheckboxValueForConfigApply(currentValue) {
   return currentValue
 }
 
+/**
+ * Integer normalization helpers.
+ *
+ * Canonical "no integer" representation is `null`. The following inputs all
+ * map to `null` at the storage layer:
+ *   - `null`
+ *   - `undefined`
+ *   - the empty string `''`
+ *   - whitespace-only strings
+ * This keeps the on-disk shape unambiguous: an integer field either holds
+ * a `number` or a `null` (never an empty string, never a numeric string).
+ *
+ * Per-edit vs. bulk-apply have different tolerance for garbage:
+ *   - `coerceIntegerForEdit` REJECTS non-integer numeric input (e.g. "1.5",
+ *     "abc") so the UI can flag the edit as invalid via `updateField`'s
+ *     existing `ok: false` path.
+ *   - `coerceIntegerForConfigApply` is best-effort: it accepts floats and
+ *     truncates them (`Math.trunc`), and falls back to `null` for
+ *     un-parseable strings. Bulk normalization has no interactive retry,
+ *     so silent recovery is preferable to data loss beyond what is
+ *     unavoidable.
+ */
+
+function isBlankIntegerInput(value) {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'string' && value.trim() === '') return true
+  return false
+}
+
+function coerceIntegerForEdit(value) {
+  if (isBlankIntegerInput(value)) {
+    return { ok: true, value: null }
+  }
+
+  if (typeof value === 'boolean') {
+    // Booleans are not valid integer edits; treat as invalid.
+    return { ok: false }
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      return { ok: false }
+    }
+    return { ok: true, value }
+  }
+
+  if (typeof value === 'string') {
+    // `Number('  12  ')` yields 12; `Number('1.5')` yields 1.5; `Number('abc')` yields NaN.
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+      return { ok: false }
+    }
+    return { ok: true, value: parsed }
+  }
+
+  return { ok: false }
+}
+
+function coerceIntegerForConfigApply(value) {
+  if (isBlankIntegerInput(value)) {
+    return null
+  }
+
+  if (typeof value === 'boolean') {
+    // Preserve boolean-as-boolean semantics would defeat the type change;
+    // bulk apply reinterprets the field as integer, so booleans become null.
+    return null
+  }
+
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) return null
+    return Math.trunc(value)
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return null
+    return Math.trunc(parsed)
+  }
+
+  return null
+}
+
 const FIELD_REGISTRY = Object.freeze({
   normal: {
     key: 'normal',
@@ -88,9 +171,12 @@ const FIELD_REGISTRY = Object.freeze({
       return createTextInputBinding({ ...context, inputType: 'number' })
     },
     createDefaultValue() {
-      return ''
+      // `null` is the canonical "no integer" value — see integer normalization
+      // helpers above. An empty string here would re-introduce the string/number
+      // ambiguity that item 1 of the 2026-07-06 refactor closes.
+      return null
     },
-    normalizeValueForConfigApply: normalizeNonCheckboxValueForConfigApply,
+    normalizeValueForConfigApply: coerceIntegerForConfigApply,
   },
   checkbox: {
     key: 'checkbox',
@@ -210,9 +296,24 @@ export function normalizeUpdatedFieldValue(currentValue, nextRawValue, configure
     return { ok: true, value: normalizeWikidataAutosuggestValue(nextRawValue) }
   }
 
-  if (typeof currentValue === 'number') {
+  // Item 1 (refactor 2026-07-06): coercion is driven by the CONFIGURED type,
+  // not by `typeof currentValue`. Previously, an integer field whose current
+  // value was still the default `''` would silently retain string edits,
+  // breaking integer semantics on export.
+  if (resolvedType === 'integer') {
+    const coerced = coerceIntegerForEdit(nextRawValue)
+    if (!coerced.ok) {
+      return { ok: false, value: currentValue }
+    }
+    return { ok: true, value: coerced.value }
+  }
+
+  // Legacy fallback: when no configuredType is supplied and the current value
+  // is a number, keep the previous numeric-coercion behaviour so callers that
+  // have not yet been migrated to pass `configuredType` still work.
+  if (configuredType === null && typeof currentValue === 'number') {
     const parsedNumber = Number(nextRawValue)
-    if (Number.isNaN(parsedNumber)) {
+    if (!Number.isFinite(parsedNumber)) {
       return { ok: false, value: currentValue }
     }
     return { ok: true, value: parsedNumber }
