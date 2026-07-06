@@ -121,9 +121,9 @@ function splitCsvLine(line, delimiter = ',') {
 function parseCsvText(text) {
   const normalized = text.replace(/^\uFEFF/, '')
   const lines = normalized
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
+    .split('\n')
+    .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
+    .filter((line) => line.length > 0)
 
   if (!lines.length) {
     return { ok: false, error: 'CSV ist leer.' }

@@ -265,11 +265,6 @@ function beforeUnloadListener(event) {
 }
 
 function keydownListener(event) {
-  if (event.key === 'Escape' && isLightboxOpen.value) {
-    closeLightbox()
-    return
-  }
-
   if (event.key === 'Escape' && selectedRawItem.value) {
     clearSelection()
   }

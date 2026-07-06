@@ -32,7 +32,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Datenmodus bleibt in `sessionStorage` ueber Reloads erhalten
 - Optionaler Timestamp im Export-Dateinamen (aktivierbar/deaktivierbar)
 - Lightbox für größere Scan-Ansicht
-- Keyboard-Shortcuts: `Escape` schliesst Lightbox bzw. Sidebar-Selektion
+- Keyboard-Shortcuts: `Escape` schliesst Start-From-Scratch-Modal und Lightbox bzw. hebt die Sidebar-Selektion auf
 - Footer-Identity mit Links zu GitHub-Repository und Berlin University Collections
 - Empty-State-Hinweise im Statusbereich: zuerst `Noch keine Daten geladen`, danach Upload-Hinweis
 
@@ -147,6 +147,8 @@ Hinweise:
 - Das Feld `scan` wird automatisch als Digitalisat-URL interpretiert und fuer die Scan-Anzeige genutzt.
 - Headernamen muessen eindeutig sein (keine doppelten Spaltennamen).
 - Leere Spaltennamen sind unzulaessig.
+- Fuehrende/nachgestellte Leerzeichen in CSV-Werten bleiben beim Import erhalten (auch in unquoted Feldern).
+- CRLF-Zeilenenden werden unterstuetzt; nur der Zeilenumbruch selbst wird entfernt.
 
 ## Projektstruktur
 
@@ -156,6 +158,7 @@ Hinweise:
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Sidebar-Feldrendering
 - `src/composables/useDataImportExport.js` - Import/Export-Orchestrierung inkl. Dateimodus-Pruefung und Download-Flow
 - `src/composables/useSelectionNavigation.js` - Navigation der gefilterten Auswahl (vor/zurueck/clear)
+- `src/composables/useModalKeyboard.js` - gemeinsames Keyboard-Handling fuer Escape-basiertes Modal-Schliessen
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
 - `src/composables/userConfigValidation.test.js` – Unit-Tests für die JSON-Config-Validierung
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
@@ -173,6 +176,7 @@ Hinweise:
 - Sidebar im Edit-Bereich unterstuetzt einen erweiterten Modus (volle Breite) mit Maximize/Minimize-Icons.
 - Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
+- `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste mit trennbarem Kopf-/Body-Rendering (`renderHeader`/`renderBody`) fuer sticky Header-Komposition
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links

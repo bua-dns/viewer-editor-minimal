@@ -11,6 +11,7 @@
 - JSON akzeptiert entweder ein Top-Level-Array oder ein Objekt mit `data`-Array.
 - CSV erwartet eine Header-Zeile, danach Datensaetze.
 - Spaltennamen in CSV muessen eindeutig sein und duerfen nicht leer sein.
+- Signifikante Leerzeichen in CSV-Feldwerten bleiben erhalten; nur Zeilenumbrueche/CRLF-Terminatoren werden entfernt.
 - Wenn noch keine Datei geladen ist, koennen alternativ passende Beispieldaten je Modus geladen werden.
 
 ## Feldkonventionen
@@ -40,5 +41,5 @@
 
 - Die App ist in zwei Tabs gegliedert: `Editieren` (Arbeitsbereich) und `Info` (Kurzanleitung).
 - Die Volltextsuche befindet sich im Bereich `Digitalisate` oberhalb der Kartenliste.
-- `Escape` schliesst die Lightbox.
+- `Escape` schliesst die Start-From-Scratch-Modal und die Lightbox.
 - `Escape` hebt ausserdem eine aktive Sidebar-Auswahl auf.

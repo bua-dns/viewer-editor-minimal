@@ -92,9 +92,9 @@ export function useDataImportExport({
   function collectUrlsFromCsvText(csvText) {
     const lines = String(csvText || '')
       .replace(/^\uFEFF/, '')
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
+      .split('\n')
+      .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
+      .filter((line) => line.length > 0)
 
     if (!lines.length) {
       return { ok: false, error: t('startFromScratchCsvEmpty', 'CSV ist leer.') }

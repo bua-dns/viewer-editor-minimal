@@ -1,6 +1,24 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
+import { useModalKeyboard } from '../composables/useModalKeyboard'
+
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'area[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  'iframe',
+  'object',
+  'embed',
+  '[contenteditable]',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ')
+
+const dialogTitleId = 'start-from-scratch-dialog-title'
+const dialogDescriptionId = 'start-from-scratch-dialog-description'
 
 const props = defineProps({
   isOpen: {
@@ -23,18 +41,91 @@ const csvText = ref('')
 const csvFileInput = ref(null)
 const csvFileName = ref('')
 const csvFileError = ref('')
+const modalRef = ref(null)
+const previouslyFocusedElement = ref(null)
+
+function getFocusableElements() {
+  if (!modalRef.value) return []
+  return Array.from(modalRef.value.querySelectorAll(FOCUSABLE_SELECTOR)).filter((element) => {
+    return element instanceof HTMLElement && element.getClientRects().length > 0
+  })
+}
+
+function focusFirstElementInModal() {
+  const focusableElements = getFocusableElements()
+  const firstFocusableElement = focusableElements[0]
+  if (firstFocusableElement) {
+    firstFocusableElement.focus()
+    return
+  }
+
+  modalRef.value?.focus()
+}
+
+function restorePreviousFocus() {
+  if (previouslyFocusedElement.value instanceof HTMLElement && previouslyFocusedElement.value.isConnected) {
+    previouslyFocusedElement.value.focus()
+  }
+  previouslyFocusedElement.value = null
+}
+
+function trapFocus(event) {
+  if (event.key !== 'Tab' || !modalRef.value) return
+
+  const focusableElements = getFocusableElements()
+  if (!focusableElements.length) {
+    event.preventDefault()
+    modalRef.value.focus()
+    return
+  }
+
+  const firstFocusableElement = focusableElements[0]
+  const lastFocusableElement = focusableElements[focusableElements.length - 1]
+  const activeElement = document.activeElement
+
+  if (event.shiftKey) {
+    if (activeElement === firstFocusableElement || activeElement === modalRef.value) {
+      event.preventDefault()
+      lastFocusableElement.focus()
+    }
+    return
+  }
+
+  if (activeElement === lastFocusableElement) {
+    event.preventDefault()
+    firstFocusableElement.focus()
+  }
+}
 
 watch(
   () => props.isOpen,
-  (isOpen) => {
-    if (!isOpen) return
-    inputMode.value = 'single'
-    singleUrl.value = ''
-    csvText.value = ''
-    csvFileName.value = ''
-    csvFileError.value = ''
+  async (isOpen, wasOpen) => {
+    if (isOpen) {
+      if (document.activeElement instanceof HTMLElement) {
+        previouslyFocusedElement.value = document.activeElement
+      }
+
+      inputMode.value = 'single'
+      singleUrl.value = ''
+      csvText.value = ''
+      csvFileName.value = ''
+      csvFileError.value = ''
+
+      await nextTick()
+      focusFirstElementInModal()
+      return
+    }
+
+    if (wasOpen) {
+      await nextTick()
+      restorePreviousFocus()
+    }
   },
 )
+
+onBeforeUnmount(() => {
+  restorePreviousFocus()
+})
 
 function onClose() {
   emit('close')
@@ -65,12 +156,29 @@ async function onCsvFileChange(event) {
     csvFileError.value = t('startFromScratchCsvFileReadError', 'CSV-Datei konnte nicht gelesen werden.')
   }
 }
+
+useModalKeyboard({
+  isOpen: () => props.isOpen,
+  onClose,
+})
 </script>
 
 <template>
   <div v-if="isOpen" class="scratch-modal-backdrop" @click.self="onClose">
-    <div class="scratch-modal" role="dialog" aria-modal="true" :aria-label="t('startFromScratchDialogTitle', 'Neu beginnen')">
-      <h2>{{ t('startFromScratchDialogTitle', 'Neu beginnen') }}</h2>
+    <div
+      ref="modalRef"
+      class="scratch-modal"
+      role="dialog"
+      aria-modal="true"
+      :aria-labelledby="dialogTitleId"
+      :aria-describedby="dialogDescriptionId"
+      tabindex="-1"
+      @keydown="trapFocus"
+    >
+      <h2 :id="dialogTitleId">{{ t('startFromScratchDialogTitle', 'Neu beginnen') }}</h2>
+      <p :id="dialogDescriptionId" class="scratch-sr-only">
+        {{ t('startFromScratchDialogDescription', 'Dialog zum Erstellen einer neuen Vorlage per Einzel-URL oder CSV-Liste.') }}
+      </p>
 
       <div class="scratch-mode-switch" :aria-label="t('startFromScratchDialogTitle', 'Neu beginnen')">
         <label>
@@ -212,5 +320,17 @@ async function onCsvFileChange(event) {
   display: flex;
   justify-content: flex-end;
   gap: var(--ve-space-2);
+}
+
+.scratch-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

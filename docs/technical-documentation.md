@@ -22,7 +22,7 @@ Kernfunktionen:
 - Session-persistente User-Config (via `sessionStorage`)
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 - Optionaler Timestamp im Export-Dateinamen
-- Keyboard-Shortcuts mit `Escape` (Lightbox schliessen / Sidebar-Auswahl aufheben)
+- Keyboard-Shortcuts mit `Escape` (Start-From-Scratch-Modal und Lightbox schliessen / Sidebar-Auswahl aufheben)
 - Tab-Navigation mit zwei Bereichen (`Editieren`, `Info`)
 - Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
 
@@ -53,10 +53,12 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/composables/useWikidataSearch.test.js` - Unit-Tests fuer resiliente Wikidata-Suche (Teilausfaelle/Abort)
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
+- `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Sortierung und Binding zur Feld-Registry
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useDataImportExport.js` - Import/Export-Flow inkl. Dateimodus-Validierung und Download-Ausleitung
 - `src/composables/useSelectionNavigation.js` - Auswahlindex-Berechnung und Vor/Zurueck-Navigation
+- `src/composables/useModalKeyboard.js` - gemeinsames Escape-Keyboard-Handling fuer Modals
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
 - `src/composables/userConfigValidation.test.js` - Unit-Tests fuer JSON-Config-Validierung
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
@@ -197,6 +199,10 @@ Kopierstrategie:
 - Datenzeilen werden validiert:
   - mehr Spalten als im Header fuehren zu einem Parse-Fehler
   - fehlende trailing Spalten werden mit leerem String (`''`) aufgefuellt
+- Signifikante Leerzeichen in Feldwerten bleiben erhalten:
+  - kein zeilenweites `trim()` vor dem CSV-Parsing
+  - nur BOM am Dateianfang sowie ein trailing `\r` bei CRLF-Zeilenenden werden entfernt
+  - gilt fuer unquoted und quoted Werte gleichermassen
 - Das Feld `scan` wird bei Header-Normalisierung explizit auf `scan` gesetzt (case-insensitive), damit die bestehende Scan-UI automatisch greift.
 
 ## Suche
@@ -292,7 +298,7 @@ Zusatzfunktionen:
 - Lightbox fuer `scan`-Bild mit Fullscreen-Umschaltung
 - Fallback-UI bei Bildladefehlern (Liste, Sidebar, Lightbox)
 - `beforeunload`-Warnung bei `isDirty` oder nicht angewendeten User-Config-Aenderungen
-- `Escape` schliesst die Lightbox; bei offener Sidebar hebt `Escape` die aktuelle Auswahl auf
+- `Escape` schliesst Start-From-Scratch-Modal und Lightbox; bei offener Sidebar hebt `Escape` die aktuelle Auswahl auf
 
 Interne Script-Aufteilung:
 
@@ -358,6 +364,7 @@ Tests in `src/composables/useViewerData.test.js` pruefen:
 - CSV-Randfaelle:
   - Quotes und escaped Quotes in `splitCsvLine`
   - leere Werte und fehlende trailing Spalten in `parseCsvText`
+  - Parse-Export-Parse-Roundtrip erhaelt signifikante Leerzeichen in quoted/unquoted Werten
   - Spaltenabweichung (mehr Werte als Header) mit Fehlerpfad
 - End-to-End-Flow der Composable-Logik:
   - Initialisieren

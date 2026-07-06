@@ -1,5 +1,7 @@
 <script setup>
-defineProps({
+import { useModalKeyboard } from '../composables/useModalKeyboard'
+
+const props = defineProps({
   isOpen: {
     type: Boolean,
     required: true,
@@ -35,6 +37,11 @@ function onClose() {
 function onImageError() {
   emit('image-error')
 }
+
+useModalKeyboard({
+  isOpen: () => props.isOpen,
+  onClose,
+})
 </script>
 
 <template>

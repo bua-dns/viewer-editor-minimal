@@ -66,6 +66,33 @@ describe('useViewerData helpers', () => {
     expect(() => __test.parseCsvText(csv)).toThrow('Zeile 2 hat mehr Spalten als der Header.')
   })
 
+  test('CSV parse-export roundtrip preserves significant whitespace in values', () => {
+    const csv = [
+      'id,plain,quoted',
+      '1,  padded  ,"  padded in quotes  "',
+      '2,unquoted with trailing spaces   ,"quoted with trailing spaces   "',
+    ].join('\n')
+
+    const parsed = __test.parseCsvText(csv)
+    expect(parsed.ok).toBe(true)
+    expect(parsed.data[0]).toEqual({
+      id: '1',
+      plain: '  padded  ',
+      quoted: '  padded in quotes  ',
+    })
+    expect(parsed.data[1]).toEqual({
+      id: '2',
+      plain: 'unquoted with trailing spaces   ',
+      quoted: 'quoted with trailing spaces   ',
+    })
+
+    const exported = __test.createCsvTextFromItems(parsed.data)
+    const reparsed = __test.parseCsvText(exported)
+
+    expect(reparsed.ok).toBe(true)
+    expect(reparsed.data).toEqual(parsed.data)
+  })
+
   test('createCsvTextFromItems creates csv export text', () => {
     const csv = __test.createCsvTextFromItems([
       { a: 'A', b: 'B' },
