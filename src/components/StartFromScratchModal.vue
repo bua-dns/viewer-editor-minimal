@@ -245,7 +245,7 @@ useModalKeyboard({
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(15, 23, 42, 0.52);
+  background: var(--ve-color-backdrop);
   display: grid;
   place-items: center;
   padding: var(--ve-space-4);
@@ -312,7 +312,7 @@ useModalKeyboard({
 
 .scratch-error {
   margin: 0;
-  color: var(--ve-color-danger, #b91c1c);
+  color: var(--ve-color-danger);
   font-weight: 600;
 }
 

@@ -19,6 +19,12 @@ const isAdvancedOpen = ref(!hasExistingAdvancedConfig(props.modelValue))
 watch(
   () => props.collapseAdvancedToken,
   () => {
+    /*
+     * Parent emits a monotonic collapse token on apply.
+     * A counter is used instead of a boolean so this watcher always runs,
+     * including repeated applies where the panel is already closed.
+     * Every AutosuggestFieldConfig instance listens to the same token by design.
+     */
     isAdvancedOpen.value = false
   },
 )

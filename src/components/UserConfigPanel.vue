@@ -52,6 +52,12 @@ function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
 
 function onApplyConfiguration() {
   emit('apply')
+  /*
+   * Collapse token for all AutosuggestFieldConfig children:
+   * incrementing a counter creates a new value every apply click, so every
+   * watcher fires even if the previous state was already "collapsed".
+   * This is intentionally fan-out signalling, not per-row state.
+   */
   autosuggestAdvancedCollapseToken.value += 1
 }
 </script>
