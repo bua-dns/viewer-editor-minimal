@@ -33,11 +33,11 @@ const wording = {
     en: "Start from scratch",
   },
   startFromScratchScanPrompt: {
-    de: "Scan-URL fuer neuen Datensatz eingeben (http/https):",
+    de: "Scan-URL für neuen Datensatz eingeben (http/https):",
     en: "Enter scan URL for a new dataset (http/https):",
   },
   startFromScratchScanInvalid: {
-    de: "Ungueltige URL. Bitte eine absolute http/https-URL eingeben.",
+    de: "Ungültige URL. Bitte eine absolute http/https-URL eingeben.",
     en: "Invalid URL. Please enter an absolute http/https URL.",
   },
   startFromScratchDialogTitle: {
@@ -93,7 +93,7 @@ const wording = {
     en: "No URLs found in CSV.",
   },
   startFromScratchScanInvalidRow: {
-    de: "Ungueltige URL in Zeile",
+    de: "Ungültige URL in Zeile",
     en: "Invalid URL in row",
   },
   downloadCsv: {
@@ -357,7 +357,7 @@ const wording = {
     en: "Q5",
   },
   autosuggestAddDefinition: {
-    de: "Definition hinzufuegen",
+    de: "Definition hinzufügen",
     en: "Add definition",
   },
   autosuggestOptions: {
