@@ -90,7 +90,12 @@ const resultCountLabel = computed(() => {
 const showSampleDataButton = computed(() => !hasData.value)
 const showStartFromScratchButton = computed(() => dataMode.value === 'json' && !hasData.value)
 
-const hasPendingChanges = computed(() => isDirty.value || hasReplacementsChanges.value)
+const hasPendingChanges = computed(() => {
+  if (dataMode.value === 'csv') {
+    return isDirty.value
+  }
+  return isDirty.value || hasReplacementsChanges.value
+})
 
 const availableFieldKeys = computed(() => {
   const keys = new Set()
@@ -215,6 +220,7 @@ const { onDataFileSelected, onDownload, onStartFromScratch, onReset, onLoadSampl
   createReplacementsPayload,
   isDirty,
   hasPendingChanges,
+  hasUnappliedUserConfigChanges,
   resetToImportedSnapshot,
   resetReplacements,
 })

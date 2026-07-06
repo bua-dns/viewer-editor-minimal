@@ -22,6 +22,7 @@ export function useDataImportExport({
   createReplacementsPayload,
   isDirty,
   hasPendingChanges,
+  hasUnappliedUserConfigChanges,
   resetToImportedSnapshot,
   resetReplacements,
 }) {
@@ -238,7 +239,14 @@ export function useDataImportExport({
     URL.revokeObjectURL(url)
   }
 
+  function applyPendingUserConfigBeforeExport() {
+    if (!hasUnappliedUserConfigChanges.value) return
+    applyUserConfigToRawItems(rawItems.value)
+  }
+
   function onDownload() {
+    applyPendingUserConfigBeforeExport()
+
     const extension = dataMode.value === 'csv' ? '.csv' : '.json'
     const downloadFileName = createEditedFileName(importFileName.value, extension)
 

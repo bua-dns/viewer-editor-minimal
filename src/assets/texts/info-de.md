@@ -56,6 +56,7 @@ Mit **Konfiguration anwenden** wird die bearbeitbare Struktur der geladenen Date
 
 - Speichern Sie den aktüllen Stand über **CSV herunterladen** oder **JSON herunterladen**.
 - Der Download ist aktiv, sobald ungespeicherte Änderungen vorhanden sind.
+- Falls noch nicht angewendete Konfigurationsaenderungen existieren, werden diese beim Download automatisch angewendet.
 - Standardmässig wird ein Timestamp an den Dateinamen angehängt (Versionierung).
 - **Reset** setzt auf den importierten Stand zurück und verwirft ungespeicherte Änderungen.
 

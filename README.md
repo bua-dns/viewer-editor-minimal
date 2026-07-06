@@ -14,6 +14,8 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
 - Neuer Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell (`[{ id, label, ... }]`)
 - `wikidata-autosuggest` unterstuetzt konfigurierbare Priorisierung (`claimPresence`, `claimValueMatch`) inkl. optionaler Emit-Metadaten
+- Wikidata-Multilanguage-Suche ist fehlertolerant: Teilausfaelle einzelner Sprachen werden abgefangen, verbleibende Treffer bleiben erhalten
+- Wikidata-Suche bricht veraltete In-Flight-Requests beim Tippen/Unmount per `AbortController` ab (keine stale Treffer, keine Abort-Fehleranzeige)
 - App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
 - Sprachumschalter (DE/EN) in der Topbar
 - Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
@@ -122,6 +124,7 @@ Beim Import werden zwei JSON-Formate akzeptiert:
 ```
 
 Beim JSON-Export nutzt die App immer das kanonische Format mit `data` und `config`. Falls die importierte Datei zusätzlich ein `replacements`-Objekt enthält, wird dieses unverändert mit exportiert (`{ data, config, replacements }`).
+Wenn beim Download noch nicht angewendete Konfigurationsaenderungen vorhanden sind, werden diese vor dem Export automatisch angewendet. Dadurch passen exportierte Daten und exportierte Konfiguration immer zusammen.
 
 Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.
@@ -166,6 +169,7 @@ Hinweise:
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe, erhaelt `autosuggest`-Config als pass-through
 - `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer `autosuggest` Feldkonfiguration in der Konfigurationsansicht
 - `src/composables/useWikidataSearch.js` - Wikidata-Suche inkl. optionaler Priorisierung und Claim-Metadaten
+- `src/composables/useWikidataSearch.test.js` - Unit-Tests fuer resiliente Multilanguage-Suche und Abort-Verhalten
 - Sidebar im Edit-Bereich unterstuetzt einen erweiterten Modus (volle Breite) mit Maximize/Minimize-Icons.
 - Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
 - `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC

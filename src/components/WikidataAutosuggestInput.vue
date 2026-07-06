@@ -37,6 +37,20 @@ const requestError = ref('')
 
 let debounceTimer = null
 let requestId = 0
+let activeSearchController = null
+
+function isAbortError(error) {
+  return Boolean(error) && (error.name === 'AbortError' || error.code === 20)
+}
+
+function abortActiveSearch() {
+  if (!activeSearchController) {
+    return
+  }
+
+  activeSearchController.abort()
+  activeSearchController = null
+}
 
 const mergedConfig = computed(() => {
   const incomingConfig = props.config || {}
@@ -190,6 +204,9 @@ watch(
   () => query.value,
   (nextValue) => {
     const normalized = nextValue.trim()
+
+    abortActiveSearch()
+
     if (debounceTimer) {
       clearTimeout(debounceTimer)
       debounceTimer = null
@@ -204,6 +221,9 @@ watch(
 
     debounceTimer = setTimeout(async () => {
       const currentRequestId = ++requestId
+      const controller = new AbortController()
+
+      activeSearchController = controller
       isLoading.value = true
       requestError.value = ''
 
@@ -213,17 +233,26 @@ watch(
           resultLanguage: mergedConfig.value.resultLanguage,
           limit: effectiveLimit.value,
           prioritize: mergedConfig.value.prioritize,
+          signal: controller.signal,
         })
 
         if (currentRequestId === requestId) {
           suggestions.value = searchResults
         }
       } catch (error) {
+        if (isAbortError(error)) {
+          return
+        }
+
         if (currentRequestId === requestId) {
           suggestions.value = []
           requestError.value = error instanceof Error ? error.message : 'Could not fetch Wikidata results.'
         }
       } finally {
+        if (activeSearchController === controller) {
+          activeSearchController = null
+        }
+
         if (currentRequestId === requestId) {
           isLoading.value = false
         }
@@ -245,6 +274,7 @@ function onEnterKey() {
 
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
+  abortActiveSearch()
 })
 </script>
 

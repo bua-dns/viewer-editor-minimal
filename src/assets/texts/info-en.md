@@ -56,6 +56,7 @@ Use **Apply configuration** to update the editable structure of the loaded data.
 
 - Use **Download CSV** or **Download JSON** to save your current state.
 - Download is enabled when there are unsaved changes.
+- If there are pending configuration changes, they are auto-applied when you download.
 - Timestamped filenames are enabled by default and help keep versions.
 - **Reset** restores the imported snapshot and discards unsaved changes.
 

@@ -1,5 +1,27 @@
 const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php'
 
+function isAbortError(error) {
+  return Boolean(error) && (error.name === 'AbortError' || error.code === 20)
+}
+
+function logRejectedRequests(context, settledResults) {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
+  for (const result of settledResults) {
+    if (result.status !== 'rejected') {
+      continue
+    }
+
+    if (isAbortError(result.reason)) {
+      continue
+    }
+
+    console.warn(`[wikidata] ${context} request failed`, result.reason)
+  }
+}
+
 const PRIORITY_BLOCK_HANDLERS = {
   claimPresence: {
     getRequiredProperties(defs) {
@@ -176,14 +198,16 @@ function chunkArray(items, size) {
   return chunks
 }
 
-async function fetchEntityClaimsById(ids, requiredProperties) {
+async function fetchEntityClaimsById(ids, requiredProperties, options = {}) {
+  const { signal } = options
+
   if (!ids.length || !requiredProperties.length) {
     return new Map()
   }
 
   const idChunks = chunkArray(ids, 50)
   const requests = idChunks.map((chunk) =>
-    fetch(buildGetEntitiesUrl(chunk, requiredProperties)).then(async (response) => {
+    fetch(buildGetEntitiesUrl(chunk, requiredProperties), { signal }).then(async (response) => {
       if (!response.ok) {
         throw new Error(`Wikidata request failed (${response.status})`)
       }
@@ -193,10 +217,22 @@ async function fetchEntityClaimsById(ids, requiredProperties) {
     }),
   )
 
-  const settled = await Promise.all(requests)
+  const settled = await Promise.allSettled(requests)
+  if (signal?.aborted) {
+    throw new DOMException('The request was aborted.', 'AbortError')
+  }
+
+  logRejectedRequests('claims', settled)
+
   const claimsById = new Map()
 
-  for (const entities of settled) {
+  for (const result of settled) {
+    if (result.status !== 'fulfilled') {
+      continue
+    }
+
+    const entities = result.value
+
     for (const [entityId, entity] of Object.entries(entities)) {
       claimsById.set(entityId, entity?.claims && typeof entity.claims === 'object' ? entity.claims : {})
     }
@@ -273,6 +309,7 @@ export function useWikidataSearch() {
       resultLanguage = 'de',
       limit: rawLimit = 10,
       prioritize,
+      signal,
     } = options
 
     const normalizedLimit = Number(rawLimit)
@@ -295,6 +332,7 @@ export function useWikidataSearch() {
           resultLanguage,
           limit,
         }),
+        { signal },
       ).then(async (response) => {
         if (!response.ok) {
           throw new Error(`Wikidata request failed (${response.status})`)
@@ -306,10 +344,25 @@ export function useWikidataSearch() {
       }),
     )
 
-    const settled = await Promise.all(requests)
-    const byId = new Map()
+    const settled = await Promise.allSettled(requests)
+    if (signal?.aborted) {
+      throw new DOMException('The request was aborted.', 'AbortError')
+    }
 
-    for (const resultSet of settled) {
+    logRejectedRequests('search', settled)
+
+    const byId = new Map()
+    let firstSearchError = null
+
+    for (const result of settled) {
+      if (result.status !== 'fulfilled') {
+        if (!firstSearchError && !isAbortError(result.reason)) {
+          firstSearchError = result.reason
+        }
+        continue
+      }
+
+      const resultSet = result.value
       for (const item of resultSet) {
         if (!byId.has(item.id)) {
           byId.set(item.id, item)
@@ -318,6 +371,10 @@ export function useWikidataSearch() {
     }
 
     const mergedResults = Array.from(byId.values())
+    if (!mergedResults.length && firstSearchError) {
+      throw firstSearchError
+    }
+
     const prioritizationBlocks = parsePrioritizationBlocks(prioritize)
 
     if (!prioritizationBlocks.length) {
@@ -330,7 +387,7 @@ export function useWikidataSearch() {
     }
 
     const entityIds = mergedResults.map((item) => item.id)
-    const claimsById = await fetchEntityClaimsById(entityIds, requiredProperties)
+    const claimsById = await fetchEntityClaimsById(entityIds, requiredProperties, { signal })
 
     return rankResults(mergedResults, claimsById, prioritizationBlocks, requiredProperties).slice(0, limit)
   }

@@ -50,6 +50,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (erhaelt Konfiguration als pass-through)
 - `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer autosuggest-spezifische Feldoptionen in der Konfigurationsansicht
 - `src/composables/useWikidataSearch.js` - Suche ueber Wikidata API inkl. Priorisierungslogik und Claim-Metadaten
+- `src/composables/useWikidataSearch.test.js` - Unit-Tests fuer resiliente Wikidata-Suche (Teilausfaelle/Abort)
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Sortierung und Binding zur Feld-Registry
@@ -249,8 +250,11 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 ## Wikidata Autosuggest Priorisierung
 
 - Suchbasis: `wbsearchentities` je Sprache aus `autosuggest.searchLanguages`.
+- Request-Strategie: Multilanguage-Calls nutzen `Promise.allSettled` statt `Promise.all`; erfolgreiche Teilantworten werden zusammengefuehrt.
+- Fehlerverhalten: Falls nur einzelne Sprachrequests fehlschlagen, liefert die Suche weiterhin Treffer aus den verbleibenden Sprachen; Rejections werden nur in DEV geloggt.
 - Deduplizierung: Merge nach Entity-`id`.
 - Falls `autosuggest.prioritize` konfiguriert ist, werden benoetigte Claims per `wbgetentities` nachgeladen.
+- Claim-Nachladen ist ebenfalls teilrobust (`Promise.allSettled` ueber Chunk-Requests), damit einzelne Chunk-Fehler nicht die gesamte Ergebnisliste blockieren.
 - Unterstuetzte Regelbloecke:
   - `claimPresence`: Match, wenn mindestens eine Property aus `defs` vorhanden ist.
   - `claimValueMatch`: Match, wenn mindestens ein `{ property, value }`-Paar aus `defs` zutrifft.
@@ -258,6 +262,8 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 - Sortierung: `score` absteigend, dann originale Result-Reihenfolge.
 - `showInSuggestion`: zeigt priorisierungsbezogene Metadaten in der Trefferliste.
 - `includeInEmitData`: behaelt priorisierungsbezogene Metadaten (`ranking`, `prioritizationValues`) im selektierten Entity-Payload.
+- Stale-Protection: `WikidataAutosuggestInput.vue` verwaltet pro Query einen `AbortController`; bei neuer Eingabe oder Unmount werden laufende Requests abgebrochen.
+- UX bei Abort: Abgebrochene Requests erzeugen keine Fehleranzeige im UI und kein Error-Logging.
 
 ### Neues Feld hinzufuegen
 
@@ -299,6 +305,7 @@ Interne Script-Aufteilung:
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
 - JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config>, replacements: <replacements> }` und nutzt die Store-Daten.
 - CSV-Export schreibt nur Nutzdaten (ohne Config, ohne `replacements`).
+- Vor jedem Download (JSON und CSV) wird eine noch nicht angewendete User-Config automatisch auf `rawItems` angewendet, damit Exportdaten und Konfigurationsstand nicht auseinanderlaufen.
 - Download wird in `useDataImportExport.js` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.
 - Falls aktiviert: Dateiname mit Timestamp im Format `<importName>-edited-YYYY-MM-DD_hh-mm-ss.<json|csv>`.
@@ -364,6 +371,11 @@ Tests in `src/composables/userConfigValidation.test.js` pruefen:
 - gueltige JSON-Config-Payloads
 - fehlendes/ungueltiges `fields`-Objekt
 - nicht unterstuetzte Feldtypen
+
+Tests in `src/composables/useWikidataSearch.test.js` pruefen:
+
+- resilientes Merge-Verhalten bei Ausfall einer Suchsprache
+- `AbortError`-Pfad fuer aktiv abgebrochene Requests ohne zusaetzliches Warning-Logging
 
 Testlauf:
 
