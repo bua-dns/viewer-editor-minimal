@@ -213,12 +213,15 @@ Beispiel:
 `updateField(key, nextRawValue, configuredType?)` bearbeitet einfache Typen sowie strukturierte Registry-Typen:
 
 - Die konkrete Normalisierung laeuft ueber den Registry-Hook `normalizeUpdatedFieldValue(...)`.
-- Verhalten bleibt identisch:
-  - `number`: String-Input wird mit `Number(...)` geparst; `NaN` wird verworfen
+- Verhalten:
+  - `integer` (Registry-Typ, seit Refactor 2026-07-06): Coercion wird durch den **konfigurierten Typ** ausgeloest, nicht durch `typeof currentValue`. String-Input wird via `Number(...)` geparst; nicht-ganzzahlige Werte (`"1.5"`, `"abc"`, `NaN`, `Infinity`, Booleans) werden mit `ok: false` abgelehnt und der vorige Wert bleibt erhalten. Leere Eingaben (`''`, whitespace, `null`, `undefined`) werden auf `null` normalisiert (kanonische "kein Integer"-Darstellung).
   - `boolean`: Wert wird auf `Boolean(...)` normalisiert
-  - `null`: leerer String wird wieder `null`, sonst String
+  - `null` (Legacy-Pfad ohne `configuredType`): leerer String wird wieder `null`, sonst String
+  - `number` (Legacy-Pfad ohne `configuredType`): String-Input wird mit `Number(...)` geparst; nicht-endliche Werte werden verworfen
 - `string`: direkte Uebernahme
 - `wikidata-autosuggest`: Wert wird auf ein dedupliziertes Entity-Array normalisiert
+
+Konfigurations-Anwendung (`normalizeValueForConfiguredType`) fuer `integer` ist best-effort statt strikt: Floats werden via `Math.trunc` abgeschnitten, un-parsebare Strings/Booleans/`NaN`/`Infinity` fallen auf `null` zurueck. Rationale: Bulk-Apply hat keine interaktive Wiederholung, silent recovery ist besser als Datenverlust ueber das Unvermeidliche hinaus. Der Default-Wert fuer neu hinzugefuegte Integer-Felder ist `null`.
 
 Nach erfolgreicher Aenderung:
 
