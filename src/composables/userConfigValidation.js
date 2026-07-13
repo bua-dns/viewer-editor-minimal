@@ -17,11 +17,23 @@ export function validateImportedConfigPayload(configPayload) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config.itemLabelField muss ein String sein.' }
   }
 
+  if (configPayload.markAsEditedBasis != null && typeof configPayload.markAsEditedBasis !== 'string') {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.markAsEditedBasis muss ein String sein.' }
+  }
+
   const itemLabelField = String(configPayload.itemLabelField || '').trim()
   if (itemLabelField && !Object.prototype.hasOwnProperty.call(configPayload.fields, itemLabelField)) {
     return {
       ok: false,
       error: `JSON-Config ist ungueltig: itemLabelField ${itemLabelField} ist kein vorhandenes Feld.`,
+    }
+  }
+
+  const markAsEditedBasis = String(configPayload.markAsEditedBasis || '').trim()
+  if (markAsEditedBasis && !Object.prototype.hasOwnProperty.call(configPayload.fields, markAsEditedBasis)) {
+    return {
+      ok: false,
+      error: `JSON-Config ist ungueltig: markAsEditedBasis ${markAsEditedBasis} ist kein vorhandenes Feld.`,
     }
   }
 

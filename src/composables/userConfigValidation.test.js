@@ -5,6 +5,7 @@ describe('validateImportedConfigPayload', () => {
   test('accepts valid payload', () => {
     const result = validateImportedConfigPayload({
       itemLabelField: 'species',
+      markAsEditedBasis: 'species',
       fields: {
         species: {
           type: 'normal',
@@ -35,6 +36,32 @@ describe('validateImportedConfigPayload', () => {
   test('rejects itemLabelField when missing in fields', () => {
     const result = validateImportedConfigPayload({
       itemLabelField: 'inventory_number',
+      fields: {
+        species: {
+          type: 'normal',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects non-string markAsEditedBasis', () => {
+    const result = validateImportedConfigPayload({
+      markAsEditedBasis: 5,
+      fields: {
+        species: {
+          type: 'normal',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects markAsEditedBasis when missing in fields', () => {
+    const result = validateImportedConfigPayload({
+      markAsEditedBasis: 'edited_note',
       fields: {
         species: {
           type: 'normal',

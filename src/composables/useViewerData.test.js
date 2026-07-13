@@ -160,6 +160,56 @@ describe('useViewerData flow', () => {
     expect(firstMatch.title).toBe('Needle in title')
   })
 
+  test('pushes items with non-empty edited-basis field to the end', () => {
+    const markAsEditedBasis = ref('edited_note')
+    const model = useViewerData({ markAsEditedBasis })
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', edited_note: '' },
+      { inventory_number: 'B2', edited_note: 'done' },
+      { inventory_number: 'C3', edited_note: null },
+    ])
+
+    const orderedInventoryNumbers = model.filteredViewItems.value.map(
+      (item) => model.rawItems.value[item._index].inventory_number,
+    )
+
+    expect(orderedInventoryNumbers).toEqual(['A1', 'C3', 'B2'])
+  })
+
+  test('keeps edited-basis sorting in filtered results', () => {
+    const markAsEditedBasis = ref('edited_note')
+    const model = useViewerData({ markAsEditedBasis })
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', species: 'Oak', edited_note: '' },
+      { inventory_number: 'B2', species: 'Oak', edited_note: 'done' },
+    ])
+
+    model.searchQuery.value = 'oak'
+
+    const orderedInventoryNumbers = model.filteredViewItems.value.map(
+      (item) => model.rawItems.value[item._index].inventory_number,
+    )
+
+    expect(orderedInventoryNumbers).toEqual(['A1', 'B2'])
+  })
+
+  test('supports inverted edited-basis sorting (edited items first)', () => {
+    const markAsEditedBasis = ref('edited_note')
+    const markAsEditedItemsFirst = ref(true)
+    const model = useViewerData({ markAsEditedBasis, markAsEditedItemsFirst })
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', edited_note: '' },
+      { inventory_number: 'B2', edited_note: 'done' },
+      { inventory_number: 'C3', edited_note: null },
+    ])
+
+    const orderedInventoryNumbers = model.filteredViewItems.value.map(
+      (item) => model.rawItems.value[item._index].inventory_number,
+    )
+
+    expect(orderedInventoryNumbers).toEqual(['B2', 'A1', 'C3'])
+  })
+
   test('imports csv data', () => {
     const model = useViewerData()
     const csv = 'inventory_number,scan\nA1,https://example.com/a.jpg'

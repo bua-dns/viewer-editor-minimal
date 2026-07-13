@@ -16,6 +16,7 @@ const { t } = useAppConfigStore()
 const {
   sortedConfigFieldEntries,
   itemLabelField,
+  markAsEditedBasis,
   hasUnappliedUserConfigChanges,
   draggedFieldKey,
   isUserConfigOpen,
@@ -25,6 +26,7 @@ const {
   setFieldType,
   updateFieldAutosuggestConfig,
   setItemLabelField,
+  setMarkAsEditedBasis,
   removeUserConfigField,
   startDrag,
   dropAt,
@@ -78,6 +80,10 @@ function onApplyConfiguration() {
 function onItemLabelFieldChange(event) {
   setItemLabelField(event.target.value)
 }
+
+function onMarkAsEditedBasisChange(event) {
+  setMarkAsEditedBasis(event.target.value)
+}
 </script>
 
 <template>
@@ -116,6 +122,14 @@ function onItemLabelFieldChange(event) {
         <select :value="itemLabelField" @change="onItemLabelFieldChange">
           <option value="">{{ t('itemListLabelFieldDefault', 'Standard (Nummer / inventory_number)') }}</option>
           <option v-for="fieldKey in itemLabelFieldOptions" :key="fieldKey" :value="fieldKey">{{ fieldKey }}</option>
+        </select>
+      </div>
+
+      <div class="user-config-label-row">
+        <strong>{{ t('markAsEditedBasisLabel', 'Liste: Mark-as-edited Basis') }}</strong>
+        <select :value="markAsEditedBasis" @change="onMarkAsEditedBasisChange">
+          <option value="">{{ t('markAsEditedBasisDefault', 'Keine Sortierung nach Bearbeitungsstand') }}</option>
+          <option v-for="fieldKey in itemLabelFieldOptions" :key="`edited-basis-${fieldKey}`" :value="fieldKey">{{ fieldKey }}</option>
         </select>
       </div>
 

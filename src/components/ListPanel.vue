@@ -24,6 +24,18 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  showEditedSortToggle: {
+    type: Boolean,
+    default: false,
+  },
+  editedItemsFirst: {
+    type: Boolean,
+    default: false,
+  },
+  editedSortToggleLabel: {
+    type: String,
+    default: '',
+  },
   hasData: {
     type: Boolean,
     required: true,
@@ -41,6 +53,14 @@ const props = defineProps({
     required: true,
   },
   itemCaptionFieldKey: {
+    type: String,
+    default: '',
+  },
+  markAsEditedBasisField: {
+    type: String,
+    default: '',
+  },
+  editedItemIconLabel: {
     type: String,
     default: '',
   },
@@ -82,7 +102,13 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['clear-selection', 'select-item', 'list-image-failed', 'update:search-query'])
+const emit = defineEmits([
+  'clear-selection',
+  'select-item',
+  'list-image-failed',
+  'update:search-query',
+  'update:edited-items-first',
+])
 
 function onClearSelection() {
   emit('clear-selection')
@@ -100,6 +126,10 @@ function onSearchInput(event) {
   emit('update:search-query', event.target.value)
 }
 
+function onEditedSortToggleChange(event) {
+  emit('update:edited-items-first', event.target.checked)
+}
+
 function resolveItemCaption(item) {
   const configuredCaptionKey = props.itemCaptionFieldKey
   if (configuredCaptionKey && item && Object.prototype.hasOwnProperty.call(item, configuredCaptionKey)) {
@@ -110,22 +140,46 @@ function resolveItemCaption(item) {
   if (inventoryNumber) return inventoryNumber
   return ''
 }
+
+function hasNonEmptyValue(value) {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (Array.isArray(value)) return value.length > 0
+  if (typeof value === 'object') return Object.keys(value).length > 0
+  return true
+}
+
+function isEditedItem(item) {
+  if (!props.markAsEditedBasisField || !item) return false
+  return hasNonEmptyValue(item[props.markAsEditedBasisField])
+}
 </script>
 
 <template>
   <section class="list-panel" :class="{ 'list-panel-head-only': props.renderHeader && !props.renderBody }" @click="props.renderBody ? onClearSelection() : null">
     <div v-if="props.renderHeader" class="list-panel-head">
       <h2>{{ props.itemLabel }} <span v-if="props.importFileName">({{ props.resultCountLabel }})</span></h2>
-      <label class="search-wrap" @click.stop>
-        <span>{{ props.searchLabel }}</span>
-        <input
-          :value="props.searchQuery"
-          type="search"
-          :placeholder="props.searchPlaceholder"
-          :disabled="!props.hasData"
-          @input="onSearchInput"
-        />
-      </label>
+      <div class="list-panel-controls" @click.stop>
+        <label class="search-wrap">
+          <span>{{ props.searchLabel }}</span>
+          <input
+            :value="props.searchQuery"
+            type="search"
+            :placeholder="props.searchPlaceholder"
+            :disabled="!props.hasData"
+            @input="onSearchInput"
+          />
+        </label>
+        <label v-if="props.showEditedSortToggle" class="edited-sort-toggle">
+          <input
+            type="checkbox"
+            :checked="props.editedItemsFirst"
+            :disabled="!props.hasData"
+            @change="onEditedSortToggleChange"
+          />
+          <span>{{ props.editedSortToggleLabel }}</span>
+        </label>
+      </div>
     </div>
     <template v-if="props.renderBody">
       <p v-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
@@ -148,7 +202,21 @@ function resolveItemCaption(item) {
             <div v-else class="scan-fallback">{{ props.scanUnavailableLabel }}</div>
           </div>
           <div class="card-caption">
-            {{ resolveItemCaption(props.rawItems[item._index]) || `#${item._index + 1}` }}
+            <span>{{ resolveItemCaption(props.rawItems[item._index]) || `#${item._index + 1}` }}</span>
+            <span
+              v-if="isEditedItem(props.rawItems[item._index])"
+              class="edited-item-indicator"
+              role="img"
+              :aria-label="props.editedItemIconLabel"
+              :title="props.editedItemIconLabel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="feather feather-edit-3">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </span>
           </div>
         </button>
       </li>
@@ -163,6 +231,20 @@ function resolveItemCaption(item) {
           >
             <span class="item-list-index">#{{ item._index + 1 }}</span>
             <span class="item-list-caption">{{ resolveItemCaption(props.rawItems[item._index]) || '-' }}</span>
+            <span
+              v-if="isEditedItem(props.rawItems[item._index])"
+              class="edited-item-indicator"
+              role="img"
+              :aria-label="props.editedItemIconLabel"
+              :title="props.editedItemIconLabel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="feather feather-edit-3">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+              </svg>
+            </span>
           </button>
         </li>
       </ul>
@@ -197,6 +279,20 @@ function resolveItemCaption(item) {
   display: flex;
   align-items: center;
   gap: var(--ve-space-2);
+}
+
+.list-panel-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--ve-space-3);
+}
+
+.edited-sort-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ve-color-text-muted);
+  font-size: 0.92rem;
 }
 
 .search-wrap input {
@@ -256,6 +352,10 @@ function resolveItemCaption(item) {
 }
 
 .card-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ve-space-2);
   font-weight: 600;
   line-height: 1.3;
   padding: 0.15rem 0.1rem;
@@ -283,7 +383,7 @@ function resolveItemCaption(item) {
 .item-list-row {
   width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--ve-space-2);
   align-items: center;
   text-align: left;
@@ -321,6 +421,18 @@ function resolveItemCaption(item) {
   word-break: break-word;
 }
 
+.edited-item-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ve-color-text-soft);
+}
+
+.item-list-row.active .edited-item-indicator,
+.item-card.active .edited-item-indicator {
+  color: color-mix(in srgb, var(--ve-color-white) 90%, transparent);
+}
+
 @media (max-width: 768px) {
   .list-panel-head {
     flex-direction: column;
@@ -328,6 +440,12 @@ function resolveItemCaption(item) {
   }
 
   .search-wrap {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .list-panel-controls {
     width: 100%;
     flex-direction: column;
     align-items: flex-start;

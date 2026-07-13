@@ -12,6 +12,8 @@ const userConfigFields = ref({})
 const appliedUserConfigFields = ref({})
 const itemLabelField = ref('')
 const appliedItemLabelField = ref('')
+const markAsEditedBasis = ref('')
+const appliedMarkAsEditedBasis = ref('')
 const appliedUserConfigSnapshot = ref('')
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
@@ -77,10 +79,11 @@ function serializeUserConfigFields(fields) {
   return JSON.stringify(normalized)
 }
 
-function serializeUserConfigState(fields, nextItemLabelField) {
+function serializeUserConfigState(fields, nextItemLabelField, nextMarkAsEditedBasis) {
   return JSON.stringify({
     fields: JSON.parse(serializeUserConfigFields(fields)),
     itemLabelField: String(nextItemLabelField || ''),
+    markAsEditedBasis: String(nextMarkAsEditedBasis || ''),
   })
 }
 
@@ -90,13 +93,26 @@ const sortedConfigFieldEntries = computed(() =>
 
 const hasUnappliedUserConfigChanges = computed(
   () =>
-    serializeUserConfigState(userConfigFields.value, itemLabelField.value) !== appliedUserConfigSnapshot.value,
+    serializeUserConfigState(
+      userConfigFields.value,
+      itemLabelField.value,
+      markAsEditedBasis.value,
+    ) !== appliedUserConfigSnapshot.value,
 )
 
 function loadUserConfigFromSession() {
   try {
     const raw = sessionStorage.getItem(USER_CONFIG_SESSION_KEY)
-    if (!raw) return { fields: {}, appliedFields: {}, itemLabelField: '', appliedItemLabelField: '' }
+    if (!raw) {
+      return {
+        fields: {},
+        appliedFields: {},
+        itemLabelField: '',
+        appliedItemLabelField: '',
+        markAsEditedBasis: '',
+        appliedMarkAsEditedBasis: '',
+      }
+    }
     const parsed = JSON.parse(raw)
     return {
       fields: parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
@@ -109,9 +125,23 @@ function loadUserConfigFromSession() {
           : typeof parsed?.itemLabelField === 'string'
             ? parsed.itemLabelField
             : '',
+      markAsEditedBasis: typeof parsed?.markAsEditedBasis === 'string' ? parsed.markAsEditedBasis : '',
+      appliedMarkAsEditedBasis:
+        typeof parsed?.appliedMarkAsEditedBasis === 'string'
+          ? parsed.appliedMarkAsEditedBasis
+          : typeof parsed?.markAsEditedBasis === 'string'
+            ? parsed.markAsEditedBasis
+            : '',
     }
   } catch {
-    return { fields: {}, appliedFields: {}, itemLabelField: '', appliedItemLabelField: '' }
+    return {
+      fields: {},
+      appliedFields: {},
+      itemLabelField: '',
+      appliedItemLabelField: '',
+      markAsEditedBasis: '',
+      appliedMarkAsEditedBasis: '',
+    }
   }
 }
 
@@ -121,6 +151,8 @@ function persistUserConfigToSession() {
     appliedFields: appliedUserConfigFields.value,
     itemLabelField: itemLabelField.value,
     appliedItemLabelField: appliedItemLabelField.value,
+    markAsEditedBasis: markAsEditedBasis.value,
+    appliedMarkAsEditedBasis: appliedMarkAsEditedBasis.value,
   }
   sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
 }
@@ -135,6 +167,8 @@ function initializeUserConfig(availableFieldKeys, hasData) {
     appliedUserConfigFields.value = {}
     itemLabelField.value = ''
     appliedItemLabelField.value = ''
+    markAsEditedBasis.value = ''
+    appliedMarkAsEditedBasis.value = ''
     appliedUserConfigSnapshot.value = ''
     return
   }
@@ -169,11 +203,21 @@ function initializeUserConfig(availableFieldKeys, hasData) {
   appliedUserConfigFields.value = nextAppliedFields
   const hasLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.itemLabelField)
   const hasAppliedLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.appliedItemLabelField)
+  const hasEditedBasisField = Object.prototype.hasOwnProperty.call(nextFields, persisted.markAsEditedBasis)
+  const hasAppliedEditedBasisField = Object.prototype.hasOwnProperty.call(
+    nextFields,
+    persisted.appliedMarkAsEditedBasis,
+  )
   itemLabelField.value = hasLabelField ? persisted.itemLabelField : ''
   appliedItemLabelField.value = hasAppliedLabelField ? persisted.appliedItemLabelField : itemLabelField.value
+  markAsEditedBasis.value = hasEditedBasisField ? persisted.markAsEditedBasis : ''
+  appliedMarkAsEditedBasis.value = hasAppliedEditedBasisField
+    ? persisted.appliedMarkAsEditedBasis
+    : markAsEditedBasis.value
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     nextAppliedFields,
     appliedItemLabelField.value,
+    appliedMarkAsEditedBasis.value,
   )
 }
 
@@ -216,9 +260,11 @@ function applyUserConfigToRawItems(rawItems) {
 
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
   appliedItemLabelField.value = itemLabelField.value
+  appliedMarkAsEditedBasis.value = markAsEditedBasis.value
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     appliedUserConfigFields.value,
     appliedItemLabelField.value,
+    appliedMarkAsEditedBasis.value,
   )
   persistUserConfigToSession()
 }
@@ -253,6 +299,12 @@ function removeUserConfigField(fieldKey) {
   if (appliedItemLabelField.value === fieldKey) {
     appliedItemLabelField.value = ''
   }
+  if (markAsEditedBasis.value === fieldKey) {
+    markAsEditedBasis.value = ''
+  }
+  if (appliedMarkAsEditedBasis.value === fieldKey) {
+    appliedMarkAsEditedBasis.value = ''
+  }
   persistUserConfigToSession()
 }
 
@@ -269,6 +321,23 @@ function setItemLabelField(nextFieldKey) {
   }
 
   itemLabelField.value = normalized
+  persistUserConfigToSession()
+  return true
+}
+
+function setMarkAsEditedBasis(nextFieldKey) {
+  const normalized = String(nextFieldKey || '').trim()
+  if (!normalized) {
+    markAsEditedBasis.value = ''
+    persistUserConfigToSession()
+    return true
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, normalized)) {
+    return false
+  }
+
+  markAsEditedBasis.value = normalized
   persistUserConfigToSession()
   return true
 }
@@ -305,6 +374,7 @@ function createUserConfigPayload() {
     version: 1,
     fields: normalizedFields,
     itemLabelField: itemLabelField.value,
+    markAsEditedBasis: markAsEditedBasis.value,
   }
 }
 
@@ -359,13 +429,23 @@ function applyImportedConfigPayload(configPayload) {
       ? requestedItemLabelField
       : ''
 
+  const requestedMarkAsEditedBasis =
+    typeof configPayload.markAsEditedBasis === 'string' ? configPayload.markAsEditedBasis.trim() : ''
+  const normalizedMarkAsEditedBasis =
+    requestedMarkAsEditedBasis && Object.prototype.hasOwnProperty.call(nextFields, requestedMarkAsEditedBasis)
+      ? requestedMarkAsEditedBasis
+      : ''
+
   userConfigFields.value = nextFields
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
   itemLabelField.value = normalizedItemLabelField
   appliedItemLabelField.value = normalizedItemLabelField
+  markAsEditedBasis.value = normalizedMarkAsEditedBasis
+  appliedMarkAsEditedBasis.value = normalizedMarkAsEditedBasis
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     appliedUserConfigFields.value,
     appliedItemLabelField.value,
+    appliedMarkAsEditedBasis.value,
   )
   persistUserConfigToSession()
 
@@ -379,6 +459,8 @@ export function useUserConfigStore() {
     appliedUserConfigFields,
     itemLabelField,
     appliedItemLabelField,
+    markAsEditedBasis,
+    appliedMarkAsEditedBasis,
     hasUnappliedUserConfigChanges,
     draggedFieldKey,
     isUserConfigOpen,
@@ -391,6 +473,7 @@ export function useUserConfigStore() {
     setFieldType,
     updateFieldAutosuggestConfig,
     setItemLabelField,
+    setMarkAsEditedBasis,
     removeUserConfigField,
     startDrag,
     dropAt,

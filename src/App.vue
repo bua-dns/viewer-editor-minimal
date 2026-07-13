@@ -48,7 +48,11 @@ const {
   applyImportedConfigPayload,
   hasUnappliedUserConfigChanges,
   appliedItemLabelField,
+  appliedMarkAsEditedBasis,
 } = useUserConfigStore()
+
+const editedItemsFirst = ref(false)
+const showEditedSortToggle = computed(() => Boolean(appliedMarkAsEditedBasis.value))
 
 const {
   rawItems,
@@ -71,7 +75,11 @@ const {
   markAsSaved,
   isEditableSimpleValue,
   looksLikeImageUrl,
-} = useViewerData({ itemLabelField: appliedItemLabelField })
+} = useViewerData({
+  itemLabelField: appliedItemLabelField,
+  markAsEditedBasis: appliedMarkAsEditedBasis,
+  markAsEditedItemsFirst: editedItemsFirst,
+})
 
 const isLightboxOpen = ref(false)
 const lightboxImageSrc = ref('')
@@ -354,6 +362,15 @@ watch(
     })
   },
 )
+
+watch(
+  () => appliedMarkAsEditedBasis.value,
+  (nextMarkAsEditedBasis) => {
+    if (!nextMarkAsEditedBasis) {
+      editedItemsFirst.value = false
+    }
+  },
+)
 </script>
 
 <template>
@@ -410,13 +427,17 @@ watch(
           :result-count-label="resultCountLabel" :search-query="searchQuery" :search-label="t('searchLabel', 'Suche')"
           :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
           :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
-          :item-caption-field-key="appliedItemLabelField" :has-scan-field="hasScanField"
+          :item-caption-field-key="appliedItemLabelField" :mark-as-edited-basis-field="appliedMarkAsEditedBasis"
+          :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
           :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
           :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
           :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
           :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
+          :show-edited-sort-toggle="showEditedSortToggle" :edited-items-first="editedItemsFirst"
+          :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
-          :render-body="false" @update:search-query="searchQuery = $event" />
+          :render-body="false" @update:search-query="searchQuery = $event"
+          @update:edited-items-first="editedItemsFirst = $event" />
       </section>
 
       <main class="tab-content">
@@ -428,7 +449,8 @@ watch(
             :search-label="t('searchLabel', 'Suche')"
             :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
             :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
-            :item-caption-field-key="appliedItemLabelField" :has-scan-field="hasScanField"
+            :item-caption-field-key="appliedItemLabelField" :mark-as-edited-basis-field="appliedMarkAsEditedBasis"
+            :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
             :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
             :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
             :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"

@@ -208,6 +208,8 @@ export function useViewerData(options = {}) {
   const viewItems = ref([])
   const importSnapshot = ref([])
   const itemLabelFieldRef = options.itemLabelField
+  const markAsEditedBasisRef = options.markAsEditedBasis
+  const markAsEditedItemsFirstRef = options.markAsEditedItemsFirst
 
   const selectedUid = ref(null)
   const searchQuery = ref('')
@@ -232,33 +234,37 @@ export function useViewerData(options = {}) {
 
   const filteredViewItems = computed(() => {
     const normalizedQuery = String(searchQuery.value || '').trim().toLowerCase()
-    if (normalizedQuery.length <= 2) return viewItems.value
-
-    const tokens = tokenize(normalizedQuery)
-    if (!tokens.length) return viewItems.value
+    const tokens = normalizedQuery.length > 2 ? tokenize(normalizedQuery) : []
 
     const itemLabelField = String(unref(itemLabelFieldRef) || '').trim()
+    const editedBasisField = String(unref(markAsEditedBasisRef) || '').trim()
+    const editedItemsFirst = Boolean(unref(markAsEditedItemsFirstRef))
     const matches = []
 
     viewItems.value.forEach((item, orderIndex) => {
-      if (!tokens.every((token) => item._searchText.includes(token))) return
+      if (tokens.length && !tokens.every((token) => item._searchText.includes(token))) return
 
       const rawItem = rawItems.value[item._index] || {}
       const labelValue = itemLabelField ? rawItem[itemLabelField] : ''
       const labelText = String(labelValue ?? '').toLowerCase()
-      const labelMatchScore = tokens.reduce(
-        (score, token) => (labelText.includes(token) ? score + 1 : score),
-        0,
-      )
+      const labelMatchScore = tokens.length
+        ? tokens.reduce((score, token) => (labelText.includes(token) ? score + 1 : score), 0)
+        : 0
+      const editedBasisValue = editedBasisField ? rawItem[editedBasisField] : null
+      const isEdited = hasNonEmptyValue(editedBasisValue)
 
       matches.push({
         item,
+        isEdited,
         labelMatchScore,
         orderIndex,
       })
     })
 
     matches.sort((a, b) => {
+      if (a.isEdited !== b.isEdited) {
+        return editedItemsFirst ? (a.isEdited ? -1 : 1) : a.isEdited ? 1 : -1
+      }
       if (b.labelMatchScore !== a.labelMatchScore) {
         return b.labelMatchScore - a.labelMatchScore
       }
@@ -390,6 +396,14 @@ export function useViewerData(options = {}) {
     isEditableSimpleValue,
     looksLikeImageUrl,
   }
+}
+
+function hasNonEmptyValue(value) {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (Array.isArray(value)) return value.length > 0
+  if (typeof value === 'object') return Object.keys(value).length > 0
+  return true
 }
 
 export const __test = {

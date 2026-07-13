@@ -124,6 +124,29 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(store.itemLabelField.value).toBe('')
   })
 
+  test('persists markAsEditedBasis in payload', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number', 'edited_note'], true)
+
+    const updated = store.setMarkAsEditedBasis('edited_note')
+    expect(updated).toBe(true)
+
+    store.applyUserConfigToRawItems([{ inventory_number: 'A1', edited_note: '' }])
+    const payload = store.createUserConfigPayload()
+
+    expect(payload.markAsEditedBasis).toBe('edited_note')
+  })
+
+  test('clears markAsEditedBasis when configured key is removed', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number', 'edited_note'], true)
+    store.setMarkAsEditedBasis('edited_note')
+
+    store.removeUserConfigField('edited_note')
+
+    expect(store.markAsEditedBasis.value).toBe('')
+  })
+
   test('keeps hint in payload for normal fields', () => {
     const store = useUserConfigStore()
     store.initializeUserConfig(['species'], true)
