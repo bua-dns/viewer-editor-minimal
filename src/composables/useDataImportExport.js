@@ -6,6 +6,7 @@ export function useDataImportExport({
   setModeErrorMessage,
   importFromCsvText,
   importFromJsonText,
+  clearUserConfigSession,
   initializeUserConfigForCurrentData,
   importedConfig,
   applyImportedConfigPayload,
@@ -196,6 +197,7 @@ export function useDataImportExport({
     const success = parseDataFileContent(text, file.name)
     if (!success) return
 
+    clearUserConfigSession()
     initializeUserConfigForCurrentData()
     await applyImportedConfigIfPresent()
   }
@@ -220,6 +222,7 @@ export function useDataImportExport({
 
       normalizeSampleScanUrls()
 
+      clearUserConfigSession()
       initializeUserConfigForCurrentData()
       await applyImportedConfigIfPresent()
     } catch {
@@ -287,6 +290,7 @@ export function useDataImportExport({
       return { ok: false, error: errorMessage.value }
     }
 
+    clearUserConfigSession()
     initializeUserConfigForCurrentData()
     await applyImportedConfigIfPresent()
     isDirty.value = true

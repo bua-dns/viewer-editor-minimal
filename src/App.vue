@@ -209,6 +209,7 @@ const { onDataFileSelected, onDownload, onStartFromScratch, onReset, onLoadSampl
   setModeErrorMessage,
   importFromCsvText,
   importFromJsonText,
+  clearUserConfigSession,
   initializeUserConfigForCurrentData,
   importedConfig,
   applyImportedConfigPayload,
