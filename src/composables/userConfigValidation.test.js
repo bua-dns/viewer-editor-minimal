@@ -188,6 +188,36 @@ describe('validateImportedConfigPayload', () => {
     expect(result.ok).toBe(false)
   })
 
+  test('accepts autosuggest alsoGetDataFrom with valid property id', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            alsoGetDataFrom: 'P31',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
+  test('rejects autosuggest alsoGetDataFrom when property id is invalid', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            alsoGetDataFrom: 'Q5',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
   test('rejects non-boolean readOnly', () => {
     const result = validateImportedConfigPayload({
       fields: {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import WikidataAutosuggestInput from './WikidataAutosuggestInput.vue'
 import { normalizeWikidataAutosuggestValue } from '../fields/wikidataAutosuggestField'
 
@@ -15,6 +15,41 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const selectedEntities = computed(() => normalizeWikidataAutosuggestValue(props.modelValue))
+const expandedStatementDataByEntityId = ref({})
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getStatementDataEntries(entity) {
+  if (!isPlainObject(entity?.statementData)) {
+    return []
+  }
+
+  return Object.entries(entity.statementData).filter(
+    ([, statements]) => Array.isArray(statements) && statements.length > 0,
+  )
+}
+
+function hasStatementData(entity) {
+  return getStatementDataEntries(entity).length > 0
+}
+
+function isStatementDataExpanded(entityId) {
+  return Boolean(expandedStatementDataByEntityId.value[entityId])
+}
+
+function toggleStatementData(entityId) {
+  const nextValue = !isStatementDataExpanded(entityId)
+  expandedStatementDataByEntityId.value = {
+    ...expandedStatementDataByEntityId.value,
+    [entityId]: nextValue,
+  }
+}
+
+function getStatementDataText(entity) {
+  return JSON.stringify(Object.fromEntries(getStatementDataEntries(entity)), null, 2)
+}
 
 function getPropertyIdsForRule(ruleName, defs) {
   if (!Array.isArray(defs)) {
@@ -133,6 +168,7 @@ function removeEntity(idToRemove) {
   <div class="viewer-wikidata-field" :data-field-id="fieldId">
     <WikidataAutosuggestInput
       :config="autosuggestConfig"
+      :selected-entities="selectedEntities"
       :prefill-value="prefillValue"
       :prefill-context="prefillContext"
       :placeholder="placeholder"
@@ -141,21 +177,32 @@ function removeEntity(idToRemove) {
 
     <ul class="selected-entities" v-if="selectedEntities.length">
       <li v-for="entity in selectedEntities" :key="entity.id" class="selected-entity-item">
-        <div class="selected-entity-main">
-          <strong>{{ entity.label }}</strong>
-          <span>{{ entity.id }}</span>
-          <small v-if="entity.description">{{ entity.description }}</small>
-          <small v-if="entity.ranking" class="selected-entity-meta">
-            Rank: {{ entity.ranking.score }}
-          </small>
-          <small
-            v-if="getPrioritizationValuesText(entity)"
-            class="selected-entity-meta selected-entity-meta--mono"
-          >
-            {{ getPrioritizationValuesText(entity) }}
-          </small>
+        <div class="selected-entity-row">
+          <div class="selected-entity-main">
+            <strong>{{ entity.label }}</strong>
+            <span>{{ entity.id }}</span>
+            <small v-if="entity.description">{{ entity.description }}</small>
+            <small v-if="entity.ranking" class="selected-entity-meta">
+              Rank: {{ entity.ranking.score }}
+            </small>
+            <small
+              v-if="getPrioritizationValuesText(entity)"
+              class="selected-entity-meta selected-entity-meta--mono"
+            >
+              {{ getPrioritizationValuesText(entity) }}
+            </small>
+          </div>
+          <div class="selected-entity-actions">
+            <button v-if="hasStatementData(entity)" type="button" @click="toggleStatementData(entity.id)">
+              {{ isStatementDataExpanded(entity.id) ? 'Hide statement data' : 'Show statement data' }}
+            </button>
+            <button type="button" @click="removeEntity(entity.id)">Remove</button>
+          </div>
         </div>
-        <button type="button" @click="removeEntity(entity.id)">Remove</button>
+        <pre
+          v-if="hasStatementData(entity) && isStatementDataExpanded(entity.id)"
+          class="selected-entity-statement-data"
+        >{{ getStatementDataText(entity) }}</pre>
       </li>
     </ul>
   </div>
@@ -176,14 +223,26 @@ function removeEntity(idToRemove) {
 }
 
 .selected-entity-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
+  display: grid;
+  gap: 0.45rem;
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--ve-color-border);
   border-radius: 8px;
   background: var(--color-surface);
+}
+
+.selected-entity-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selected-entity-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-end;
 }
 
 .selected-entity-main {
@@ -204,5 +263,16 @@ function removeEntity(idToRemove) {
 
 .selected-entity-meta--mono {
   font-family: var(--ve-font-family-mono);
+}
+
+.selected-entity-statement-data {
+  margin: 0;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-soft);
+  font-family: var(--ve-font-family-mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

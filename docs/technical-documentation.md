@@ -107,6 +107,7 @@ Fuer `wikidata-autosuggest` zusaetzlich:
 - GUI-Editierung aller `autosuggest`-Optionen in einem einklappbaren `Optionen`-Bereich
   - Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
   - `prefillWith`: Dropdown auf ein `normal`-Feld; dessen String-Wert wird als Suchtext vorbefuellt
+  - `alsoGetDataFrom`: optionale Wikidata-Property (`P...`), deren rohe Statement-Daten beim Auswaehlen einer Entity zusaetzlich gespeichert werden
   - Priorisierungsbloecke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`, `includeInEmitData`, `showInSuggestion`
   - `claimPresence.defs` als Repeater mit `{ propertyId, propertyLabel }` (Legacy-String-Defs bleiben lesbar)
   - `claimValueMatch.defs` als Repeater mit `{ property, value, label }`
@@ -278,7 +279,11 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 - `showInSuggestion`: zeigt priorisierungsbezogene Metadaten in der Trefferliste.
 - Bei gesetzten Def-Labels werden Metadaten als `Label (PropertyId): ...` angezeigt (statt nur `PropertyId: ...`) in Trefferliste und selektierten Ergebnissen.
 - `includeInEmitData`: behaelt priorisierungsbezogene Metadaten (`ranking`, `prioritizationValues`) im selektierten Entity-Payload.
-- `prefillWith`: wenn konfiguriert, wird beim Wechsel auf ein Item der Wert des referenzierten `normal`-Felds automatisch in die Autosuggest-Suche uebernommen; die Suche startet sofort.
+- `prefillWith`: wenn konfiguriert, wird beim Wechsel auf ein Item der Wert des referenzierten `normal`-Felds automatisch in die Autosuggest-Eingabe uebernommen; die Suche startet dabei nur automatisch, wenn noch keine Entity im Feld selektiert ist.
+- `alsoGetDataFrom`: wenn konfiguriert (`P...`), laedt die Auswahl-Logik beim Hinzufuegen einer Entity die rohen Statements fuer diese Property nach und speichert sie unter `statementData[PROPERTY_ID]` im Entity-Payload.
+- Bereits ausgewaehlte Entities werden in der Suggestion-Liste ausgefiltert (Anzeige nur in der selektierten Entity-Liste unterhalb des Inputs).
+- Die Suggestion-Liste ist auf `6rem` Hoehe begrenzt und nutzt vertikales Scrollen.
+- Wenn `statementData` vorhanden ist, zeigt die selektierte Entity-Liste einen Toggle (`Show/Hide statement data`) und rendert die rohen Daten als formatierten JSON-Block (`<pre>`).
 - Stale-Protection: `WikidataAutosuggestInput.vue` verwaltet pro Query einen `AbortController`; bei neuer Eingabe oder Unmount werden laufende Requests abgebrochen.
 - UX bei Abort: Abgebrochene Requests erzeugen keine Fehleranzeige im UI und kein Error-Logging.
 

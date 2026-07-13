@@ -320,6 +320,14 @@ const wording = {
     de: "Trefferlimit",
     en: "Result limit",
   },
+  autosuggestAlsoGetDataFrom: {
+    de: "Statement-Daten zusaetzlich laden aus",
+    en: "Also get statement data from",
+  },
+  autosuggestAlsoGetDataFromPlaceholder: {
+    de: "P31",
+    en: "P31",
+  },
   autosuggestClaimPresenceTitle: {
     de: "claimPresence",
     en: "claimPresence",

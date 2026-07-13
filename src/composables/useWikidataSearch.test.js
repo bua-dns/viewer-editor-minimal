@@ -157,4 +157,60 @@ describe('useWikidataSearch', () => {
     expect(results[0].ranking.score).toBe(5)
     expect(results[0].prioritizationValues).toEqual({ P31: ['Q5'] })
   })
+
+  test('fetches raw statement data for a property and entity', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        const parsed = new URL(url)
+        const action = parsed.searchParams.get('action')
+
+        if (action !== 'wbgetentities') {
+          throw new Error(`Unexpected action: ${action}`)
+        }
+
+        expect(parsed.searchParams.get('claims')).toBe('P31')
+        expect(parsed.searchParams.get('ids')).toBe('Q42')
+
+        return createJsonResponse({
+          entities: {
+            Q42: {
+              claims: {
+                P31: [
+                  {
+                    id: 'Q42$ABC',
+                    mainsnak: {
+                      snaktype: 'value',
+                      property: 'P31',
+                      datavalue: {
+                        value: { id: 'Q5' },
+                        type: 'wikibase-entityid',
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        })
+      }),
+    )
+
+    const { fetchStatementDataForEntity } = useWikidataSearch()
+    const statements = await fetchStatementDataForEntity('Q42', 'P31')
+
+    expect(statements).toEqual([
+      {
+        id: 'Q42$ABC',
+        mainsnak: {
+          snaktype: 'value',
+          property: 'P31',
+          datavalue: {
+            value: { id: 'Q5' },
+            type: 'wikibase-entityid',
+          },
+        },
+      },
+    ])
+  })
 })

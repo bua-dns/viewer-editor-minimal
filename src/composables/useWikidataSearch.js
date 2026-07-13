@@ -216,6 +216,20 @@ function chunkArray(items, size) {
   return chunks
 }
 
+function normalizePropertyIds(propertyIds) {
+  if (!Array.isArray(propertyIds)) {
+    return []
+  }
+
+  return Array.from(
+    new Set(
+      propertyIds
+        .map((propertyId) => String(propertyId || '').trim())
+        .filter(Boolean),
+    ),
+  )
+}
+
 async function fetchEntityClaimsById(ids, requiredProperties, options = {}) {
   const { signal } = options
 
@@ -257,6 +271,38 @@ async function fetchEntityClaimsById(ids, requiredProperties, options = {}) {
   }
 
   return claimsById
+}
+
+async function fetchClaimsForEntities(entityIds, propertyIds, options = {}) {
+  const normalizedEntityIds = Array.from(
+    new Set(
+      (Array.isArray(entityIds) ? entityIds : [])
+        .map((entityId) => String(entityId || '').trim())
+        .filter(Boolean),
+    ),
+  )
+  const normalizedPropertyIds = normalizePropertyIds(propertyIds)
+
+  if (!normalizedEntityIds.length || !normalizedPropertyIds.length) {
+    return new Map()
+  }
+
+  return fetchEntityClaimsById(normalizedEntityIds, normalizedPropertyIds, options)
+}
+
+async function fetchStatementDataForEntity(entityId, propertyId, options = {}) {
+  const normalizedEntityId = String(entityId || '').trim()
+  const normalizedPropertyId = String(propertyId || '').trim()
+
+  if (!normalizedEntityId || !normalizedPropertyId) {
+    return []
+  }
+
+  const claimsById = await fetchClaimsForEntities([normalizedEntityId], [normalizedPropertyId], options)
+  const entityClaims = claimsById.get(normalizedEntityId)
+  const statements = entityClaims?.[normalizedPropertyId]
+
+  return Array.isArray(statements) ? statements : []
 }
 
 function getRankingForEntity(entityClaims, prioritizationBlocks) {
@@ -412,5 +458,6 @@ export function useWikidataSearch() {
 
   return {
     search,
+    fetchStatementDataForEntity,
   }
 }

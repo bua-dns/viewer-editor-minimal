@@ -36,7 +36,13 @@
 - Optional kann `autosuggest.prefillWith` gesetzt werden (String):
   - muss auf ein vorhandenes Feld in `config.fields` verweisen
   - das referenzierte Feld muss vom Typ `normal` sein
-  - der Wert wird beim Oeffnen eines Items als initiale Wikidata-Suche vorbefuellt und sofort gesucht
+  - der Wert wird beim Oeffnen eines Items in die Autosuggest-Eingabe uebernommen
+  - automatische Suche startet nur, wenn im aktuellen Feld noch keine Entity ausgewaehlt wurde
+- Optional kann `autosuggest.alsoGetDataFrom` gesetzt werden (String, `P...`):
+  - muss eine gueltige Wikidata-Property-ID sein (z. B. `P31`)
+  - beim Auswaehlen einer Suggestion werden rohe Statement-Daten fuer diese Property nachgeladen
+  - die Daten werden im selektierten Entity-Objekt unter `statementData[PROPERTY_ID]` gespeichert
+  - falls `statementData` vorhanden ist, kann es im UI pro selektierter Entity auf- und zugeklappt als JSON angezeigt werden
 
 ## Replacements (JSON)
 

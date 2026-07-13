@@ -117,6 +117,23 @@ export function validateImportedConfigPayload(configPayload) {
         }
       }
     }
+
+    if (isPlainObject(fieldConfig.autosuggest) && fieldConfig.autosuggest.alsoGetDataFrom != null) {
+      if (typeof fieldConfig.autosuggest.alsoGetDataFrom !== 'string') {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss ein String sein.`,
+        }
+      }
+
+      const alsoGetDataFrom = fieldConfig.autosuggest.alsoGetDataFrom.trim()
+      if (alsoGetDataFrom && !/^P\d+$/i.test(alsoGetDataFrom)) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss eine gueltige Property-ID sein (z. B. P31).`,
+        }
+      }
+    }
   }
 
   return { ok: true }

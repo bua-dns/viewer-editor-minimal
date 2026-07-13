@@ -71,6 +71,7 @@ const limit = computed(() => {
   return Number.isFinite(value) ? String(value) : ''
 })
 const prefillWith = computed(() => String(getConfig().prefillWith || ''))
+const alsoGetDataFrom = computed(() => String(getConfig().alsoGetDataFrom || ''))
 
 const claimPresenceDefs = computed(() => {
   const defs = getPrioritizeBlock('claimPresence').defs
@@ -198,6 +199,17 @@ function setPrefillWith(value) {
   })
 }
 
+function setAlsoGetDataFrom(value) {
+  updateConfig((next) => {
+    const normalized = String(value || '').trim().toUpperCase()
+    if (normalized) {
+      next.alsoGetDataFrom = normalized
+      return
+    }
+    delete next.alsoGetDataFrom
+  })
+}
+
 function removeClaimPresenceDef(index) {
   updateConfig((next) => {
     const block = ensurePrioritizeBlock(next, 'claimPresence')
@@ -310,6 +322,14 @@ function toggleAdvancedConfig() {
             {{ fieldKey }}
           </option>
         </select>
+
+        <label>{{ t('autosuggestAlsoGetDataFrom', 'Also get statement data from') }}</label>
+        <input
+          :value="alsoGetDataFrom"
+          type="text"
+          :placeholder="t('autosuggestAlsoGetDataFromPlaceholder', 'P31')"
+          @input="setAlsoGetDataFrom($event.target.value)"
+        />
       </div>
 
       <section class="autosuggest-priority-block">

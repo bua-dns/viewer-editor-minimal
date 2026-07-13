@@ -7,6 +7,7 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   prefillValue: { type: String, default: '' },
   prefillContext: { type: Object, default: null },
+  selectedEntities: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['select'])
@@ -42,6 +43,10 @@ let debounceTimer = null
 let requestId = 0
 let activeSearchController = null
 let suppressNextQueryWatcher = false
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
 
 function isAbortError(error) {
   return Boolean(error) && (error.name === 'AbortError' || error.code === 20)
@@ -163,6 +168,19 @@ function collectPropertyIdsByFlag(flagName) {
 const suggestionPropertyIds = computed(() => collectPropertyIdsByFlag('showInSuggestion'))
 const emitPropertyIds = computed(() => collectPropertyIdsByFlag('includeInEmitData'))
 const showSuggestionMetadata = computed(() => suggestionPropertyIds.value.length > 0)
+const alsoGetDataFromProperty = computed(() => {
+  const value = mergedConfig.value.alsoGetDataFrom
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const normalized = value.trim().toUpperCase()
+  if (!/^P\d+$/.test(normalized)) {
+    return ''
+  }
+
+  return normalized
+})
 
 const suggestionPropertyLabels = computed(() => {
   const prioritizeConfig = mergedConfig.value.prioritize || {}
@@ -211,8 +229,28 @@ const parsedManualEntity = computed(() => {
   }
 })
 
-function selectEntity(entity) {
-  emit('select', getEmitItem(entity))
+const normalizedSelectedEntities = computed(() =>
+  (Array.isArray(props.selectedEntities) ? props.selectedEntities : [])
+    .filter((entity) => isPlainObject(entity) && typeof entity.id === 'string' && entity.id.trim())
+    .map((entity) => ({
+      ...entity,
+      id: entity.id.trim(),
+      label:
+        typeof entity.label === 'string' && entity.label.trim()
+          ? entity.label.trim()
+          : entity.id.trim(),
+    })),
+)
+
+const selectedEntityIds = computed(() => new Set(normalizedSelectedEntities.value.map((entity) => entity.id)))
+const hasSelectedEntities = computed(() => normalizedSelectedEntities.value.length > 0)
+const visibleSuggestions = computed(() =>
+  suggestions.value.filter((entry) => !selectedEntityIds.value.has(entry.id)),
+)
+
+async function selectEntity(entity) {
+  const nextItem = await getEmitItem(entity)
+  emit('select', nextItem)
   query.value = ''
   suggestions.value = []
   requestError.value = ''
@@ -252,29 +290,44 @@ function getSuggestionPrioritizationValuesText(item) {
   return parts.join(' | ')
 }
 
-function getEmitItem(item) {
+async function getEmitItem(item) {
   const nextItem = { ...item }
   const shouldIncludeClaimData = emitPropertyIds.value.length > 0
 
   if (!shouldIncludeClaimData) {
     delete nextItem.ranking
     delete nextItem.prioritizationValues
-    return nextItem
+  } else {
+    nextItem.prioritizationValues = filterPrioritizationValues(
+      item?.prioritizationValues,
+      emitPropertyIds.value,
+    )
+
+    if (!Object.keys(nextItem.prioritizationValues).length) {
+      delete nextItem.prioritizationValues
+    }
   }
 
-  nextItem.prioritizationValues = filterPrioritizationValues(
-    item?.prioritizationValues,
-    emitPropertyIds.value,
-  )
-
-  if (!Object.keys(nextItem.prioritizationValues).length) {
-    delete nextItem.prioritizationValues
+  const propertyIdForStatementData = alsoGetDataFromProperty.value
+  if (propertyIdForStatementData && typeof nextItem.id === 'string' && nextItem.id.trim()) {
+    try {
+      const statementData = await fetchStatementDataForEntity(nextItem.id, propertyIdForStatementData)
+      const existingStatementData = isPlainObject(nextItem.statementData) ? nextItem.statementData : {}
+      nextItem.statementData = {
+        ...existingStatementData,
+        [propertyIdForStatementData]: statementData,
+      }
+    } catch (error) {
+      if (!isAbortError(error) && import.meta.env.DEV) {
+        console.warn('[wikidata] statement data request failed', error)
+      }
+    }
   }
 
   return nextItem
 }
 
-const { search } = useWikidataSearch()
+const { search, fetchStatementDataForEntity } = useWikidataSearch()
 
 function scheduleSearch(normalized) {
   abortActiveSearch()
@@ -345,7 +398,13 @@ watch(
         query.value = normalizedPrefill
       }
       lastAppliedPrefill.value = normalizedPrefill
-      scheduleSearch(normalizedPrefill)
+      if (hasSelectedEntities.value) {
+        suggestions.value = []
+        requestError.value = ''
+        isLoading.value = false
+      } else {
+        scheduleSearch(normalizedPrefill)
+      }
       return
     }
 
@@ -380,8 +439,8 @@ watch(
 )
 
 function onEnterKey() {
-  if (suggestions.value.length) {
-    selectEntity(suggestions.value[0])
+  if (visibleSuggestions.value.length) {
+    selectEntity(visibleSuggestions.value[0])
     return
   }
 
@@ -412,8 +471,8 @@ onBeforeUnmount(() => {
     <p v-if="isLoading" class="wikidata-status-text">Searching Wikidata...</p>
     <p v-else-if="requestError" class="wikidata-status-text">{{ requestError }}</p>
 
-    <ul v-if="suggestions.length" class="wikidata-suggestion-list">
-      <li v-for="entry in suggestions" :key="`${entry.id}-${entry.label}`">
+    <ul v-if="visibleSuggestions.length" class="wikidata-suggestion-list">
+      <li v-for="entry in visibleSuggestions" :key="`${entry.id}-${entry.label}`">
         <button type="button" class="wikidata-suggestion-item" @click="selectEntity(entry)">
           <span class="wikidata-suggestion-main">
             <strong>{{ entry.label || entry.id }}</strong>
@@ -438,7 +497,7 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .wikidata-autosuggest-input {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .wikidata-suggestion-list {
@@ -447,7 +506,8 @@ onBeforeUnmount(() => {
   list-style: none;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: 9rem;
   background: var(--color-surface);
 }
 
@@ -459,7 +519,7 @@ onBeforeUnmount(() => {
   width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   text-align: left;
   background: transparent;
@@ -471,7 +531,7 @@ onBeforeUnmount(() => {
 
 .wikidata-suggestion-main {
   display: grid;
-  gap: 0.05rem;
+  gap: 0.12rem;
 }
 
 .wikidata-suggestion-item:hover,
