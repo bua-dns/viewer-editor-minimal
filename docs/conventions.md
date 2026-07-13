@@ -4,6 +4,7 @@
 
 - Quelle ist das Feld "scan" im Daten-JSON
 - Dort muss eine URL zu einem Digitalisat hinterlegt sein
+- Wenn kein `scan`-Feld vorhanden ist, arbeitet die App automatisch im No-Scans-Modus mit textbasierter Item-Liste.
 
 ## Datenformate
 
@@ -19,12 +20,23 @@
 - Das Feld `scan` ist fuer die Bildvorschau reserviert.
 - Fuer die automatische Vorschau sollte `scan` auf eine direkt ladbare Bild-URL zeigen (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
 - Alle uebrigen Felder koennen ueber die Konfiguration als `normal`, `text`, `integer`, `checkbox` oder `wikidata-autosuggest` typisiert werden.
+- Das globale Config-Feld `itemLabelField` kann auf einen vorhandenen Feldschluessel zeigen und steuert dann die Item-Beschriftung in Karten-/Listenansicht.
 
 ## Konfiguration (JSON)
 
 - Beim JSON-Export wird immer das kanonische Format `{ data, config }` geschrieben.
 - `config.fields` muss ein Objekt sein, dessen Schluessel den Feldnamen entsprechen.
-- Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`; fuer `wikidata-autosuggest` zusaetzlich optional `autosuggest` als pass-through Objekt.
+- Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`, `hint`.
+- Fuer Nicht-`wikidata-autosuggest`-Felder ist zusaetzlich `readOnly` (Boolean) erlaubt.
+- Fuer `wikidata-autosuggest` ist `readOnly` nicht erlaubt; stattdessen ist optional `autosuggest` als pass-through Objekt vorgesehen.
+- Optional kann `config.itemLabelField` gesetzt werden (String, muss ein vorhandener Schluessel in `config.fields` sein).
+- Fuer `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
+  - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeintraege bleiben kompatibel)
+  - `claimValueMatch.defs`: Liste aus Objekten `{ property, value, label }` (`label` dient der Anzeige)
+- Optional kann `autosuggest.prefillWith` gesetzt werden (String):
+  - muss auf ein vorhandenes Feld in `config.fields` verweisen
+  - das referenzierte Feld muss vom Typ `normal` sein
+  - der Wert wird beim Oeffnen eines Items als initiale Wikidata-Suche vorbefuellt und sofort gesucht
 
 ## Replacements (JSON)
 
@@ -39,7 +51,7 @@
 
 ## Bedienung
 
-- Die App ist in zwei Tabs gegliedert: `Editieren` (Arbeitsbereich) und `Info` (Kurzanleitung).
-- Die Volltextsuche befindet sich im Bereich `Digitalisate` oberhalb der Kartenliste.
+- Die App ist in vier Tabs gegliedert: `Editieren`, `Konfiguration`, `Ersetzungen`, `Info`.
+- Die Volltextsuche befindet sich im Bereich `Digitalisate` oberhalb der Karten- bzw. Listenansicht.
 - `Escape` schliesst die Start-From-Scratch-Modal und die Lightbox.
 - `Escape` hebt ausserdem eine aktive Sidebar-Auswahl auf.

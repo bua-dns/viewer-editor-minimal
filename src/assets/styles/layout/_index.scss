@@ -241,6 +241,10 @@
   align-items: start;
 }
 
+.sidebar-detail-grid.sidebar-detail-grid-no-scan {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .content-grid.content-grid-selected.content-grid-extended .sidebar-detail-grid {
   grid-template-columns: minmax(320px, 1.34fr) minmax(0, 1.05fr);
 }

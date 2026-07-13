@@ -103,4 +103,58 @@ describe('useWikidataSearch', () => {
     await expect(request).rejects.toMatchObject({ name: 'AbortError' })
     expect(warnSpy).not.toHaveBeenCalled()
   })
+
+  test('supports claimPresence defs as property objects', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        const parsed = new URL(url)
+        const action = parsed.searchParams.get('action')
+
+        if (action === 'wbsearchentities') {
+          return createJsonResponse({
+            search: [{ id: 'Q42', label: 'Douglas Adams', description: 'English writer' }],
+          })
+        }
+
+        if (action === 'wbgetentities') {
+          expect(parsed.searchParams.get('claims')).toBe('P31')
+          return createJsonResponse({
+            entities: {
+              Q42: {
+                claims: {
+                  P31: [
+                    {
+                      mainsnak: {
+                        datavalue: {
+                          value: { id: 'Q5' },
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          })
+        }
+
+        throw new Error(`Unexpected action: ${action}`)
+      }),
+    )
+
+    const { search } = useWikidataSearch()
+    const results = await search('douglas', {
+      searchLanguages: ['en'],
+      prioritize: {
+        claimPresence: {
+          weight: 5,
+          defs: [{ propertyId: ' P31 ', propertyLabel: 'instance of' }],
+        },
+      },
+    })
+
+    expect(results).toHaveLength(1)
+    expect(results[0].ranking.score).toBe(5)
+    expect(results[0].prioritizationValues).toEqual({ P31: ['Q5'] })
+  })
 })

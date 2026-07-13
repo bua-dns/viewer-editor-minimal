@@ -10,6 +10,8 @@ const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 
 const userConfigFields = ref({})
 const appliedUserConfigFields = ref({})
+const itemLabelField = ref('')
+const appliedItemLabelField = ref('')
 const appliedUserConfigSnapshot = ref('')
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
@@ -33,17 +35,34 @@ function createMinimalAutosuggestConfig() {
 
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
   const type = source.type || 'normal'
+  const readOnly = type !== 'wikidata-autosuggest' ? Boolean(source.readOnly) : undefined
   const autosuggest =
     type === 'wikidata-autosuggest' && isPlainObject(source.autosuggest)
       ? cloneValue(source.autosuggest)
       : type === 'wikidata-autosuggest'
-        ? createMinimalAutosuggestConfig()
-        : undefined
+      ? createMinimalAutosuggestConfig()
+      : undefined
+
+  if (isPlainObject(autosuggest)) {
+    if (typeof autosuggest.prefillWith === 'string') {
+      const normalizedPrefillWith = autosuggest.prefillWith.trim()
+      if (normalizedPrefillWith) {
+        autosuggest.prefillWith = normalizedPrefillWith
+      } else {
+        delete autosuggest.prefillWith
+      }
+    } else {
+      delete autosuggest.prefillWith
+    }
+  }
+
   return {
     type,
     label: source.label || '',
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',
+    hint: typeof source.hint === 'string' ? source.hint : '',
+    ...(type !== 'wikidata-autosuggest' ? { readOnly } : {}),
     ...(autosuggest ? { autosuggest } : {}),
   }
 }
@@ -58,26 +77,41 @@ function serializeUserConfigFields(fields) {
   return JSON.stringify(normalized)
 }
 
+function serializeUserConfigState(fields, nextItemLabelField) {
+  return JSON.stringify({
+    fields: JSON.parse(serializeUserConfigFields(fields)),
+    itemLabelField: String(nextItemLabelField || ''),
+  })
+}
+
 const sortedConfigFieldEntries = computed(() =>
   Object.entries(userConfigFields.value).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
 )
 
 const hasUnappliedUserConfigChanges = computed(
-  () => serializeUserConfigFields(userConfigFields.value) !== appliedUserConfigSnapshot.value,
+  () =>
+    serializeUserConfigState(userConfigFields.value, itemLabelField.value) !== appliedUserConfigSnapshot.value,
 )
 
 function loadUserConfigFromSession() {
   try {
     const raw = sessionStorage.getItem(USER_CONFIG_SESSION_KEY)
-    if (!raw) return { fields: {}, appliedFields: {} }
+    if (!raw) return { fields: {}, appliedFields: {}, itemLabelField: '', appliedItemLabelField: '' }
     const parsed = JSON.parse(raw)
     return {
       fields: parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
       appliedFields:
         parsed?.appliedFields && typeof parsed.appliedFields === 'object' ? parsed.appliedFields : {},
+      itemLabelField: typeof parsed?.itemLabelField === 'string' ? parsed.itemLabelField : '',
+      appliedItemLabelField:
+        typeof parsed?.appliedItemLabelField === 'string'
+          ? parsed.appliedItemLabelField
+          : typeof parsed?.itemLabelField === 'string'
+            ? parsed.itemLabelField
+            : '',
     }
   } catch {
-    return { fields: {}, appliedFields: {} }
+    return { fields: {}, appliedFields: {}, itemLabelField: '', appliedItemLabelField: '' }
   }
 }
 
@@ -85,6 +119,8 @@ function persistUserConfigToSession() {
   const payload = {
     fields: userConfigFields.value,
     appliedFields: appliedUserConfigFields.value,
+    itemLabelField: itemLabelField.value,
+    appliedItemLabelField: appliedItemLabelField.value,
   }
   sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
 }
@@ -97,6 +133,8 @@ function initializeUserConfig(availableFieldKeys, hasData) {
   if (!hasData) {
     userConfigFields.value = {}
     appliedUserConfigFields.value = {}
+    itemLabelField.value = ''
+    appliedItemLabelField.value = ''
     appliedUserConfigSnapshot.value = ''
     return
   }
@@ -129,7 +167,14 @@ function initializeUserConfig(availableFieldKeys, hasData) {
 
   userConfigFields.value = nextFields
   appliedUserConfigFields.value = nextAppliedFields
-  appliedUserConfigSnapshot.value = serializeUserConfigFields(nextAppliedFields)
+  const hasLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.itemLabelField)
+  const hasAppliedLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.appliedItemLabelField)
+  itemLabelField.value = hasLabelField ? persisted.itemLabelField : ''
+  appliedItemLabelField.value = hasAppliedLabelField ? persisted.appliedItemLabelField : itemLabelField.value
+  appliedUserConfigSnapshot.value = serializeUserConfigState(
+    nextAppliedFields,
+    appliedItemLabelField.value,
+  )
 }
 
 function normalizeConfigOrder() {
@@ -170,7 +215,11 @@ function applyUserConfigToRawItems(rawItems) {
   })
 
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
-  appliedUserConfigSnapshot.value = serializeUserConfigFields(appliedUserConfigFields.value)
+  appliedItemLabelField.value = itemLabelField.value
+  appliedUserConfigSnapshot.value = serializeUserConfigState(
+    appliedUserConfigFields.value,
+    appliedItemLabelField.value,
+  )
   persistUserConfigToSession()
 }
 
@@ -198,7 +247,30 @@ function addUserConfigField(t) {
 function removeUserConfigField(fieldKey) {
   if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, fieldKey)) return
   delete userConfigFields.value[fieldKey]
+  if (itemLabelField.value === fieldKey) {
+    itemLabelField.value = ''
+  }
+  if (appliedItemLabelField.value === fieldKey) {
+    appliedItemLabelField.value = ''
+  }
   persistUserConfigToSession()
+}
+
+function setItemLabelField(nextFieldKey) {
+  const normalized = String(nextFieldKey || '').trim()
+  if (!normalized) {
+    itemLabelField.value = ''
+    persistUserConfigToSession()
+    return true
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, normalized)) {
+    return false
+  }
+
+  itemLabelField.value = normalized
+  persistUserConfigToSession()
+  return true
 }
 
 function startDrag(fieldKey) {
@@ -229,7 +301,11 @@ function createUserConfigPayload() {
   Object.keys(userConfigFields.value).forEach((key, index) => {
     normalizedFields[key] = normalizeUserConfigField(userConfigFields.value[key], index)
   })
-  return { version: 1, fields: normalizedFields }
+  return {
+    version: 1,
+    fields: normalizedFields,
+    itemLabelField: itemLabelField.value,
+  }
 }
 
 function setFieldType(fieldKey, nextType) {
@@ -239,10 +315,14 @@ function setFieldType(fieldKey, nextType) {
   field.type = nextType
 
   if (nextType === 'wikidata-autosuggest') {
+    delete field.readOnly
     if (!isPlainObject(field.autosuggest)) {
       field.autosuggest = createMinimalAutosuggestConfig()
     }
   } else {
+    if (typeof field.readOnly !== 'boolean') {
+      field.readOnly = false
+    }
     delete field.autosuggest
   }
 
@@ -272,9 +352,21 @@ function applyImportedConfigPayload(configPayload) {
     nextFields[key] = normalizeUserConfigField(source, index)
   })
 
+  const requestedItemLabelField =
+    typeof configPayload.itemLabelField === 'string' ? configPayload.itemLabelField.trim() : ''
+  const normalizedItemLabelField =
+    requestedItemLabelField && Object.prototype.hasOwnProperty.call(nextFields, requestedItemLabelField)
+      ? requestedItemLabelField
+      : ''
+
   userConfigFields.value = nextFields
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
-  appliedUserConfigSnapshot.value = serializeUserConfigFields(appliedUserConfigFields.value)
+  itemLabelField.value = normalizedItemLabelField
+  appliedItemLabelField.value = normalizedItemLabelField
+  appliedUserConfigSnapshot.value = serializeUserConfigState(
+    appliedUserConfigFields.value,
+    appliedItemLabelField.value,
+  )
   persistUserConfigToSession()
 
   return { ok: true }
@@ -285,6 +377,8 @@ export function useUserConfigStore() {
     userConfigFields,
     sortedConfigFieldEntries,
     appliedUserConfigFields,
+    itemLabelField,
+    appliedItemLabelField,
     hasUnappliedUserConfigChanges,
     draggedFieldKey,
     isUserConfigOpen,
@@ -296,6 +390,7 @@ export function useUserConfigStore() {
     addUserConfigField,
     setFieldType,
     updateFieldAutosuggestConfig,
+    setItemLabelField,
     removeUserConfigField,
     startDrag,
     dropAt,

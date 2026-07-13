@@ -12,14 +12,37 @@ export function useFieldMapping() {
     return appliedUserConfigFields.value[key]?.placeholder || ''
   }
 
-  function getFieldEditorBinding(key, value) {
+  function getFieldHint(key) {
+    return appliedUserConfigFields.value[key]?.hint || ''
+  }
+
+  function isFieldReadOnly(key) {
+    const fieldConfig = appliedUserConfigFields.value[key]
+    if (!fieldConfig || fieldConfig.type === 'wikidata-autosuggest') return false
+    return Boolean(fieldConfig.readOnly)
+  }
+
+  function getAutosuggestPrefillValue(fieldConfig, selectedRawItem) {
+    const prefillWithFieldKey = String(fieldConfig?.autosuggest?.prefillWith || '').trim()
+    if (!prefillWithFieldKey || !selectedRawItem || typeof selectedRawItem !== 'object') {
+      return ''
+    }
+
+    const sourceValue = selectedRawItem[prefillWithFieldKey]
+    return typeof sourceValue === 'string' ? sourceValue : ''
+  }
+
+  function getFieldEditorBinding(key, value, selectedRawItem = null) {
     const fieldConfig = appliedUserConfigFields.value[key]
     return createFieldEditorBinding({
       fieldId: `field-${key}`,
       configuredType: fieldConfig?.type,
       value,
       placeholder: getFieldPlaceholder(key),
+      readOnly: Boolean(fieldConfig?.readOnly && fieldConfig?.type !== 'wikidata-autosuggest'),
       autosuggestConfig: fieldConfig?.autosuggest,
+      autosuggestPrefillValue: getAutosuggestPrefillValue(fieldConfig, selectedRawItem),
+      autosuggestPrefillContext: selectedRawItem,
     })
   }
 
@@ -37,6 +60,8 @@ export function useFieldMapping() {
   return {
     getFieldLabel,
     getFieldPlaceholder,
+    getFieldHint,
+    isFieldReadOnly,
     getFieldEditorBinding,
     getDisplayedFieldKeys,
   }

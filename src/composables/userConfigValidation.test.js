@@ -4,16 +4,45 @@ import { validateImportedConfigPayload } from './userConfigValidation'
 describe('validateImportedConfigPayload', () => {
   test('accepts valid payload', () => {
     const result = validateImportedConfigPayload({
+      itemLabelField: 'species',
       fields: {
         species: {
           type: 'normal',
+          readOnly: true,
           label: '',
           order: 0,
           placeholder: '',
+          hint: '',
         },
       },
     })
     expect(result.ok).toBe(true)
+  })
+
+  test('rejects non-string itemLabelField', () => {
+    const result = validateImportedConfigPayload({
+      itemLabelField: 5,
+      fields: {
+        species: {
+          type: 'normal',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects itemLabelField when missing in fields', () => {
+    const result = validateImportedConfigPayload({
+      itemLabelField: 'inventory_number',
+      fields: {
+        species: {
+          type: 'normal',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
   })
 
   test('accepts autosuggest object on wikidata-autosuggest fields', () => {
@@ -74,6 +103,96 @@ describe('validateImportedConfigPayload', () => {
           autosuggest: {
             minChars: 2,
           },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('accepts autosuggest prefillWith on normal source fields', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        title: {
+          type: 'normal',
+        },
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            prefillWith: 'title',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
+  test('rejects autosuggest prefillWith when source field is missing', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            prefillWith: 'title',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects autosuggest prefillWith when source field is not normal string', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        title: {
+          type: 'text',
+        },
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            prefillWith: 'title',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects non-boolean readOnly', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        species: {
+          type: 'normal',
+          readOnly: 'yes',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects readOnly on wikidata-autosuggest fields', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          readOnly: true,
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects non-string hint', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        species: {
+          type: 'normal',
+          hint: 123,
         },
       },
     })

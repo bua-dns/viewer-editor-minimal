@@ -87,5 +87,50 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(switched).toBe(true)
     expect(store.userConfigFields.value.collector.type).toBe('normal')
     expect(store.userConfigFields.value.collector.autosuggest).toBeUndefined()
+    expect(store.userConfigFields.value.collector.readOnly).toBe(false)
+  })
+
+  test('drops readOnly when switching to wikidata-autosuggest', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['collector'], true)
+    store.userConfigFields.value.collector.readOnly = true
+
+    const switched = store.setFieldType('collector', 'wikidata-autosuggest')
+
+    expect(switched).toBe(true)
+    expect(store.userConfigFields.value.collector.readOnly).toBeUndefined()
+  })
+
+  test('persists configured item label field in payload', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number', 'species'], true)
+
+    const updated = store.setItemLabelField('species')
+    expect(updated).toBe(true)
+
+    store.applyUserConfigToRawItems([{ inventory_number: 'A1', species: 'Oak' }])
+    const payload = store.createUserConfigPayload()
+
+    expect(payload.itemLabelField).toBe('species')
+  })
+
+  test('clears item label field when configured key is removed', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number', 'species'], true)
+    store.setItemLabelField('species')
+
+    store.removeUserConfigField('species')
+
+    expect(store.itemLabelField.value).toBe('')
+  })
+
+  test('keeps hint in payload for normal fields', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['species'], true)
+    store.userConfigFields.value.species.hint = 'Use latin species name'
+
+    const payload = store.createUserConfigPayload()
+
+    expect(payload.fields.species.hint).toBe('Use latin species name')
   })
 })

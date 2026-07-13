@@ -5,6 +5,8 @@ import { useWikidataSearch } from '../composables/useWikidataSearch'
 const props = defineProps({
   config: { type: Object, default: null },
   placeholder: { type: String, default: '' },
+  prefillValue: { type: String, default: '' },
+  prefillContext: { type: Object, default: null },
 })
 
 const emit = defineEmits(['select'])
@@ -34,10 +36,12 @@ const query = ref('')
 const suggestions = ref([])
 const isLoading = ref(false)
 const requestError = ref('')
+const lastAppliedPrefill = ref('')
 
 let debounceTimer = null
 let requestId = 0
 let activeSearchController = null
+let suppressNextQueryWatcher = false
 
 function isAbortError(error) {
   return Boolean(error) && (error.name === 'AbortError' || error.code === 20)
@@ -89,16 +93,54 @@ function getPropertyIdsForPrioritizeRule(ruleName, defs) {
   }
 
   if (ruleName === 'claimPresence') {
-    return defs.filter((propertyId) => typeof propertyId === 'string' && propertyId.trim())
+    return defs
+      .map((definition) => {
+        if (typeof definition === 'string') return definition
+        if (typeof definition?.propertyId === 'string') return definition.propertyId
+        if (typeof definition?.property === 'string') return definition.property
+        return ''
+      })
+      .map((propertyId) => String(propertyId || '').trim())
+      .filter(Boolean)
   }
 
   if (ruleName === 'claimValueMatch') {
     return defs
       .map((definition) => definition?.property)
-      .filter((propertyId) => typeof propertyId === 'string' && propertyId.trim())
+      .map((propertyId) => String(propertyId || '').trim())
+      .filter(Boolean)
   }
 
   return []
+}
+
+function normalizePrefillValue(value) {
+  return String(value || '').trim()
+}
+
+function getPropertyLabelForPrioritizeRule(ruleName, definition) {
+  if (!definition || typeof definition !== 'object') {
+    return ''
+  }
+
+  if (ruleName === 'claimPresence') {
+    if (typeof definition.propertyLabel === 'string' && definition.propertyLabel.trim()) {
+      return definition.propertyLabel.trim()
+    }
+    if (typeof definition.label === 'string' && definition.label.trim()) {
+      return definition.label.trim()
+    }
+    return ''
+  }
+
+  if (ruleName === 'claimValueMatch') {
+    if (typeof definition.label === 'string' && definition.label.trim()) {
+      return definition.label.trim()
+    }
+    return ''
+  }
+
+  return ''
 }
 
 function collectPropertyIdsByFlag(flagName) {
@@ -121,6 +163,36 @@ function collectPropertyIdsByFlag(flagName) {
 const suggestionPropertyIds = computed(() => collectPropertyIdsByFlag('showInSuggestion'))
 const emitPropertyIds = computed(() => collectPropertyIdsByFlag('includeInEmitData'))
 const showSuggestionMetadata = computed(() => suggestionPropertyIds.value.length > 0)
+
+const suggestionPropertyLabels = computed(() => {
+  const prioritizeConfig = mergedConfig.value.prioritize || {}
+  const labelsByPropertyId = {}
+
+  for (const [ruleName, ruleConfig] of Object.entries(prioritizeConfig)) {
+    if (!ruleConfig?.showInSuggestion || !Array.isArray(ruleConfig.defs)) {
+      continue
+    }
+
+    for (const definition of ruleConfig.defs) {
+      const propertyIds = getPropertyIdsForPrioritizeRule(ruleName, [definition])
+      if (!propertyIds.length) {
+        continue
+      }
+
+      const label = getPropertyLabelForPrioritizeRule(ruleName, definition)
+      if (!label) {
+        continue
+      }
+
+      const propertyId = propertyIds[0]
+      if (!labelsByPropertyId[propertyId]) {
+        labelsByPropertyId[propertyId] = label
+      }
+    }
+  }
+
+  return labelsByPropertyId
+})
 
 const parsedManualEntity = computed(() => {
   const normalized = query.value.trim()
@@ -171,7 +243,11 @@ function getSuggestionPrioritizationValuesText(item) {
 
   const parts = Object.entries(filteredValues)
     .filter(([, values]) => Array.isArray(values) && values.length)
-    .map(([propertyId, values]) => `${propertyId}: ${values.join(', ')}`)
+    .map(([propertyId, values]) => {
+      const propertyLabel = suggestionPropertyLabels.value[propertyId]
+      const displayLabel = propertyLabel ? `${propertyLabel} (${propertyId})` : propertyId
+      return `${displayLabel}: ${values.join(', ')}`
+    })
 
   return parts.join(' | ')
 }
@@ -200,64 +276,106 @@ function getEmitItem(item) {
 
 const { search } = useWikidataSearch()
 
-watch(
-  () => query.value,
-  (nextValue) => {
-    const normalized = nextValue.trim()
+function scheduleSearch(normalized) {
+  abortActiveSearch()
 
-    abortActiveSearch()
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
 
-    if (debounceTimer) {
-      clearTimeout(debounceTimer)
-      debounceTimer = null
+  if (normalized.length < minChars.value) {
+    suggestions.value = []
+    requestError.value = ''
+    isLoading.value = false
+    return
+  }
+
+  debounceTimer = setTimeout(async () => {
+    const currentRequestId = ++requestId
+    const controller = new AbortController()
+
+    activeSearchController = controller
+    isLoading.value = true
+    requestError.value = ''
+
+    try {
+      const searchResults = await search(normalized, {
+        searchLanguages: mergedConfig.value.searchLanguages,
+        resultLanguage: mergedConfig.value.resultLanguage,
+        limit: effectiveLimit.value,
+        prioritize: mergedConfig.value.prioritize,
+        signal: controller.signal,
+      })
+
+      if (currentRequestId === requestId) {
+        suggestions.value = searchResults
+      }
+    } catch (error) {
+      if (isAbortError(error)) {
+        return
+      }
+
+      if (currentRequestId === requestId) {
+        suggestions.value = []
+        requestError.value = error instanceof Error ? error.message : 'Could not fetch Wikidata results.'
+      }
+    } finally {
+      if (activeSearchController === controller) {
+        activeSearchController = null
+      }
+
+      if (currentRequestId === requestId) {
+        isLoading.value = false
+      }
     }
+  }, 250)
+}
 
-    if (normalized.length < minChars.value) {
-      suggestions.value = []
-      requestError.value = ''
-      isLoading.value = false
+watch(
+  () => [props.prefillValue, props.prefillContext],
+  ([nextValue, nextContext], previousTuple) => {
+    const previousContext = Array.isArray(previousTuple) ? previousTuple[1] : undefined
+    const normalizedPrefill = normalizePrefillValue(nextValue)
+    const contextChanged = nextContext !== previousContext
+
+    if (contextChanged) {
+      if (query.value !== normalizedPrefill) {
+        suppressNextQueryWatcher = true
+        query.value = normalizedPrefill
+      }
+      lastAppliedPrefill.value = normalizedPrefill
+      scheduleSearch(normalizedPrefill)
       return
     }
 
-    debounceTimer = setTimeout(async () => {
-      const currentRequestId = ++requestId
-      const controller = new AbortController()
-
-      activeSearchController = controller
-      isLoading.value = true
-      requestError.value = ''
-
-      try {
-        const searchResults = await search(normalized, {
-          searchLanguages: mergedConfig.value.searchLanguages,
-          resultLanguage: mergedConfig.value.resultLanguage,
-          limit: effectiveLimit.value,
-          prioritize: mergedConfig.value.prioritize,
-          signal: controller.signal,
-        })
-
-        if (currentRequestId === requestId) {
-          suggestions.value = searchResults
-        }
-      } catch (error) {
-        if (isAbortError(error)) {
-          return
-        }
-
-        if (currentRequestId === requestId) {
-          suggestions.value = []
-          requestError.value = error instanceof Error ? error.message : 'Could not fetch Wikidata results.'
-        }
-      } finally {
-        if (activeSearchController === controller) {
-          activeSearchController = null
-        }
-
-        if (currentRequestId === requestId) {
-          isLoading.value = false
-        }
+    if (!normalizedPrefill) {
+      if (query.value === lastAppliedPrefill.value) {
+        suppressNextQueryWatcher = true
+        query.value = ''
       }
-    }, 250)
+      lastAppliedPrefill.value = ''
+      return
+    }
+
+    if (!query.value.trim() || query.value === lastAppliedPrefill.value) {
+      query.value = normalizedPrefill
+      lastAppliedPrefill.value = normalizedPrefill
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => query.value,
+  (nextValue) => {
+    if (suppressNextQueryWatcher) {
+      suppressNextQueryWatcher = false
+      return
+    }
+
+    const normalized = nextValue.trim()
+    scheduleSearch(normalized)
   },
 )
 

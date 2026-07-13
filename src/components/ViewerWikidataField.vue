@@ -8,18 +8,110 @@ const props = defineProps({
   fieldId: { type: String, default: '' },
   placeholder: { type: String, default: '' },
   autosuggestConfig: { type: Object, default: null },
+  prefillValue: { type: String, default: '' },
+  prefillContext: { type: Object, default: null },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const selectedEntities = computed(() => normalizeWikidataAutosuggestValue(props.modelValue))
 
+function getPropertyIdsForRule(ruleName, defs) {
+  if (!Array.isArray(defs)) {
+    return []
+  }
+
+  if (ruleName === 'claimPresence') {
+    return defs
+      .map((definition) => {
+        if (typeof definition === 'string') return definition
+        if (typeof definition?.propertyId === 'string') return definition.propertyId
+        if (typeof definition?.property === 'string') return definition.property
+        return ''
+      })
+      .map((propertyId) => String(propertyId || '').trim())
+      .filter(Boolean)
+  }
+
+  if (ruleName === 'claimValueMatch') {
+    return defs
+      .map((definition) => definition?.property)
+      .map((propertyId) => String(propertyId || '').trim())
+      .filter(Boolean)
+  }
+
+  return []
+}
+
+function getPropertyLabelForRule(ruleName, definition) {
+  if (!definition || typeof definition !== 'object') {
+    return ''
+  }
+
+  if (ruleName === 'claimPresence') {
+    if (typeof definition.propertyLabel === 'string' && definition.propertyLabel.trim()) {
+      return definition.propertyLabel.trim()
+    }
+    if (typeof definition.label === 'string' && definition.label.trim()) {
+      return definition.label.trim()
+    }
+    return ''
+  }
+
+  if (ruleName === 'claimValueMatch') {
+    if (typeof definition.label === 'string' && definition.label.trim()) {
+      return definition.label.trim()
+    }
+    return ''
+  }
+
+  return ''
+}
+
+const prioritizationPropertyLabels = computed(() => {
+  const prioritizeConfig = props.autosuggestConfig?.prioritize
+  if (!prioritizeConfig || typeof prioritizeConfig !== 'object') {
+    return {}
+  }
+
+  const labelsByPropertyId = {}
+
+  for (const [ruleName, ruleConfig] of Object.entries(prioritizeConfig)) {
+    if (!ruleConfig || typeof ruleConfig !== 'object' || !Array.isArray(ruleConfig.defs)) {
+      continue
+    }
+
+    for (const definition of ruleConfig.defs) {
+      const propertyIds = getPropertyIdsForRule(ruleName, [definition])
+      if (!propertyIds.length) {
+        continue
+      }
+
+      const label = getPropertyLabelForRule(ruleName, definition)
+      if (!label) {
+        continue
+      }
+
+      const propertyId = propertyIds[0]
+      if (!labelsByPropertyId[propertyId]) {
+        labelsByPropertyId[propertyId] = label
+      }
+    }
+  }
+
+  return labelsByPropertyId
+})
+
 function getPrioritizationValuesText(entity) {
   if (!entity?.prioritizationValues || typeof entity.prioritizationValues !== 'object') return ''
 
   return Object.entries(entity.prioritizationValues)
     .filter(([, values]) => Array.isArray(values) && values.length)
-    .map(([propertyId, values]) => `${propertyId}: ${values.join(', ')}`)
+    .map(([propertyId, values]) => {
+      const propertyLabel = prioritizationPropertyLabels.value[propertyId]
+      const displayLabel = propertyLabel ? `${propertyLabel} (${propertyId})` : propertyId
+      return `${displayLabel}: ${values.join(', ')}`
+    })
     .join(' | ')
 }
 
@@ -41,6 +133,8 @@ function removeEntity(idToRemove) {
   <div class="viewer-wikidata-field" :data-field-id="fieldId">
     <WikidataAutosuggestInput
       :config="autosuggestConfig"
+      :prefill-value="prefillValue"
+      :prefill-context="prefillContext"
       :placeholder="placeholder"
       @select="onSelectEntity"
     />

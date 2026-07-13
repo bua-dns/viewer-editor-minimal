@@ -31,12 +31,27 @@ describe('fieldRegistry', () => {
       configuredType: 'checkbox',
       value: true,
       placeholder: '',
+      readOnly: true,
     })
 
     expect(binding.component).toBe('input')
     expect(binding.componentProps.type).toBe('checkbox')
     expect(binding.componentProps.checked).toBe(true)
+    expect(binding.componentProps.disabled).toBe(true)
     expect(binding.eventName).toBe('change')
+  })
+
+  test('creates readonly text editor binding', () => {
+    const binding = createFieldEditorBinding({
+      fieldId: 'field-title',
+      configuredType: 'normal',
+      value: 'foo',
+      placeholder: 'Title',
+      readOnly: true,
+    })
+
+    expect(binding.component).toBe('input')
+    expect(binding.componentProps.readonly).toBe(true)
   })
 
   test('uses expected defaults per field type', () => {
@@ -108,10 +123,12 @@ describe('fieldRegistry', () => {
       configuredType: 'wikidata-autosuggest',
       value: [],
       autosuggestConfig,
+      autosuggestPrefillValue: 'Douglas Adams',
     })
 
     expect(binding.component).toBe('ViewerWikidataField')
     expect(binding.componentProps.autosuggestConfig).toBe(autosuggestConfig)
+    expect(binding.componentProps.prefillValue).toBe('Douglas Adams')
     expect(binding.resolvedType).toBe('wikidata-autosuggest')
   })
 

@@ -13,6 +13,18 @@ export function validateImportedConfigPayload(configPayload) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config.fields muss ein Objekt sein.' }
   }
 
+  if (configPayload.itemLabelField != null && typeof configPayload.itemLabelField !== 'string') {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.itemLabelField muss ein String sein.' }
+  }
+
+  const itemLabelField = String(configPayload.itemLabelField || '').trim()
+  if (itemLabelField && !Object.prototype.hasOwnProperty.call(configPayload.fields, itemLabelField)) {
+    return {
+      ok: false,
+      error: `JSON-Config ist ungueltig: itemLabelField ${itemLabelField} ist kein vorhandenes Feld.`,
+    }
+  }
+
   const allowedTypes = new Set(getRegisteredFieldTypes())
   const fieldEntries = Object.entries(configPayload.fields)
 
@@ -34,6 +46,21 @@ export function validateImportedConfigPayload(configPayload) {
       return { ok: false, error: `JSON-Config ist ungueltig: placeholder bei ${key} muss ein String sein.` }
     }
 
+    if (fieldConfig.hint != null && typeof fieldConfig.hint !== 'string') {
+      return { ok: false, error: `JSON-Config ist ungueltig: hint bei ${key} muss ein String sein.` }
+    }
+
+    if (fieldConfig.readOnly != null && typeof fieldConfig.readOnly !== 'boolean') {
+      return { ok: false, error: `JSON-Config ist ungueltig: readOnly bei ${key} muss ein Boolean sein.` }
+    }
+
+    if (type === 'wikidata-autosuggest' && fieldConfig.readOnly != null) {
+      return {
+        ok: false,
+        error: `JSON-Config ist ungueltig: readOnly bei ${key} ist fuer wikidata-autosuggest nicht erlaubt.`,
+      }
+    }
+
     if (fieldConfig.order != null && !Number.isFinite(fieldConfig.order)) {
       return { ok: false, error: `JSON-Config ist ungueltig: order bei ${key} muss eine Zahl sein.` }
     }
@@ -49,6 +76,33 @@ export function validateImportedConfigPayload(configPayload) {
       return {
         ok: false,
         error: `JSON-Config ist ungueltig: autosuggest bei ${key} muss ein Objekt sein.`,
+      }
+    }
+
+    if (isPlainObject(fieldConfig.autosuggest) && fieldConfig.autosuggest.prefillWith != null) {
+      if (typeof fieldConfig.autosuggest.prefillWith !== 'string') {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: autosuggest.prefillWith bei ${key} muss ein String sein.`,
+        }
+      }
+
+      const prefillWith = fieldConfig.autosuggest.prefillWith.trim()
+      if (!prefillWith) continue
+
+      if (!Object.prototype.hasOwnProperty.call(configPayload.fields, prefillWith)) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: autosuggest.prefillWith bei ${key} verweist auf ein fehlendes Feld (${prefillWith}).`,
+        }
+      }
+
+      const prefillSourceType = configPayload.fields[prefillWith]?.type ?? 'normal'
+      if (prefillSourceType !== 'normal') {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: autosuggest.prefillWith bei ${key} muss auf ein normales String-Feld verweisen.`,
+        }
       }
     }
   }

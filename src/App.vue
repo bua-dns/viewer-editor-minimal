@@ -78,6 +78,7 @@ const {
   createUserConfigPayload,
   applyImportedConfigPayload,
   hasUnappliedUserConfigChanges,
+  appliedItemLabelField,
 } = useUserConfigStore()
 
 const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
@@ -106,6 +107,10 @@ const availableFieldKeys = computed(() => {
   })
   return Array.from(keys)
 })
+
+const hasScanField = computed(() =>
+  rawItems.value.some((item) => Object.prototype.hasOwnProperty.call(item || {}, 'scan')),
+)
 
 function initializeUserConfigForCurrentData() {
   if (hasData.value) {
@@ -403,6 +408,7 @@ watch(
           :result-count-label="resultCountLabel" :search-query="searchQuery" :search-label="t('searchLabel', 'Suche')"
           :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
           :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
+          :item-caption-field-key="appliedItemLabelField" :has-scan-field="hasScanField"
           :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
           :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
           :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
@@ -420,6 +426,7 @@ watch(
             :search-label="t('searchLabel', 'Suche')"
             :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
             :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
+            :item-caption-field-key="appliedItemLabelField" :has-scan-field="hasScanField"
             :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
             :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
             :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
@@ -460,8 +467,8 @@ watch(
               </button>
             </div>
             <div class="sidebar-content">
-              <div class="sidebar-detail-grid">
-                <div class="scan-column">
+              <div class="sidebar-detail-grid" :class="{ 'sidebar-detail-grid-no-scan': !hasScanField }">
+                <div v-if="hasScanField" class="scan-column">
                   <div class="scan-preview-wrap" v-if="looksLikeImageUrl(selectedRawItem.scan)">
                     <img v-if="!sidebarImageLoadFailed" :src="selectedRawItem.scan"
                       :alt="t('scanPreviewAlt', 'Scan Vorschau')" class="scan-preview"

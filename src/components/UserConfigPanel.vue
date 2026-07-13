@@ -15,6 +15,7 @@ const emit = defineEmits(['apply'])
 const { t } = useAppConfigStore()
 const {
   sortedConfigFieldEntries,
+  itemLabelField,
   hasUnappliedUserConfigChanges,
   draggedFieldKey,
   isUserConfigOpen,
@@ -23,6 +24,7 @@ const {
   addUserConfigField,
   setFieldType,
   updateFieldAutosuggestConfig,
+  setItemLabelField,
   removeUserConfigField,
   startDrag,
   dropAt,
@@ -31,6 +33,18 @@ const {
 
 const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
 const fieldTypeOptions = getRegisteredFieldTypeOptions()
+const itemLabelFieldOptions = computed(() => sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
+const prefillFieldOptionsByFieldKey = computed(() => {
+  const normalFieldKeys = sortedConfigFieldEntries.value
+    .filter(([, config]) => config?.type === 'normal')
+    .map(([fieldKey]) => fieldKey)
+
+  const optionsByFieldKey = {}
+  sortedConfigFieldEntries.value.forEach(([fieldKey]) => {
+    optionsByFieldKey[fieldKey] = normalFieldKeys.filter((candidateKey) => candidateKey !== fieldKey)
+  })
+  return optionsByFieldKey
+})
 const autosuggestAdvancedCollapseToken = ref(0)
 
 function onTogglePanel() {
@@ -59,6 +73,10 @@ function onApplyConfiguration() {
    * This is intentionally fan-out signalling, not per-row state.
    */
   autosuggestAdvancedCollapseToken.value += 1
+}
+
+function onItemLabelFieldChange(event) {
+  setItemLabelField(event.target.value)
 }
 </script>
 
@@ -92,6 +110,15 @@ function onApplyConfiguration() {
         />
         <button type="button" @click.stop="onAddField">{{ t('addFieldButton', 'Hinzufuegen') }}</button>
       </div>
+
+      <div class="user-config-label-row">
+        <strong>{{ t('itemListLabelFieldLabel', 'Liste: Label-Feld') }}</strong>
+        <select :value="itemLabelField" @change="onItemLabelFieldChange">
+          <option value="">{{ t('itemListLabelFieldDefault', 'Standard (Nummer / inventory_number)') }}</option>
+          <option v-for="fieldKey in itemLabelFieldOptions" :key="fieldKey" :value="fieldKey">{{ fieldKey }}</option>
+        </select>
+      </div>
+
       <p v-if="addFieldError" class="error user-config-error">{{ addFieldError }}</p>
 
       <div class="user-config-row user-config-row-head">
@@ -99,7 +126,9 @@ function onApplyConfiguration() {
         <strong>{{ t('configFieldHeader', 'Feld') }}</strong>
         <strong>{{ t('configTypeHeader', 'Typ') }}</strong>
         <strong>{{ t('configLabelHeader', 'Beschriftung') }}</strong>
-        <strong>{{ t('configPlaceholderHeader', 'Eingabehinweis') }}</strong>
+        <strong>{{ t('configPlaceholderHeader', 'Platzhalter') }}</strong>
+        <strong>{{ t('configHintHeader', 'Hinweis') }}</strong>
+        <strong>{{ t('configReadOnlyHeader', 'Nur Anzeige') }}</strong>
         <strong></strong>
       </div>
 
@@ -125,7 +154,13 @@ function onApplyConfiguration() {
           </option>
         </select>
         <input v-model="entry[1].label" type="text" :placeholder="t('configLabelInputPlaceholder', 'Label')" />
-        <input v-model="entry[1].placeholder" type="text" :placeholder="t('configHintInputPlaceholder', 'Hinweis')" />
+        <input v-model="entry[1].placeholder" type="text" :placeholder="t('configPlaceholderInputPlaceholder', 'z. B. Titel eingeben')" />
+        <input v-model="entry[1].hint" type="text" :placeholder="t('configHintInputPlaceholder', 'z. B. Vollstaendigen Namen eintragen')" />
+        <label v-if="entry[1].type !== 'wikidata-autosuggest'" class="readonly-toggle">
+          <input v-model="entry[1].readOnly" type="checkbox" />
+          <span>{{ t('configReadOnlyToggleLabel', 'Read-only') }}</span>
+        </label>
+        <span v-else class="readonly-na">-</span>
         <button type="button" class="remove-field-btn" @click.stop="removeUserConfigField(entry[0])">
           {{ t('removeFieldButton', 'Feld entfernen') }}
         </button>
@@ -133,6 +168,7 @@ function onApplyConfiguration() {
         <div v-if="entry[1].type === 'wikidata-autosuggest'" class="user-config-autosuggest-row">
           <AutosuggestFieldConfig
             :model-value="entry[1].autosuggest"
+            :prefill-field-options="prefillFieldOptionsByFieldKey[entry[0]] || []"
             :t="t"
             :collapse-advanced-token="autosuggestAdvancedCollapseToken"
             @update:model-value="onAutosuggestConfigChange(entry[0], $event)"
@@ -202,11 +238,39 @@ function onApplyConfiguration() {
   margin: 0 0 var(--ve-space-1);
 }
 
-.user-config-row {
+.user-config-label-row {
   display: grid;
-  grid-template-columns: 34px minmax(180px, 1.2fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(220px, 1.3fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.6fr);
   gap: var(--ve-space-2);
   align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.user-config-row {
+  display: grid;
+  grid-template-columns:
+    34px
+    minmax(160px, 1.05fr)
+    minmax(140px, 0.85fr)
+    minmax(140px, 0.8fr)
+    minmax(165px, 1fr)
+    minmax(185px, 1.1fr)
+    minmax(116px, 0.6fr)
+    auto;
+  gap: var(--ve-space-2);
+  align-items: center;
+}
+
+.readonly-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ve-color-text-muted);
+}
+
+.readonly-na {
+  color: var(--ve-color-text-soft);
+  text-align: center;
 }
 
 .user-config-row.has-autosuggest-config {
@@ -259,6 +323,10 @@ function onApplyConfiguration() {
   }
 
   .user-config-add-row {
+    grid-template-columns: 1fr;
+  }
+
+  .user-config-label-row {
     grid-template-columns: 1fr;
   }
 }

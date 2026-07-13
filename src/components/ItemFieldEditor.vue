@@ -10,7 +10,7 @@ const props = defineProps({
 
 const emit = defineEmits(['field-change'])
 
-const { getFieldLabel, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
+const { getFieldLabel, getFieldHint, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
 
 const displayedFieldKeys = computed(() => getDisplayedFieldKeys(props.selectedRawItem))
 
@@ -21,7 +21,9 @@ const fieldRows = computed(() =>
       key,
       value,
       label: getFieldLabel(key),
-      editorBinding: getFieldEditorBinding(key, value),
+      hint: getFieldHint(key),
+      isReadOnly: isFieldReadOnly(key),
+      editorBinding: getFieldEditorBinding(key, value, props.selectedRawItem),
     }
   }),
 )
@@ -44,8 +46,11 @@ function shouldRenderEditor(row) {
 <template>
   <div class="field-grid">
     <template v-for="row in fieldRows" :key="row.key">
-      <div class="field-row">
-        <label :for="`field-${row.key}`">{{ row.label }}</label>
+      <div class="field-row" :class="{ 'is-readonly': row.isReadOnly }">
+        <label :for="`field-${row.key}`" class="field-label">
+          <span>{{ row.label }}</span>
+          <small v-if="row.isReadOnly" class="field-readonly-badge">read-only</small>
+        </label>
         <component
           :is="resolveEditorComponent(row.editorBinding.component)"
           v-if="shouldRenderEditor(row)"
@@ -53,6 +58,7 @@ function shouldRenderEditor(row) {
           @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
         />
         <pre v-else>{{ JSON.stringify(row.value) }}</pre>
+        <p v-if="row.hint" class="field-hint">{{ row.hint }}</p>
       </div>
     </template>
   </div>
@@ -67,5 +73,38 @@ function shouldRenderEditor(row) {
 .field-row {
   display: grid;
   gap: 0.35rem;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.field-readonly-badge {
+  color: var(--ve-color-text-muted);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.field-row.is-readonly {
+  opacity: 0.82;
+}
+
+.field-row.is-readonly :deep(input[readonly]),
+.field-row.is-readonly :deep(textarea[readonly]),
+.field-row.is-readonly :deep(input:disabled) {
+  background: color-mix(in srgb, var(--color-surface) 60%, #f3f5f8);
+  border-color: color-mix(in srgb, var(--ve-color-border-soft) 78%, #c4ccd7);
+  color: var(--ve-color-text-muted);
+  cursor: not-allowed;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--ve-color-text-muted);
+  font-size: 0.84rem;
 }
 </style>

@@ -6,7 +6,7 @@ function toDomValue(value) {
   return value === null ? '' : value
 }
 
-function createTextInputBinding({ fieldId, value, placeholder, inputType = 'text' }) {
+function createTextInputBinding({ fieldId, value, placeholder, inputType = 'text', readOnly = false }) {
   return {
     component: 'input',
     componentProps: {
@@ -14,6 +14,7 @@ function createTextInputBinding({ fieldId, value, placeholder, inputType = 'text
       type: inputType,
       placeholder,
       value: toDomValue(value),
+      readonly: readOnly,
     },
     eventName: 'input',
     readEventValue(event) {
@@ -22,13 +23,14 @@ function createTextInputBinding({ fieldId, value, placeholder, inputType = 'text
   }
 }
 
-function createTextareaBinding({ fieldId, value, placeholder }) {
+function createTextareaBinding({ fieldId, value, placeholder, readOnly = false }) {
   return {
     component: 'textarea',
     componentProps: {
       id: fieldId,
       placeholder,
       value: toDomValue(value),
+      readonly: readOnly,
     },
     eventName: 'input',
     readEventValue(event) {
@@ -37,13 +39,14 @@ function createTextareaBinding({ fieldId, value, placeholder }) {
   }
 }
 
-function createCheckboxBinding({ fieldId, value }) {
+function createCheckboxBinding({ fieldId, value, readOnly = false }) {
   return {
     component: 'input',
     componentProps: {
       id: fieldId,
       type: 'checkbox',
       checked: Boolean(value),
+      disabled: readOnly,
     },
     eventName: 'change',
     readEventValue(event) {
@@ -201,7 +204,14 @@ const FIELD_REGISTRY = Object.freeze({
     key: 'wikidata-autosuggest',
     labelKey: 'configTypeWikidataAutosuggest',
     labelFallback: 'Wikidata Autosuggest',
-    createEditorBinding({ fieldId, value, placeholder, autosuggestConfig }) {
+    createEditorBinding({
+      fieldId,
+      value,
+      placeholder,
+      autosuggestConfig,
+      autosuggestPrefillValue,
+      autosuggestPrefillContext,
+    }) {
       return {
         component: 'ViewerWikidataField',
         componentProps: {
@@ -209,6 +219,8 @@ const FIELD_REGISTRY = Object.freeze({
           modelValue: value,
           placeholder,
           autosuggestConfig,
+          prefillValue: autosuggestPrefillValue,
+          prefillContext: autosuggestPrefillContext,
         },
         eventName: 'update:modelValue',
         readEventValue(nextValue) {
@@ -268,11 +280,22 @@ export function createFieldEditorBinding({
   configuredType,
   value,
   placeholder = '',
+  readOnly = false,
   autosuggestConfig = null,
+  autosuggestPrefillValue = '',
+  autosuggestPrefillContext = null,
 }) {
   const resolvedType = resolveFieldTypeForEditor(configuredType, value)
   const definition = FIELD_REGISTRY[resolvedType]
-  const binding = definition.createEditorBinding({ fieldId, value, placeholder, autosuggestConfig })
+  const binding = definition.createEditorBinding({
+    fieldId,
+    value,
+    placeholder,
+    readOnly,
+    autosuggestConfig,
+    autosuggestPrefillValue,
+    autosuggestPrefillContext,
+  })
   return {
     ...binding,
     resolvedType,

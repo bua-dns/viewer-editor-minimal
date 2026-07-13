@@ -26,13 +26,31 @@ const PRIORITY_BLOCK_HANDLERS = {
   claimPresence: {
     getRequiredProperties(defs) {
       if (!Array.isArray(defs)) return []
-      return defs.filter((propertyId) => typeof propertyId === 'string' && propertyId.trim())
+      return defs
+        .map((definition) => {
+          if (typeof definition === 'string') return definition
+          if (typeof definition?.propertyId === 'string') return definition.propertyId
+          if (typeof definition?.property === 'string') return definition.property
+          return ''
+        })
+        .map((propertyId) => String(propertyId || '').trim())
+        .filter(Boolean)
     },
 
     matches(entityClaims, defs) {
       if (!Array.isArray(defs)) return false
-      return defs.some((propertyId) => {
-        const claims = entityClaims[propertyId]
+      return defs.some((definition) => {
+        const propertyId =
+          typeof definition === 'string'
+            ? definition
+            : typeof definition?.propertyId === 'string'
+              ? definition.propertyId
+              : typeof definition?.property === 'string'
+                ? definition.property
+                : ''
+        const normalizedPropertyId = String(propertyId || '').trim()
+        if (!normalizedPropertyId) return false
+        const claims = entityClaims[normalizedPropertyId]
         return Array.isArray(claims) && claims.length > 0
       })
     },

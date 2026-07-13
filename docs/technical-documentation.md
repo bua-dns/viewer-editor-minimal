@@ -13,6 +13,8 @@ Kernfunktionen:
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
 - Strukturierter Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell
 - Konfigurierbare Priorisierung fuer `wikidata-autosuggest` (`claimPresence`, `claimValueMatch`)
+- Automatischer Listenmodus ohne Bildkacheln, wenn keine `scan`-Spalte vorhanden ist
+- Konfigurierbares Label-Feld fuer Item-Titel in Karten- und Listenansicht
 - Dirty-State inkl. Warnung beim Verlassen der Seite
 - Reset auf Import-Snapshot
 - Export der bearbeiteten Daten als neue JSON- oder CSV-Datei
@@ -23,7 +25,7 @@ Kernfunktionen:
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 - Optionaler Timestamp im Export-Dateinamen
 - Keyboard-Shortcuts mit `Escape` (Start-From-Scratch-Modal und Lightbox schliessen / Sidebar-Auswahl aufheben)
-- Tab-Navigation mit zwei Bereichen (`Editieren`, `Info`)
+- Tab-Navigation mit vier Bereichen (`Editieren`, `Konfiguration`, `Ersetzungen`, `Info`)
 - Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
 
 ## Tech Stack
@@ -54,7 +56,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
 - `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow
-- `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Sortierung und Binding zur Feld-Registry
+- `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Hint/Sortierung und Binding zur Feld-Registry
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useDataImportExport.js` - Import/Export-Flow inkl. Dateimodus-Validierung und Download-Ausleitung
 - `src/composables/useSelectionNavigation.js` - Auswahlindex-Berechnung und Vor/Zurueck-Navigation
@@ -94,14 +96,20 @@ Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 
 - `type`: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`
 - `label`: alternative Feldbeschriftung
-- `placeholder`: Eingabehinweis
+- `placeholder`: Platzhaltertext im Eingabefeld
+- `hint`: zusaetzlicher Hinweistext unter dem Eingabefeld (Ausfuellhinweis)
+- `readOnly` (nicht fuer `wikidata-autosuggest`): Feld ist in der Sidebar sichtbar, aber nicht editierbar
 - Reihenfolge via Drag-and-Drop
+- globales `itemLabelField`: Feldschluessel fuer Item-Label in Liste/Karten (optional, sonst Fallback)
 
 Fuer `wikidata-autosuggest` zusaetzlich:
 
 - GUI-Editierung aller `autosuggest`-Optionen in einem einklappbaren `Optionen`-Bereich
   - Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
+  - `prefillWith`: Dropdown auf ein `normal`-Feld; dessen String-Wert wird als Suchtext vorbefuellt
   - Priorisierungsbloecke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`, `includeInEmitData`, `showInSuggestion`
+  - `claimPresence.defs` als Repeater mit `{ propertyId, propertyLabel }` (Legacy-String-Defs bleiben lesbar)
+  - `claimValueMatch.defs` als Repeater mit `{ property, value, label }`
 - Unknown Nested Keys bleiben erhalten, sofern sie nicht durch GUI-Control-Felder explizit geaendert werden
 
 Zusaetzlich:
@@ -119,6 +127,7 @@ Verhalten:
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
 - Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''`, `false` oder `[]` je nach Feldtyp).
 - Konfigurationszustand (`fields`, `appliedFields`) wird unter `viewerEditor.userConfig.v1` in `sessionStorage` gespeichert.
+- Konfigurationszustand umfasst auch `itemLabelField`/`appliedItemLabelField`.
 
 ## Datenmodell und State
 
@@ -262,12 +271,14 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 - Falls `autosuggest.prioritize` konfiguriert ist, werden benoetigte Claims per `wbgetentities` nachgeladen.
 - Claim-Nachladen ist ebenfalls teilrobust (`Promise.allSettled` ueber Chunk-Requests), damit einzelne Chunk-Fehler nicht die gesamte Ergebnisliste blockieren.
 - Unterstuetzte Regelbloecke:
-  - `claimPresence`: Match, wenn mindestens eine Property aus `defs` vorhanden ist.
-  - `claimValueMatch`: Match, wenn mindestens ein `{ property, value }`-Paar aus `defs` zutrifft.
+  - `claimPresence`: Match, wenn mindestens eine Property aus `defs` vorhanden ist (`defs` unterstuetzt Legacy-Strings und Objekte mit `propertyId`).
+  - `claimValueMatch`: Match, wenn mindestens ein `{ property, value }`-Paar aus `defs` zutrifft (`label` ist rein darstellungsbezogen).
 - Scoring: Summe der Block-`weight`-Werte (je Block maximal einmal pro Entity).
 - Sortierung: `score` absteigend, dann originale Result-Reihenfolge.
 - `showInSuggestion`: zeigt priorisierungsbezogene Metadaten in der Trefferliste.
+- Bei gesetzten Def-Labels werden Metadaten als `Label (PropertyId): ...` angezeigt (statt nur `PropertyId: ...`) in Trefferliste und selektierten Ergebnissen.
 - `includeInEmitData`: behaelt priorisierungsbezogene Metadaten (`ranking`, `prioritizationValues`) im selektierten Entity-Payload.
+- `prefillWith`: wenn konfiguriert, wird beim Wechsel auf ein Item der Wert des referenzierten `normal`-Felds automatisch in die Autosuggest-Suche uebernommen; die Suche startet sofort.
 - Stale-Protection: `WikidataAutosuggestInput.vue` verwaltet pro Query einen `AbortController`; bei neuer Eingabe oder Unmount werden laufende Requests abgebrochen.
 - UX bei Abort: Abgebrochene Requests erzeugen keine Fehleranzeige im UI und kein Error-Logging.
 
@@ -286,7 +297,7 @@ Die Seite ist in mehrere Bereiche gegliedert:
 - Im Edit-Tab: sticky Header-Stack mit Konfiguration und Listenkopf (`Digitalisate` + Suche)
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname-Hinweis und Dirty-Hinweis
-- Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau (scrollbarer Hauptbereich)
+- Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau; ohne `scan` automatische Umschaltung auf textbasierte Listenansicht
 - Sidebar: Felder des selektierten Items und groessere Scan-Vorschau (desktop sticky mit internem Scroll)
 - Erweiterter Edit-Modus: Sidebar kann auf volle Inhaltsbreite umgeschaltet werden (eigener Expand/Collapse-Button mit SVG-Icons)
 - Statusbereich: Datei-/Fehlerstatus
@@ -328,6 +339,7 @@ Die Styles sind in Layer aufgeteilt (`src/assets/styles/index.scss`):
 - `layout/_index.scss`: Grid-Layout und Responsive-Regeln
 - `legacy.scss`: temporaerer Migrations-Layer fuer globale Alt-Styles
 - Wichtige interaktive Controls uebersteuern `button:hover` lokal (z. B. Tabs, Datenmodus-Switch, Transfer-Buttons, Listenkarten), damit Hover-Farben konsistent mit Primary/Secondary bleiben.
+- Placeholder in Inputs/Textareas werden global heller gerendert, damit Platzhalter visuell klarer von echten Feldwerten getrennt sind.
 
 Das aktuelle Farbschema nutzt semantische Root-Tokens (`--color-*`) mit Mapping auf bestehende `--ve-*` Variablen, damit bestehende Komponenten-Regeln unveraendert bleiben.
 

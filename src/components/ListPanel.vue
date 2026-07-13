@@ -40,6 +40,14 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  itemCaptionFieldKey: {
+    type: String,
+    default: '',
+  },
+  hasScanField: {
+    type: Boolean,
+    default: true,
+  },
   scanPreviewAlt: {
     type: String,
     required: true,
@@ -91,6 +99,17 @@ function onListImageFailed(uid) {
 function onSearchInput(event) {
   emit('update:search-query', event.target.value)
 }
+
+function resolveItemCaption(item) {
+  const configuredCaptionKey = props.itemCaptionFieldKey
+  if (configuredCaptionKey && item && Object.prototype.hasOwnProperty.call(item, configuredCaptionKey)) {
+    const configuredCaption = String(item[configuredCaptionKey] ?? '').trim()
+    if (configuredCaption) return configuredCaption
+  }
+  const inventoryNumber = String(item?.inventory_number ?? '').trim()
+  if (inventoryNumber) return inventoryNumber
+  return ''
+}
 </script>
 
 <template>
@@ -111,7 +130,7 @@ function onSearchInput(event) {
     <template v-if="props.renderBody">
       <p v-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
       <p v-else-if="props.filteredViewItems.length === 0" class="meta">{{ props.noSearchResultsLabel }}</p>
-      <ul v-else class="card-grid">
+      <ul v-else-if="props.hasScanField" class="card-grid">
       <li v-for="item in props.filteredViewItems" :key="item._uid">
         <button
           type="button"
@@ -129,10 +148,23 @@ function onSearchInput(event) {
             <div v-else class="scan-fallback">{{ props.scanUnavailableLabel }}</div>
           </div>
           <div class="card-caption">
-            {{ props.rawItems[item._index]?.inventory_number || `#${item._index + 1}` }}
+            {{ resolveItemCaption(props.rawItems[item._index]) || `#${item._index + 1}` }}
           </div>
         </button>
       </li>
+      </ul>
+      <ul v-else class="item-list">
+        <li v-for="item in props.filteredViewItems" :key="item._uid">
+          <button
+            type="button"
+            class="item-list-row"
+            :class="{ active: props.selectedViewItem && props.selectedViewItem._uid === item._uid }"
+            @click.stop="onSelectItem(item._uid)"
+          >
+            <span class="item-list-index">#{{ item._index + 1 }}</span>
+            <span class="item-list-caption">{{ resolveItemCaption(props.rawItems[item._index]) || '-' }}</span>
+          </button>
+        </li>
       </ul>
     </template>
   </section>
@@ -238,6 +270,55 @@ function onSearchInput(event) {
   border-radius: 10px;
   color: var(--ve-color-text-soft);
   background: var(--ve-color-surface-base);
+}
+
+.item-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ve-space-2);
+}
+
+.item-list-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ve-space-2);
+  align-items: center;
+  text-align: left;
+  background: var(--ve-color-surface-card);
+  color: var(--ve-color-text-default);
+  border: 1px solid var(--ve-color-border-default);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+}
+
+.item-list-row:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--ve-color-surface-card));
+  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--ve-color-border-default));
+}
+
+.item-list-row.active {
+  background: var(--color-primary);
+  color: var(--ve-color-white);
+  border-color: var(--color-primary);
+}
+
+.item-list-index {
+  font-family: var(--ve-font-family-mono);
+  font-size: 0.8rem;
+  color: var(--ve-color-text-soft);
+}
+
+.item-list-row.active .item-list-index {
+  color: color-mix(in srgb, var(--ve-color-white) 85%, transparent);
+}
+
+.item-list-caption {
+  font-weight: 600;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 @media (max-width: 768px) {

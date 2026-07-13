@@ -5,8 +5,8 @@ const wording = {
     en: "Viewer Editor for Finding Aids",
   },
   itemsLabel: {
-    de: "Digitalisate",
-    en: "Scans",
+    de: "Items",
+    en: "Items",
   },
   downloadWithTimestamp: {
     de: "Dateiname mit Timestamp",
@@ -284,6 +284,14 @@ const wording = {
     de: "Hinweis",
     en: "Hint",
   },
+  itemListLabelFieldLabel: {
+    de: "Liste: Label-Feld",
+    en: "List: label field",
+  },
+  itemListLabelFieldDefault: {
+    de: "Standard (Nummer / inventory_number)",
+    en: "Default (number / inventory_number)",
+  },
   autosuggestConfigTitle: {
     de: "Autosuggest Optionen",
     en: "Autosuggest options",
@@ -352,9 +360,33 @@ const wording = {
     de: "P31",
     en: "P31",
   },
+  autosuggestPropertyId: {
+    de: "Property ID",
+    en: "Property ID",
+  },
+  autosuggestPropertyIdPlaceholder: {
+    de: "P713",
+    en: "P713",
+  },
+  autosuggestPropertyLabel: {
+    de: "Property Label",
+    en: "Property label",
+  },
+  autosuggestPropertyLabelPlaceholder: {
+    de: "Strunz 10",
+    en: "Strunz 10",
+  },
   autosuggestValuePlaceholder: {
     de: "Q5",
     en: "Q5",
+  },
+  autosuggestLabel: {
+    de: "Label",
+    en: "Label",
+  },
+  autosuggestLabelPlaceholder: {
+    de: "Mensch",
+    en: "Human",
   },
   autosuggestAddDefinition: {
     de: "Definition hinzufügen",
@@ -393,8 +425,8 @@ const wording = {
     en: "Next entry",
   },
   sidebarScanCounterPrefix: {
-    de: "Scan",
-    en: "Scan",
+    de: "Item",
+    en: "Item",
   },
   sidebarCloseAria: {
     de: "Sidebar schließen",

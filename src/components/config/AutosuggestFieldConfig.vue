@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
+  prefillFieldOptions: { type: Array, default: () => [] },
   t: { type: Function, required: true },
   collapseAdvancedToken: { type: Number, default: 0 },
 })
@@ -69,11 +70,34 @@ const limit = computed(() => {
   const value = getConfig().limit
   return Number.isFinite(value) ? String(value) : ''
 })
+const prefillWith = computed(() => String(getConfig().prefillWith || ''))
 
-const claimPresenceDefsText = computed(() => {
+const claimPresenceDefs = computed(() => {
   const defs = getPrioritizeBlock('claimPresence').defs
-  if (!Array.isArray(defs)) return ''
-  return defs.join(', ')
+  if (!Array.isArray(defs)) return []
+  return defs.map((entry) => {
+    if (typeof entry === 'string') {
+      return {
+        propertyId: entry,
+        propertyLabel: '',
+      }
+    }
+
+    return {
+      propertyId:
+        typeof entry?.propertyId === 'string'
+          ? entry.propertyId
+          : typeof entry?.property === 'string'
+            ? entry.property
+            : '',
+      propertyLabel:
+        typeof entry?.propertyLabel === 'string'
+          ? entry.propertyLabel
+          : typeof entry?.label === 'string'
+            ? entry.label
+            : '',
+    }
+  })
 })
 
 const claimValueMatchDefs = computed(() => {
@@ -82,6 +106,7 @@ const claimValueMatchDefs = computed(() => {
   return defs.map((entry) => ({
     property: typeof entry?.property === 'string' ? entry.property : '',
     value: typeof entry?.value === 'string' ? entry.value : '',
+    label: typeof entry?.label === 'string' ? entry.label : '',
   }))
 })
 
@@ -154,20 +179,51 @@ function setBlockFlag(blockName, flagName, checked) {
   })
 }
 
-function setClaimPresenceDefs(text) {
+function addClaimPresenceDef() {
   updateConfig((next) => {
     const block = ensurePrioritizeBlock(next, 'claimPresence')
-    const defs = String(text || '')
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter(Boolean)
+    const defs = Array.isArray(block.defs) ? block.defs : []
+    block.defs = [...defs, { propertyId: '', propertyLabel: '' }]
+  })
+}
 
+function setPrefillWith(value) {
+  updateConfig((next) => {
+    const normalized = String(value || '').trim()
+    if (normalized) {
+      next.prefillWith = normalized
+      return
+    }
+    delete next.prefillWith
+  })
+}
+
+function removeClaimPresenceDef(index) {
+  updateConfig((next) => {
+    const block = ensurePrioritizeBlock(next, 'claimPresence')
+    const defs = Array.isArray(block.defs) ? [...block.defs] : []
+    defs.splice(index, 1)
     if (defs.length) {
       block.defs = defs
       return
     }
-
     delete block.defs
+  })
+}
+
+function setClaimPresenceDef(index, key, value) {
+  updateConfig((next) => {
+    const block = ensurePrioritizeBlock(next, 'claimPresence')
+    const defs = Array.isArray(block.defs) ? [...block.defs] : []
+
+    while (defs.length <= index) {
+      defs.push({ propertyId: '', propertyLabel: '' })
+    }
+
+    const entry = isPlainObject(defs[index]) ? { ...defs[index] } : { propertyId: '', propertyLabel: '' }
+    entry[key] = String(value || '')
+    defs[index] = entry
+    block.defs = defs
   })
 }
 
@@ -175,7 +231,7 @@ function addClaimValueMatchDef() {
   updateConfig((next) => {
     const block = ensurePrioritizeBlock(next, 'claimValueMatch')
     const defs = Array.isArray(block.defs) ? block.defs : []
-    block.defs = [...defs, { property: '', value: '' }]
+    block.defs = [...defs, { property: '', value: '', label: '' }]
   })
 }
 
@@ -198,10 +254,10 @@ function setClaimValueMatchDef(index, key, value) {
     const defs = Array.isArray(block.defs) ? [...block.defs] : []
 
     while (defs.length <= index) {
-      defs.push({ property: '', value: '' })
+      defs.push({ property: '', value: '', label: '' })
     }
 
-    const entry = isPlainObject(defs[index]) ? { ...defs[index] } : { property: '', value: '' }
+    const entry = isPlainObject(defs[index]) ? { ...defs[index] } : { property: '', value: '', label: '' }
     entry[key] = String(value || '')
     defs[index] = entry
     block.defs = defs
@@ -246,6 +302,14 @@ function toggleAdvancedConfig() {
 
         <label>{{ t('autosuggestLimit', 'Result limit') }}</label>
         <input :value="limit" type="number" min="1" @input="setPositiveNumberKey('limit', $event.target.value)" />
+
+        <label>{{ t('autosuggestPrefillWith', 'Prefill with') }}</label>
+        <select :value="prefillWith" @change="setPrefillWith($event.target.value)">
+          <option value="">{{ t('autosuggestPrefillWithNone', 'None') }}</option>
+          <option v-for="fieldKey in props.prefillFieldOptions" :key="fieldKey" :value="fieldKey">
+            {{ fieldKey }}
+          </option>
+        </select>
       </div>
 
       <section class="autosuggest-priority-block">
@@ -258,15 +322,40 @@ function toggleAdvancedConfig() {
             min="0"
             @input="setBlockWeight('claimPresence', $event.target.value)"
           />
-
-          <label>{{ t('autosuggestDefs', 'Definitions') }}</label>
-          <input
-            :value="claimPresenceDefsText"
-            type="text"
-            :placeholder="t('autosuggestClaimPresenceDefsPlaceholder', 'P7715, P227')"
-            @input="setClaimPresenceDefs($event.target.value)"
-          />
         </div>
+
+        <div class="claim-value-match-list">
+          <div class="claim-value-match-row claim-value-match-head">
+            <strong>{{ t('autosuggestPropertyId', 'Property ID') }}</strong>
+            <strong>{{ t('autosuggestPropertyLabel', 'Property label') }}</strong>
+            <strong></strong>
+          </div>
+          <div
+            v-for="(entry, index) in claimPresenceDefs"
+            :key="`claim-presence-${index}`"
+            class="claim-value-match-row"
+          >
+            <input
+              type="text"
+              :value="entry.propertyId"
+              :placeholder="t('autosuggestPropertyIdPlaceholder', 'P713')"
+              @input="setClaimPresenceDef(index, 'propertyId', $event.target.value)"
+            />
+            <input
+              type="text"
+              :value="entry.propertyLabel"
+              :placeholder="t('autosuggestPropertyLabelPlaceholder', 'Strunz 10')"
+              @input="setClaimPresenceDef(index, 'propertyLabel', $event.target.value)"
+            />
+            <button type="button" class="remove-def-btn" @click="removeClaimPresenceDef(index)">
+              {{ t('removeFieldButton', 'Remove') }}
+            </button>
+          </div>
+        </div>
+
+        <button type="button" class="add-def-btn" @click="addClaimPresenceDef">
+          {{ t('autosuggestAddDefinition', 'Add definition') }}
+        </button>
 
         <div class="autosuggest-flag-row">
           <label>
@@ -323,6 +412,7 @@ function toggleAdvancedConfig() {
           <div class="claim-value-match-row claim-value-match-head">
             <strong>{{ t('autosuggestProperty', 'Property') }}</strong>
             <strong>{{ t('autosuggestValue', 'Value') }}</strong>
+            <strong>{{ t('autosuggestLabel', 'Label') }}</strong>
             <strong></strong>
           </div>
           <div
@@ -341,6 +431,12 @@ function toggleAdvancedConfig() {
               :value="entry.value"
               :placeholder="t('autosuggestValuePlaceholder', 'Q5')"
               @input="setClaimValueMatchDef(index, 'value', $event.target.value)"
+            />
+            <input
+              type="text"
+              :value="entry.label"
+              :placeholder="t('autosuggestLabelPlaceholder', 'Mensch')"
+              @input="setClaimValueMatchDef(index, 'label', $event.target.value)"
             />
             <button type="button" class="remove-def-btn" @click="removeClaimValueMatchDef(index)">
               {{ t('removeFieldButton', 'Remove') }}
@@ -446,7 +542,7 @@ function toggleAdvancedConfig() {
 
 .claim-value-match-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) auto;
   gap: var(--ve-space-2);
   align-items: center;
 }
