@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, unref } from 'vue'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
 import { normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 
@@ -203,10 +203,11 @@ function createCsvTextFromItems(items) {
   return lines.join('\n')
 }
 
-export function useViewerData() {
+export function useViewerData(options = {}) {
   const rawItems = ref([])
   const viewItems = ref([])
   const importSnapshot = ref([])
+  const itemLabelFieldRef = options.itemLabelField
 
   const selectedUid = ref(null)
   const searchQuery = ref('')
@@ -230,11 +231,41 @@ export function useViewerData() {
   })
 
   const filteredViewItems = computed(() => {
-    const tokens = tokenize(searchQuery.value)
+    const normalizedQuery = String(searchQuery.value || '').trim().toLowerCase()
+    if (normalizedQuery.length <= 2) return viewItems.value
+
+    const tokens = tokenize(normalizedQuery)
     if (!tokens.length) return viewItems.value
-    return viewItems.value.filter((item) =>
-      tokens.every((token) => item._searchText.includes(token)),
-    )
+
+    const itemLabelField = String(unref(itemLabelFieldRef) || '').trim()
+    const matches = []
+
+    viewItems.value.forEach((item, orderIndex) => {
+      if (!tokens.every((token) => item._searchText.includes(token))) return
+
+      const rawItem = rawItems.value[item._index] || {}
+      const labelValue = itemLabelField ? rawItem[itemLabelField] : ''
+      const labelText = String(labelValue ?? '').toLowerCase()
+      const labelMatchScore = tokens.reduce(
+        (score, token) => (labelText.includes(token) ? score + 1 : score),
+        0,
+      )
+
+      matches.push({
+        item,
+        labelMatchScore,
+        orderIndex,
+      })
+    })
+
+    matches.sort((a, b) => {
+      if (b.labelMatchScore !== a.labelMatchScore) {
+        return b.labelMatchScore - a.labelMatchScore
+      }
+      return a.orderIndex - b.orderIndex
+    })
+
+    return matches.map((entry) => entry.item)
   })
 
   function initializeFromJsonArray(items, fileName = '') {

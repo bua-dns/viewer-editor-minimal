@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { ref } from 'vue'
 import { __test, useViewerData } from './useViewerData'
 
 describe('useViewerData helpers', () => {
@@ -127,6 +128,36 @@ describe('useViewerData flow', () => {
     model.resetToImportedSnapshot()
     expect(model.rawItems.value[1].species).toBe('Pine')
     expect(model.isDirty.value).toBe(false)
+  })
+
+  test('only filters for search queries longer than two chars', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', species: 'Oak' },
+      { inventory_number: 'B2', species: 'Pine' },
+    ])
+
+    model.searchQuery.value = 'pi'
+    expect(model.filteredViewItems.value).toHaveLength(2)
+
+    model.searchQuery.value = 'pin'
+    expect(model.filteredViewItems.value).toHaveLength(1)
+    expect(model.rawItems.value[model.filteredViewItems.value[0]._index].species).toBe('Pine')
+  })
+
+  test('prioritizes label-field matches while searching all fields', () => {
+    const itemLabelField = ref('title')
+    const model = useViewerData({ itemLabelField })
+    model.initializeFromJsonArray([
+      { title: 'Unrelated heading', notes: 'needle appears only in notes' },
+      { title: 'Needle in title', notes: 'other content' },
+    ])
+
+    model.searchQuery.value = 'needle'
+    expect(model.filteredViewItems.value).toHaveLength(2)
+
+    const firstMatch = model.rawItems.value[model.filteredViewItems.value[0]._index]
+    expect(firstMatch.title).toBe('Needle in title')
   })
 
   test('imports csv data', () => {

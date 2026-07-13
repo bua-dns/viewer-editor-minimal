@@ -29,37 +29,6 @@ const editStickyTopRef = ref(null)
 let stickyResizeObserver = null
 
 const {
-  rawItems,
-  searchQuery,
-  selectedRawItem,
-  filteredViewItems,
-  selectedViewItem,
-  isDirty,
-  importFileName,
-  importedConfig,
-  errorMessage,
-  hasData,
-  importFromJsonText,
-  importFromCsvText,
-  selectItem,
-  updateField,
-  resetToImportedSnapshot,
-  createExportPayload,
-  createCsvExportText,
-  markAsSaved,
-  isEditableSimpleValue,
-  looksLikeImageUrl,
-} = useViewerData()
-
-const isLightboxOpen = ref(false)
-const lightboxImageSrc = ref('')
-const lightboxImageLoadFailed = ref(false)
-const sidebarImageLoadFailed = ref(false)
-const failedListImages = ref(new Set())
-const isExtendedEditMode = ref(false)
-const isStartFromScratchModalOpen = ref(false)
-const startFromScratchModalError = ref('')
-const {
   appendEditedTimestamp,
   dataMode,
   modeErrorMessage,
@@ -80,6 +49,38 @@ const {
   hasUnappliedUserConfigChanges,
   appliedItemLabelField,
 } = useUserConfigStore()
+
+const {
+  rawItems,
+  searchQuery,
+  selectedRawItem,
+  filteredViewItems,
+  selectedViewItem,
+  isDirty,
+  importFileName,
+  importedConfig,
+  errorMessage,
+  hasData,
+  importFromJsonText,
+  importFromCsvText,
+  selectItem,
+  updateField,
+  resetToImportedSnapshot,
+  createExportPayload,
+  createCsvExportText,
+  markAsSaved,
+  isEditableSimpleValue,
+  looksLikeImageUrl,
+} = useViewerData({ itemLabelField: appliedItemLabelField })
+
+const isLightboxOpen = ref(false)
+const lightboxImageSrc = ref('')
+const lightboxImageLoadFailed = ref(false)
+const sidebarImageLoadFailed = ref(false)
+const failedListImages = ref(new Set())
+const isExtendedEditMode = ref(false)
+const isStartFromScratchModalOpen = ref(false)
+const startFromScratchModalError = ref('')
 
 const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
 
