@@ -210,6 +210,50 @@ describe('useViewerData flow', () => {
     expect(orderedInventoryNumbers).toEqual(['B2', 'A1', 'C3'])
   })
 
+  test('pushes suspendEditing items to the end', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', suspendEditing: false },
+      { inventory_number: 'B2', suspendEditing: true },
+      { inventory_number: 'C3', suspendEditing: false },
+    ])
+
+    const orderedInventoryNumbers = model.filteredViewItems.value.map(
+      (item) => model.rawItems.value[item._index].inventory_number,
+    )
+
+    expect(orderedInventoryNumbers).toEqual(['A1', 'C3', 'B2'])
+  })
+
+  test('keeps suspendEditing items before edited-end items', () => {
+    const markAsEditedBasis = ref('edited_note')
+    const model = useViewerData({ markAsEditedBasis })
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', edited_note: '', suspendEditing: false },
+      { inventory_number: 'B2', edited_note: '', suspendEditing: true },
+      { inventory_number: 'C3', edited_note: 'done', suspendEditing: false },
+      { inventory_number: 'D4', edited_note: 'done', suspendEditing: true },
+    ])
+
+    const orderedInventoryNumbers = model.filteredViewItems.value.map(
+      (item) => model.rawItems.value[item._index].inventory_number,
+    )
+
+    expect(orderedInventoryNumbers).toEqual(['A1', 'B2', 'C3', 'D4'])
+  })
+
+  test('updates suspendEditing via uid helper and marks model dirty', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([{ inventory_number: 'A1' }])
+
+    const uid = model.viewItems.value[0]._uid
+    const updated = model.updateFieldByUid(uid, 'suspendEditing', true, 'checkbox')
+
+    expect(updated).toBe(true)
+    expect(model.rawItems.value[0].suspendEditing).toBe(true)
+    expect(model.isDirty.value).toBe(true)
+  })
+
   test('imports csv data', () => {
     const model = useViewerData()
     const csv = 'inventory_number,scan\nA1,https://example.com/a.jpg'

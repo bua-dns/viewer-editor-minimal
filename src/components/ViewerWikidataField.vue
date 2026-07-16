@@ -150,6 +150,12 @@ function getPrioritizationValuesText(entity) {
     .join(' | ')
 }
 
+function getWikidataEntityUrl(entityId) {
+  const normalizedId = String(entityId || '').trim()
+  if (!normalizedId) return ''
+  return `https://www.wikidata.org/wiki/${encodeURIComponent(normalizedId)}`
+}
+
 function onSelectEntity(entity) {
   const normalized = normalizeWikidataAutosuggestValue(entity)
   if (!normalized.length) return
@@ -180,7 +186,15 @@ function removeEntity(idToRemove) {
         <div class="selected-entity-row">
           <div class="selected-entity-main">
             <strong>{{ entity.label }}</strong>
-            <span>{{ entity.id }}</span>
+            <a
+              v-if="getWikidataEntityUrl(entity.id)"
+              :href="getWikidataEntityUrl(entity.id)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ entity.id }}
+            </a>
+            <span v-else>{{ entity.id }}</span>
             <small v-if="entity.description">{{ entity.description }}</small>
             <small v-if="entity.ranking" class="selected-entity-meta">
               Rank: {{ entity.ranking.score }}
@@ -250,10 +264,16 @@ function removeEntity(idToRemove) {
   gap: 0.12rem;
 }
 
-.selected-entity-main span {
+.selected-entity-main span,
+.selected-entity-main a {
   color: var(--ve-color-text-muted);
   font-family: var(--ve-font-family-mono);
   font-size: 0.82rem;
+}
+
+.selected-entity-main a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .selected-entity-main small {

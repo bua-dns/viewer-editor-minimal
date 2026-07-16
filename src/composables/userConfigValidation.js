@@ -21,6 +21,16 @@ export function validateImportedConfigPayload(configPayload) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config.markAsEditedBasis muss ein String sein.' }
   }
 
+  if (
+    configPayload.showOnlyNonEmptyFields != null &&
+    typeof configPayload.showOnlyNonEmptyFields !== 'boolean'
+  ) {
+    return {
+      ok: false,
+      error: 'JSON-Config ist ungueltig: config.showOnlyNonEmptyFields muss ein Boolean sein.',
+    }
+  }
+
   const itemLabelField = String(configPayload.itemLabelField || '').trim()
   if (itemLabelField && !Object.prototype.hasOwnProperty.call(configPayload.fields, itemLabelField)) {
     return {

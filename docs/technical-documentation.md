@@ -15,6 +15,9 @@ Kernfunktionen:
 - Konfigurierbare Priorisierung fuer `wikidata-autosuggest` (`claimPresence`, `claimValueMatch`)
 - Automatischer Listenmodus ohne Bildkacheln, wenn keine `scan`-Spalte vorhanden ist
 - Konfigurierbares Label-Feld fuer Item-Titel in Karten- und Listenansicht
+- Checkbox `suspendEditing` direkt in der grauen Item-Leiste (Karten- und Listenansicht), Text vor Checkbox-Icon
+- Checkbox `suspendEditing` wird nicht angezeigt, wenn ein Item bereits als bearbeitet markiert ist (Edit-Icon sichtbar)
+- Sortierregel in der Liste: `suspendEditing=true` ans Listenende, aber vor Eintraegen die wegen Mark-as-edited ans Ende sortiert werden
 - Dirty-State inkl. Warnung beim Verlassen der Seite
 - Reset auf Import-Snapshot
 - Export der bearbeiteten Daten als neue JSON- oder CSV-Datei
@@ -101,6 +104,7 @@ Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
 - `readOnly` (nicht fuer `wikidata-autosuggest`): Feld ist in der Sidebar sichtbar, aber nicht editierbar
 - Reihenfolge via Drag-and-Drop
 - globales `itemLabelField`: Feldschluessel fuer Item-Label in Liste/Karten (optional, sonst Fallback)
+- globale Checkbox `showOnlyNonEmptyFields`: blendet in der Sidebar pro Item alle leeren Felder aus (`''`, `null`, `undefined`, `[]`, `{}`)
 
 Fuer `wikidata-autosuggest` zusaetzlich:
 
@@ -128,7 +132,7 @@ Verhalten:
 - Entfernte Felder werden beim Anwenden auch aus den geladenen Datensaetzen entfernt.
 - Hinzugefuegte Felder werden beim Anwenden in allen Datensaetzen initialisiert (`''`, `false` oder `[]` je nach Feldtyp).
 - Konfigurationszustand (`fields`, `appliedFields`) wird unter `viewerEditor.userConfig.v1` in `sessionStorage` gespeichert.
-- Konfigurationszustand umfasst auch `itemLabelField`/`appliedItemLabelField`.
+- Konfigurationszustand umfasst auch `itemLabelField`/`appliedItemLabelField`, `markAsEditedBasis`/`appliedMarkAsEditedBasis` sowie `showOnlyNonEmptyFields`/`appliedShowOnlyNonEmptyFields`.
 
 ## Datenmodell und State
 

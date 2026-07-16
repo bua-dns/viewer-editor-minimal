@@ -292,6 +292,26 @@ const wording = {
     de: "Standard (Nummer / inventory_number)",
     en: "Default (number / inventory_number)",
   },
+  markAsEditedBasisLabel: {
+    de: "Liste: Mark-as-edited Basis",
+    en: "List: mark-as-edited basis",
+  },
+  markAsEditedBasisDefault: {
+    de: "Keine Sortierung nach Bearbeitungsstand",
+    en: "No edited-state sorting",
+  },
+  suspendEditingLabel: {
+    de: "Bearbeitung aussetzen",
+    en: "Suspend editing",
+  },
+  showOnlyNonEmptyFieldsLabel: {
+    de: "Sidebar: Nur nicht-leere Felder anzeigen",
+    en: "Sidebar: show non-empty fields only",
+  },
+  showOnlyNonEmptyFieldsToggle: {
+    de: "Aktivieren",
+    en: "Enable",
+  },
   autosuggestConfigTitle: {
     de: "Autosuggest Optionen",
     en: "Autosuggest options",

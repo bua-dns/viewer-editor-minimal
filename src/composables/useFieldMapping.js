@@ -2,7 +2,19 @@ import { useUserConfigStore } from '../stores/useUserConfigStore'
 import { createFieldEditorBinding } from '../fields/fieldRegistry'
 
 export function useFieldMapping() {
-  const { appliedUserConfigFields } = useUserConfigStore()
+  const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
+
+  function isAutosuggestFieldType(type) {
+    return type === 'wikidata-autosuggest' || type === 'wikidata_autosuggest'
+  }
+
+  function isFieldValueEmpty(value) {
+    if (value == null) return true
+    if (typeof value === 'string') return value === ''
+    if (Array.isArray(value)) return value.length === 0
+    if (typeof value === 'object') return Object.keys(value).length === 0
+    return false
+  }
 
   function getFieldLabel(key) {
     return appliedUserConfigFields.value[key]?.label?.trim() || key
@@ -18,7 +30,7 @@ export function useFieldMapping() {
 
   function isFieldReadOnly(key) {
     const fieldConfig = appliedUserConfigFields.value[key]
-    if (!fieldConfig || fieldConfig.type === 'wikidata-autosuggest') return false
+    if (!fieldConfig || isAutosuggestFieldType(fieldConfig.type)) return false
     return Boolean(fieldConfig.readOnly)
   }
 
@@ -39,7 +51,7 @@ export function useFieldMapping() {
       configuredType: fieldConfig?.type,
       value,
       placeholder: getFieldPlaceholder(key),
-      readOnly: Boolean(fieldConfig?.readOnly && fieldConfig?.type !== 'wikidata-autosuggest'),
+      readOnly: Boolean(fieldConfig?.readOnly && !isAutosuggestFieldType(fieldConfig?.type)),
       autosuggestConfig: fieldConfig?.autosuggest,
       autosuggestPrefillValue: getAutosuggestPrefillValue(fieldConfig, selectedRawItem),
       autosuggestPrefillContext: selectedRawItem,
@@ -48,7 +60,12 @@ export function useFieldMapping() {
 
   function getDisplayedFieldKeys(selectedRawItem) {
     if (!selectedRawItem) return []
-    const keys = Object.keys(selectedRawItem).filter((key) => key !== 'scan')
+    const keys = Object.keys(selectedRawItem).filter((key) => {
+      if (key === 'scan') return false
+      if (!appliedShowOnlyNonEmptyFields.value) return true
+      if (isAutosuggestFieldType(appliedUserConfigFields.value[key]?.type)) return true
+      return !isFieldValueEmpty(selectedRawItem[key])
+    })
     return keys.sort((a, b) => {
       const aOrder = appliedUserConfigFields.value[a]?.order ?? Number.MAX_SAFE_INTEGER
       const bOrder = appliedUserConfigFields.value[b]?.order ?? Number.MAX_SAFE_INTEGER

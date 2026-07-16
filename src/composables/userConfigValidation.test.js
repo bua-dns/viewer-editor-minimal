@@ -6,6 +6,7 @@ describe('validateImportedConfigPayload', () => {
     const result = validateImportedConfigPayload({
       itemLabelField: 'species',
       markAsEditedBasis: 'species',
+      showOnlyNonEmptyFields: true,
       fields: {
         species: {
           type: 'normal',
@@ -62,6 +63,19 @@ describe('validateImportedConfigPayload', () => {
   test('rejects markAsEditedBasis when missing in fields', () => {
     const result = validateImportedConfigPayload({
       markAsEditedBasis: 'edited_note',
+      fields: {
+        species: {
+          type: 'normal',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects non-boolean showOnlyNonEmptyFields', () => {
+    const result = validateImportedConfigPayload({
+      showOnlyNonEmptyFields: 'yes',
       fields: {
         species: {
           type: 'normal',

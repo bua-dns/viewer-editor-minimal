@@ -17,6 +17,7 @@ const {
   sortedConfigFieldEntries,
   itemLabelField,
   markAsEditedBasis,
+  showOnlyNonEmptyFields,
   hasUnappliedUserConfigChanges,
   draggedFieldKey,
   isUserConfigOpen,
@@ -27,6 +28,7 @@ const {
   updateFieldAutosuggestConfig,
   setItemLabelField,
   setMarkAsEditedBasis,
+  setShowOnlyNonEmptyFields,
   removeUserConfigField,
   startDrag,
   dropAt,
@@ -84,6 +86,10 @@ function onItemLabelFieldChange(event) {
 function onMarkAsEditedBasisChange(event) {
   setMarkAsEditedBasis(event.target.value)
 }
+
+function onShowOnlyNonEmptyFieldsChange(event) {
+  setShowOnlyNonEmptyFields(event.target.checked)
+}
 </script>
 
 <template>
@@ -131,6 +137,18 @@ function onMarkAsEditedBasisChange(event) {
           <option value="">{{ t('markAsEditedBasisDefault', 'Keine Sortierung nach Bearbeitungsstand') }}</option>
           <option v-for="fieldKey in itemLabelFieldOptions" :key="`edited-basis-${fieldKey}`" :value="fieldKey">{{ fieldKey }}</option>
         </select>
+      </div>
+
+      <div class="user-config-toggle-row">
+        <strong>{{ t('showOnlyNonEmptyFieldsLabel', 'Sidebar: Nur nicht-leere Felder anzeigen') }}</strong>
+        <label class="general-config-checkbox">
+          <input
+            type="checkbox"
+            :checked="showOnlyNonEmptyFields"
+            @change="onShowOnlyNonEmptyFieldsChange"
+          />
+          <span>{{ t('showOnlyNonEmptyFieldsToggle', 'Aktivieren') }}</span>
+        </label>
       </div>
 
       <p v-if="addFieldError" class="error user-config-error">{{ addFieldError }}</p>
@@ -260,6 +278,20 @@ function onMarkAsEditedBasisChange(event) {
   margin-bottom: 0.35rem;
 }
 
+.user-config-toggle-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.6fr);
+  gap: var(--ve-space-2);
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.general-config-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .user-config-row {
   display: grid;
   grid-template-columns:
@@ -341,6 +373,10 @@ function onMarkAsEditedBasisChange(event) {
   }
 
   .user-config-label-row {
+    grid-template-columns: 1fr;
+  }
+
+  .user-config-toggle-row {
     grid-template-columns: 1fr;
   }
 }

@@ -14,6 +14,8 @@ const itemLabelField = ref('')
 const appliedItemLabelField = ref('')
 const markAsEditedBasis = ref('')
 const appliedMarkAsEditedBasis = ref('')
+const showOnlyNonEmptyFields = ref(false)
+const appliedShowOnlyNonEmptyFields = ref(false)
 const appliedUserConfigSnapshot = ref('')
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
@@ -79,11 +81,17 @@ function serializeUserConfigFields(fields) {
   return JSON.stringify(normalized)
 }
 
-function serializeUserConfigState(fields, nextItemLabelField, nextMarkAsEditedBasis) {
+function serializeUserConfigState(
+  fields,
+  nextItemLabelField,
+  nextMarkAsEditedBasis,
+  nextShowOnlyNonEmptyFields,
+) {
   return JSON.stringify({
     fields: JSON.parse(serializeUserConfigFields(fields)),
     itemLabelField: String(nextItemLabelField || ''),
     markAsEditedBasis: String(nextMarkAsEditedBasis || ''),
+    showOnlyNonEmptyFields: Boolean(nextShowOnlyNonEmptyFields),
   })
 }
 
@@ -97,6 +105,7 @@ const hasUnappliedUserConfigChanges = computed(
       userConfigFields.value,
       itemLabelField.value,
       markAsEditedBasis.value,
+      showOnlyNonEmptyFields.value,
     ) !== appliedUserConfigSnapshot.value,
 )
 
@@ -111,6 +120,8 @@ function loadUserConfigFromSession() {
         appliedItemLabelField: '',
         markAsEditedBasis: '',
         appliedMarkAsEditedBasis: '',
+        showOnlyNonEmptyFields: false,
+        appliedShowOnlyNonEmptyFields: false,
       }
     }
     const parsed = JSON.parse(raw)
@@ -132,6 +143,11 @@ function loadUserConfigFromSession() {
           : typeof parsed?.markAsEditedBasis === 'string'
             ? parsed.markAsEditedBasis
             : '',
+      showOnlyNonEmptyFields: Boolean(parsed?.showOnlyNonEmptyFields),
+      appliedShowOnlyNonEmptyFields:
+        typeof parsed?.appliedShowOnlyNonEmptyFields === 'boolean'
+          ? parsed.appliedShowOnlyNonEmptyFields
+          : Boolean(parsed?.showOnlyNonEmptyFields),
     }
   } catch {
     return {
@@ -141,6 +157,8 @@ function loadUserConfigFromSession() {
       appliedItemLabelField: '',
       markAsEditedBasis: '',
       appliedMarkAsEditedBasis: '',
+      showOnlyNonEmptyFields: false,
+      appliedShowOnlyNonEmptyFields: false,
     }
   }
 }
@@ -153,6 +171,8 @@ function persistUserConfigToSession() {
     appliedItemLabelField: appliedItemLabelField.value,
     markAsEditedBasis: markAsEditedBasis.value,
     appliedMarkAsEditedBasis: appliedMarkAsEditedBasis.value,
+    showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
+    appliedShowOnlyNonEmptyFields: appliedShowOnlyNonEmptyFields.value,
   }
   sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
 }
@@ -169,6 +189,8 @@ function initializeUserConfig(availableFieldKeys, hasData) {
     appliedItemLabelField.value = ''
     markAsEditedBasis.value = ''
     appliedMarkAsEditedBasis.value = ''
+    showOnlyNonEmptyFields.value = false
+    appliedShowOnlyNonEmptyFields.value = false
     appliedUserConfigSnapshot.value = ''
     return
   }
@@ -214,10 +236,13 @@ function initializeUserConfig(availableFieldKeys, hasData) {
   appliedMarkAsEditedBasis.value = hasAppliedEditedBasisField
     ? persisted.appliedMarkAsEditedBasis
     : markAsEditedBasis.value
+  showOnlyNonEmptyFields.value = persisted.showOnlyNonEmptyFields
+  appliedShowOnlyNonEmptyFields.value = persisted.appliedShowOnlyNonEmptyFields
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     nextAppliedFields,
     appliedItemLabelField.value,
     appliedMarkAsEditedBasis.value,
+    appliedShowOnlyNonEmptyFields.value,
   )
 }
 
@@ -261,11 +286,18 @@ function applyUserConfigToRawItems(rawItems) {
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
   appliedItemLabelField.value = itemLabelField.value
   appliedMarkAsEditedBasis.value = markAsEditedBasis.value
+  appliedShowOnlyNonEmptyFields.value = showOnlyNonEmptyFields.value
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     appliedUserConfigFields.value,
     appliedItemLabelField.value,
     appliedMarkAsEditedBasis.value,
+    appliedShowOnlyNonEmptyFields.value,
   )
+  persistUserConfigToSession()
+}
+
+function setShowOnlyNonEmptyFields(nextValue) {
+  showOnlyNonEmptyFields.value = Boolean(nextValue)
   persistUserConfigToSession()
 }
 
@@ -375,6 +407,7 @@ function createUserConfigPayload() {
     fields: normalizedFields,
     itemLabelField: itemLabelField.value,
     markAsEditedBasis: markAsEditedBasis.value,
+    showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
   }
 }
 
@@ -435,6 +468,7 @@ function applyImportedConfigPayload(configPayload) {
     requestedMarkAsEditedBasis && Object.prototype.hasOwnProperty.call(nextFields, requestedMarkAsEditedBasis)
       ? requestedMarkAsEditedBasis
       : ''
+  const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
 
   userConfigFields.value = nextFields
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
@@ -442,10 +476,13 @@ function applyImportedConfigPayload(configPayload) {
   appliedItemLabelField.value = normalizedItemLabelField
   markAsEditedBasis.value = normalizedMarkAsEditedBasis
   appliedMarkAsEditedBasis.value = normalizedMarkAsEditedBasis
+  showOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
+  appliedShowOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     appliedUserConfigFields.value,
     appliedItemLabelField.value,
     appliedMarkAsEditedBasis.value,
+    appliedShowOnlyNonEmptyFields.value,
   )
   persistUserConfigToSession()
 
@@ -461,6 +498,8 @@ export function useUserConfigStore() {
     appliedItemLabelField,
     markAsEditedBasis,
     appliedMarkAsEditedBasis,
+    showOnlyNonEmptyFields,
+    appliedShowOnlyNonEmptyFields,
     hasUnappliedUserConfigChanges,
     draggedFieldKey,
     isUserConfigOpen,
@@ -474,6 +513,7 @@ export function useUserConfigStore() {
     updateFieldAutosuggestConfig,
     setItemLabelField,
     setMarkAsEditedBasis,
+    setShowOnlyNonEmptyFields,
     removeUserConfigField,
     startDrag,
     dropAt,

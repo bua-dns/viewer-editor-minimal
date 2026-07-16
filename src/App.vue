@@ -69,6 +69,7 @@ const {
   importFromCsvText,
   selectItem,
   updateField,
+  updateFieldByUid,
   resetToImportedSnapshot,
   createExportPayload,
   createCsvExportText,
@@ -136,6 +137,10 @@ function onDataModeChanged() {
 
 function onFieldChange(key, value, configuredType) {
   updateField(key, value, configuredType)
+}
+
+function onSuspendEditingToggle({ uid, checked }) {
+  updateFieldByUid(uid, 'suspendEditing', checked, 'checkbox')
 }
 
 function onApplyUserConfig() {
@@ -429,6 +434,7 @@ watch(
           :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
           :item-caption-field-key="appliedItemLabelField" :mark-as-edited-basis-field="appliedMarkAsEditedBasis"
           :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
+          :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
           :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
           :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
           :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
@@ -437,7 +443,7 @@ watch(
           :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
           :render-body="false" @update:search-query="searchQuery = $event"
-          @update:edited-items-first="editedItemsFirst = $event" />
+          @update:edited-items-first="editedItemsFirst = $event" @toggle-suspend-editing="onSuspendEditingToggle" />
       </section>
 
       <main class="tab-content">
@@ -451,13 +457,15 @@ watch(
             :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
             :item-caption-field-key="appliedItemLabelField" :mark-as-edited-basis-field="appliedMarkAsEditedBasis"
             :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
+            :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
             :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
             :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
             :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
             :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
             :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="false"
             :render-body="true" @clear-selection="clearSelection" @select-item="selectItem"
-            @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed" />
+            @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed"
+            @toggle-suspend-editing="onSuspendEditingToggle" />
 
           <aside v-if="selectedRawItem" class="sidebar-panel">
             <div class="sidebar-head">

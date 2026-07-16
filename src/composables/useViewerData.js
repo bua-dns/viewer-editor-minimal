@@ -203,6 +203,10 @@ function createCsvTextFromItems(items) {
   return lines.join('\n')
 }
 
+function isSuspendEditingEnabled(item) {
+  return item?.suspendEditing === true
+}
+
 export function useViewerData(options = {}) {
   const rawItems = ref([])
   const viewItems = ref([])
@@ -252,18 +256,30 @@ export function useViewerData(options = {}) {
         : 0
       const editedBasisValue = editedBasisField ? rawItem[editedBasisField] : null
       const isEdited = hasNonEmptyValue(editedBasisValue)
+      const isSuspendEditing = isSuspendEditingEnabled(rawItem)
 
       matches.push({
         item,
         isEdited,
+        isSuspendEditing,
         labelMatchScore,
         orderIndex,
       })
     })
 
     matches.sort((a, b) => {
-      if (a.isEdited !== b.isEdited) {
-        return editedItemsFirst ? (a.isEdited ? -1 : 1) : a.isEdited ? 1 : -1
+      const sortPriority = (entry) => {
+        if (editedItemsFirst) {
+          if (entry.isSuspendEditing) return 2
+          return entry.isEdited ? 0 : 1
+        }
+        if (entry.isEdited) return 2
+        return entry.isSuspendEditing ? 1 : 0
+      }
+
+      const priorityDiff = sortPriority(a) - sortPriority(b)
+      if (priorityDiff !== 0) {
+        return priorityDiff
       }
       if (b.labelMatchScore !== a.labelMatchScore) {
         return b.labelMatchScore - a.labelMatchScore
@@ -348,6 +364,29 @@ export function useViewerData(options = {}) {
     return true
   }
 
+  function updateFieldByUid(uidValue, key, nextRawValue, configuredType = null) {
+    const targetViewItem = viewItems.value.find((item) => item._uid === uidValue)
+    if (!targetViewItem) return false
+
+    const item = rawItems.value[targetViewItem._index]
+    if (!item) return false
+
+    const fieldExists = Object.prototype.hasOwnProperty.call(item, key)
+    if (!fieldExists && !(key === 'suspendEditing' && configuredType === 'checkbox')) return false
+
+    const isStructuredField = configuredType === 'wikidata-autosuggest'
+    if (!isStructuredField && fieldExists && !isEditableSimpleValue(item[key])) return false
+
+    const currentValue = fieldExists ? item[key] : false
+    const normalization = normalizeUpdatedFieldValue(currentValue, nextRawValue, configuredType)
+    if (!normalization.ok) return false
+
+    item[key] = normalization.value
+    targetViewItem._searchText = toSearchText(item)
+    isDirty.value = true
+    return true
+  }
+
   function resetToImportedSnapshot() {
     if (!importSnapshot.value.length) return false
     const fileName = importFileName.value
@@ -389,6 +428,7 @@ export function useViewerData(options = {}) {
     importFromCsvText,
     selectItem,
     updateField,
+    updateFieldByUid,
     resetToImportedSnapshot,
     createExportPayload,
     createCsvExportText,

@@ -147,6 +147,16 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(store.markAsEditedBasis.value).toBe('')
   })
 
+  test('persists showOnlyNonEmptyFields in payload', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number'], true)
+
+    store.setShowOnlyNonEmptyFields(true)
+
+    const payload = store.createUserConfigPayload()
+    expect(payload.showOnlyNonEmptyFields).toBe(true)
+  })
+
   test('keeps hint in payload for normal fields', () => {
     const store = useUserConfigStore()
     store.initializeUserConfig(['species'], true)
