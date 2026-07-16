@@ -92,6 +92,7 @@ const failedListImages = ref(new Set())
 const isExtendedEditMode = ref(false)
 const isStartFromScratchModalOpen = ref(false)
 const startFromScratchModalError = ref('')
+const pendingAutoUnsuspendUid = ref(null)
 
 const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
 
@@ -143,7 +144,22 @@ function onFieldChange(key, value, configuredType) {
 }
 
 function onSuspendEditingToggle({ uid, checked }) {
+  const shouldAutoSelectNext = Boolean(checked) && selectedViewItem.value?._uid === uid
+  let nextUid = null
+
+  if (shouldAutoSelectNext) {
+    const currentIndex = filteredViewItems.value.findIndex((item) => item._uid === uid)
+    if (currentIndex !== -1 && currentIndex < filteredViewItems.value.length - 1) {
+      nextUid = filteredViewItems.value[currentIndex + 1]?._uid || null
+    }
+  }
+
   toggleSuspendEditingByUid(uid, checked)
+
+  if (nextUid) {
+    pendingAutoUnsuspendUid.value = nextUid
+    selectItem(nextUid)
+  }
 }
 
 function onApplyUserConfig() {
@@ -355,6 +371,16 @@ watch(
 )
 
 watch(
+  () => selectedViewItem.value?._uid || null,
+  (nextSelectedUid) => {
+    if (!nextSelectedUid) return
+    if (pendingAutoUnsuspendUid.value !== nextSelectedUid) return
+    toggleSuspendEditingByUid(nextSelectedUid, false)
+    pendingAutoUnsuspendUid.value = null
+  },
+)
+
+watch(
   () => availableFieldKeys.value.join('|'),
   () => {
     initializeUserConfigForCurrentData()
@@ -517,8 +543,11 @@ watch(
                   <ReplacementsUnit/>
                 </div>
 
-                <ItemFieldEditor :selected-raw-item="selectedRawItem" :is-editable-simple-value="isEditableSimpleValue"
-                  @field-change="onFieldChange" />
+                <ItemFieldEditor :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
+                  :suspended-item-indices="suspendedItemIndices"
+                  :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
+                  :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
+                  @toggle-suspend-editing="onSuspendEditingToggle" />
               </div>
             </div>
           </aside>

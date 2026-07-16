@@ -5,10 +5,13 @@ import ViewerWikidataField from './ViewerWikidataField.vue'
 
 const props = defineProps({
   selectedRawItem: { type: Object, required: true },
+  selectedViewItem: { type: Object, default: null },
+  suspendedItemIndices: { type: Array, default: () => [] },
+  suspendEditingLabel: { type: String, default: 'Suspend editing' },
   isEditableSimpleValue: { type: Function, required: true },
 })
 
-const emit = defineEmits(['field-change'])
+const emit = defineEmits(['field-change', 'toggle-suspend-editing'])
 
 const { getFieldLabel, getFieldHint, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
 
@@ -41,10 +44,33 @@ function shouldRenderEditor(row) {
   if (row.editorBinding.resolvedType === 'wikidata-autosuggest') return true
   return props.isEditableSimpleValue(row.value)
 }
+
+const isSuspendEditingChecked = computed(() => {
+  const selectedIndex = props.selectedViewItem?._index
+  if (!Number.isInteger(selectedIndex)) return false
+  return props.suspendedItemIndices.includes(selectedIndex)
+})
+
+function onSuspendEditingChange(event) {
+  const uid = props.selectedViewItem?._uid
+  if (!uid) return
+  emit('toggle-suspend-editing', { uid, checked: event.target.checked })
+}
 </script>
 
 <template>
   <div class="field-grid">
+    <div class="field-row suspend-editing-row">
+      <label class="field-label suspend-editing-label" for="field-suspend-editing">
+        <span>{{ props.suspendEditingLabel }}</span>
+        <input
+          id="field-suspend-editing"
+          type="checkbox"
+          :checked="isSuspendEditingChecked"
+          @change="onSuspendEditingChange"
+        />
+      </label>
+    </div>
     <template v-for="row in fieldRows" :key="row.key">
       <div class="field-row" :class="{ 'is-readonly': row.isReadOnly }">
         <label :for="`field-${row.key}`" class="field-label">
@@ -106,5 +132,14 @@ function shouldRenderEditor(row) {
   margin: 0;
   color: var(--ve-color-text-muted);
   font-size: 0.84rem;
+}
+
+.suspend-editing-row {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ve-color-border-soft);
+}
+
+.suspend-editing-label {
+  justify-content: space-between;
 }
 </style>

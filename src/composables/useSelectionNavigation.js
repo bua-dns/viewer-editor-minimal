@@ -1,9 +1,18 @@
 import { computed } from 'vue'
 
 export function useSelectionNavigation({ filteredViewItems, selectedViewItem, selectItem }) {
+  function resolveSelectedUid() {
+    return selectedViewItem.value?._uid || null
+  }
+
+  function resolveSelectedIndex() {
+    const selectedUid = resolveSelectedUid()
+    if (!selectedUid) return -1
+    return filteredViewItems.value.findIndex((item) => item._uid === selectedUid)
+  }
+
   const selectedFilteredIndex = computed(() => {
-    if (!selectedViewItem.value) return -1
-    return filteredViewItems.value.findIndex((item) => item._uid === selectedViewItem.value._uid)
+    return resolveSelectedIndex()
   })
 
   const canGoPrevious = computed(() => selectedFilteredIndex.value > 0)
@@ -14,14 +23,16 @@ export function useSelectionNavigation({ filteredViewItems, selectedViewItem, se
   )
 
   function selectPreviousItem() {
-    if (!canGoPrevious.value) return
-    const previousItem = filteredViewItems.value[selectedFilteredIndex.value - 1]
+    const currentIndex = resolveSelectedIndex()
+    if (currentIndex <= 0) return
+    const previousItem = filteredViewItems.value[currentIndex - 1]
     if (previousItem) selectItem(previousItem._uid)
   }
 
   function selectNextItem() {
-    if (!canGoNext.value) return
-    const nextItem = filteredViewItems.value[selectedFilteredIndex.value + 1]
+    const currentIndex = resolveSelectedIndex()
+    if (currentIndex === -1 || currentIndex >= filteredViewItems.value.length - 1) return
+    const nextItem = filteredViewItems.value[currentIndex + 1]
     if (nextItem) selectItem(nextItem._uid)
   }
 

@@ -36,4 +36,15 @@ describe('useFieldMapping', () => {
 
     expect(keys).toEqual(['subject', 'note'])
   })
+
+  test('never shows suspendEditing as editable field key', () => {
+    const { getDisplayedFieldKeys } = useFieldMapping()
+    const keys = getDisplayedFieldKeys({
+      title: 'A',
+      suspendEditing: true,
+      note: 'B',
+    })
+
+    expect(keys).toEqual(['title', 'note'])
+  })
 })

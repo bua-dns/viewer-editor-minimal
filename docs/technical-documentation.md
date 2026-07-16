@@ -257,6 +257,7 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 ## Sidebar Field Editor Modularization
 
 - `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
+- `suspendEditing` wird in der Sidebar nicht als normales Datenfeld gerendert, sondern als separate Checkbox oberhalb der Feldliste.
 - `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`).
 - Jeder Feldtyp implementiert denselben Contract:
   - `createEditorBinding(...)` fuer UI-Bindings (`component`, Props, Event, Event-Value-Mapping)
