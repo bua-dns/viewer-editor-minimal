@@ -92,7 +92,6 @@ const failedListImages = ref(new Set())
 const isExtendedEditMode = ref(false)
 const isStartFromScratchModalOpen = ref(false)
 const startFromScratchModalError = ref('')
-const pendingAutoUnsuspendUid = ref(null)
 
 const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
 
@@ -157,7 +156,6 @@ function onSuspendEditingToggle({ uid, checked }) {
   toggleSuspendEditingByUid(uid, checked)
 
   if (nextUid) {
-    pendingAutoUnsuspendUid.value = nextUid
     selectItem(nextUid)
   }
 }
@@ -371,12 +369,16 @@ watch(
 )
 
 watch(
-  () => selectedViewItem.value?._uid || null,
-  (nextSelectedUid) => {
+  [
+    () => selectedViewItem.value?._uid || null,
+    () => suspendedItemIndices.value.join('|'),
+  ],
+  ([nextSelectedUid]) => {
     if (!nextSelectedUid) return
-    if (pendingAutoUnsuspendUid.value !== nextSelectedUid) return
+    const nextSelectedIndex = selectedViewItem.value?._index
+    if (!Number.isInteger(nextSelectedIndex)) return
+    if (!suspendedItemIndices.value.includes(nextSelectedIndex)) return
     toggleSuspendEditingByUid(nextSelectedUid, false)
-    pendingAutoUnsuspendUid.value = null
   },
 )
 

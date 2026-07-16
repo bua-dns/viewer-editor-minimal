@@ -64,6 +64,7 @@ function onSuspendEditingChange(event) {
       <label class="field-label suspend-editing-label" for="field-suspend-editing">
         <span>{{ props.suspendEditingLabel }}</span>
         <input
+          :key="props.selectedViewItem?._uid || 'field-suspend-editing'"
           id="field-suspend-editing"
           type="checkbox"
           :checked="isSuspendEditingChecked"

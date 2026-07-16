@@ -17,9 +17,7 @@ export function useSelectionNavigation({ filteredViewItems, selectedViewItem, se
 
   const canGoPrevious = computed(() => selectedFilteredIndex.value > 0)
   const canGoNext = computed(
-    () =>
-      selectedFilteredIndex.value !== -1 &&
-      selectedFilteredIndex.value < filteredViewItems.value.length - 1,
+    () => selectedFilteredIndex.value !== -1 && filteredViewItems.value.length > 1,
   )
 
   function selectPreviousItem() {
@@ -31,8 +29,9 @@ export function useSelectionNavigation({ filteredViewItems, selectedViewItem, se
 
   function selectNextItem() {
     const currentIndex = resolveSelectedIndex()
-    if (currentIndex === -1 || currentIndex >= filteredViewItems.value.length - 1) return
-    const nextItem = filteredViewItems.value[currentIndex + 1]
+    if (currentIndex === -1) return
+    const nextIndex = (currentIndex + 1) % filteredViewItems.value.length
+    const nextItem = filteredViewItems.value[nextIndex]
     if (nextItem) selectItem(nextItem._uid)
   }
 
