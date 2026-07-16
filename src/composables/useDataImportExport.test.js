@@ -49,6 +49,10 @@ function createModel({ dataMode = 'json', hasUnapplied = false, log = [] } = {})
       log.push('data')
       return rawItems.value
     }),
+    createSuspendedItemsPayload: vi.fn(() => {
+      log.push('suspended')
+      return [0]
+    }),
     createUserConfigPayload: vi.fn(() => {
       log.push('config')
       return { version: 1, fields: {} }
@@ -86,7 +90,7 @@ describe('useDataImportExport download flow', () => {
 
     model.onDownload()
 
-    expect(log).toEqual(['apply', 'data', 'config', 'replacements'])
+    expect(log).toEqual(['apply', 'data', 'config', 'suspended', 'replacements'])
   })
 
   test('auto-applies pending config before CSV export', () => {

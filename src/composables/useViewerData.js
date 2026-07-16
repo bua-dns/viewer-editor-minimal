@@ -77,6 +77,13 @@ function parseJsonPayload(text) {
 
   const replacementsFromPayload = hasReplacementsProperty ? parsed.replacements : null
 
+  const hasSuspendedItemsProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'suspendedItems')
+  if (hasSuspendedItemsProperty && !Array.isArray(parsed.suspendedItems)) {
+    return { ok: false, error: 'JSON-Feld "suspendedItems" muss ein Array sein.' }
+  }
+
+  const suspendedItemsFromPayload = hasSuspendedItemsProperty ? parsed.suspendedItems : []
+
   return {
     ok: true,
     data: rawData,
@@ -84,6 +91,8 @@ function parseJsonPayload(text) {
     config: configFromPayload,
     hasReplacements: replacementsFromPayload !== null,
     replacements: replacementsFromPayload,
+    hasSuspendedItems: hasSuspendedItemsProperty,
+    suspendedItems: suspendedItemsFromPayload,
   }
 }
 
@@ -203,14 +212,24 @@ function createCsvTextFromItems(items) {
   return lines.join('\n')
 }
 
-function isSuspendEditingEnabled(item) {
-  return item?.suspendEditing === true
+function normalizeSuspendedItemIndices(indices, itemCount) {
+  if (!Array.isArray(indices)) return []
+  const unique = new Set()
+  indices.forEach((value) => {
+    if (!Number.isInteger(value)) return
+    if (value < 0) return
+    if (value >= itemCount) return
+    unique.add(value)
+  })
+  return Array.from(unique).sort((a, b) => a - b)
 }
 
 export function useViewerData(options = {}) {
   const rawItems = ref([])
   const viewItems = ref([])
   const importSnapshot = ref([])
+  const suspendedItemIndices = ref([])
+  const suspendedItemIndicesSnapshot = ref([])
   const itemLabelFieldRef = options.itemLabelField
   const markAsEditedBasisRef = options.markAsEditedBasis
   const markAsEditedItemsFirstRef = options.markAsEditedItemsFirst
@@ -226,6 +245,7 @@ export function useViewerData(options = {}) {
   const errorMessage = ref('')
 
   const hasData = computed(() => rawItems.value.length > 0)
+  const suspendedItemIndexSet = computed(() => new Set(suspendedItemIndices.value))
 
   const selectedViewItem = computed(() =>
     viewItems.value.find((item) => item._uid === selectedUid.value) || null,
@@ -256,7 +276,7 @@ export function useViewerData(options = {}) {
         : 0
       const editedBasisValue = editedBasisField ? rawItem[editedBasisField] : null
       const isEdited = hasNonEmptyValue(editedBasisValue)
-      const isSuspendEditing = isSuspendEditingEnabled(rawItem)
+      const isSuspendEditing = suspendedItemIndexSet.value.has(item._index)
 
       matches.push({
         item,
@@ -290,9 +310,11 @@ export function useViewerData(options = {}) {
     return matches.map((entry) => entry.item)
   })
 
-  function initializeFromJsonArray(items, fileName = '') {
+  function initializeFromJsonArray(items, fileName = '', nextSuspendedItemIndices = []) {
     rawItems.value = cloneData(items)
     importSnapshot.value = cloneData(items)
+    suspendedItemIndices.value = normalizeSuspendedItemIndices(nextSuspendedItemIndices, rawItems.value.length)
+    suspendedItemIndicesSnapshot.value = cloneData(suspendedItemIndices.value)
     viewItems.value = rawItems.value.map((item, index) => ({
       _uid: uid(),
       _index: index,
@@ -314,7 +336,7 @@ export function useViewerData(options = {}) {
       clearReplacements()
       return false
     }
-    initializeFromJsonArray(result.data, fileName)
+    initializeFromJsonArray(result.data, fileName, result.suspendedItems)
     importedConfig.value = result.hasConfig ? cloneData(result.config) : null
     initializeReplacements(result.replacements)
     return true
@@ -364,25 +386,20 @@ export function useViewerData(options = {}) {
     return true
   }
 
-  function updateFieldByUid(uidValue, key, nextRawValue, configuredType = null) {
+  function toggleSuspendEditingByUid(uidValue, checked) {
     const targetViewItem = viewItems.value.find((item) => item._uid === uidValue)
     if (!targetViewItem) return false
 
-    const item = rawItems.value[targetViewItem._index]
-    if (!item) return false
+    const itemIndex = targetViewItem._index
+    const normalizedChecked = Boolean(checked)
+    const nextSet = new Set(suspendedItemIndices.value)
+    if (normalizedChecked) {
+      nextSet.add(itemIndex)
+    } else {
+      nextSet.delete(itemIndex)
+    }
 
-    const fieldExists = Object.prototype.hasOwnProperty.call(item, key)
-    if (!fieldExists && !(key === 'suspendEditing' && configuredType === 'checkbox')) return false
-
-    const isStructuredField = configuredType === 'wikidata-autosuggest'
-    if (!isStructuredField && fieldExists && !isEditableSimpleValue(item[key])) return false
-
-    const currentValue = fieldExists ? item[key] : false
-    const normalization = normalizeUpdatedFieldValue(currentValue, nextRawValue, configuredType)
-    if (!normalization.ok) return false
-
-    item[key] = normalization.value
-    targetViewItem._searchText = toSearchText(item)
+    suspendedItemIndices.value = Array.from(nextSet).sort((a, b) => a - b)
     isDirty.value = true
     return true
   }
@@ -390,7 +407,7 @@ export function useViewerData(options = {}) {
   function resetToImportedSnapshot() {
     if (!importSnapshot.value.length) return false
     const fileName = importFileName.value
-    initializeFromJsonArray(cloneData(importSnapshot.value), fileName)
+    initializeFromJsonArray(cloneData(importSnapshot.value), fileName, cloneData(suspendedItemIndicesSnapshot.value))
     return true
   }
 
@@ -402,8 +419,13 @@ export function useViewerData(options = {}) {
     return createCsvTextFromItems(rawItems.value)
   }
 
+  function createSuspendedItemsPayload() {
+    return cloneData(suspendedItemIndices.value)
+  }
+
   function markAsSaved(nextFileName = '') {
     importSnapshot.value = cloneData(rawItems.value)
+    suspendedItemIndicesSnapshot.value = cloneData(suspendedItemIndices.value)
     importFileName.value = nextFileName || importFileName.value
     isDirty.value = false
     return true
@@ -413,6 +435,7 @@ export function useViewerData(options = {}) {
     rawItems,
     viewItems,
     importSnapshot,
+    suspendedItemIndices,
     selectedUid,
     searchQuery,
     isDirty,
@@ -428,10 +451,11 @@ export function useViewerData(options = {}) {
     importFromCsvText,
     selectItem,
     updateField,
-    updateFieldByUid,
+    toggleSuspendEditingByUid,
     resetToImportedSnapshot,
     createExportPayload,
     createCsvExportText,
+    createSuspendedItemsPayload,
     markAsSaved,
     isEditableSimpleValue,
     looksLikeImageUrl,
@@ -450,6 +474,7 @@ export const __test = {
   parseJsonPayload,
   parseCsvText,
   createCsvTextFromItems,
+  normalizeSuspendedItemIndices,
   splitCsvLine,
   tokenize,
   toSearchText,

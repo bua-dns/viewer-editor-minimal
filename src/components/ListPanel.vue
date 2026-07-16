@@ -52,6 +52,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  suspendedItemIndices: {
+    type: Array,
+    default: () => [],
+  },
   itemCaptionFieldKey: {
     type: String,
     default: '',
@@ -171,7 +175,9 @@ function isEditedItem(item) {
 }
 
 function isSuspendEditingItem(item) {
-  return item?.suspendEditing === true
+  const itemIndex = item?._index
+  if (!Number.isInteger(itemIndex)) return false
+  return props.suspendedItemIndices.includes(itemIndex)
 }
 </script>
 
@@ -230,7 +236,7 @@ function isSuspendEditingItem(item) {
                   <span>{{ props.suspendEditingLabel }}</span>
                   <input
                     type="checkbox"
-                    :checked="isSuspendEditingItem(props.rawItems[item._index])"
+                    :checked="isSuspendEditingItem(item)"
                     :disabled="!props.hasData"
                     @change="onSuspendEditingChange(item._uid, $event)"
                   />
@@ -271,7 +277,7 @@ function isSuspendEditingItem(item) {
                 <span>{{ props.suspendEditingLabel }}</span>
                 <input
                   type="checkbox"
-                  :checked="isSuspendEditingItem(props.rawItems[item._index])"
+                  :checked="isSuspendEditingItem(item)"
                   :disabled="!props.hasData"
                   @change="onSuspendEditingChange(item._uid, $event)"
                 />

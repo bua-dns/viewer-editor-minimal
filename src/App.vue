@@ -56,6 +56,7 @@ const showEditedSortToggle = computed(() => Boolean(appliedMarkAsEditedBasis.val
 
 const {
   rawItems,
+  suspendedItemIndices,
   searchQuery,
   selectedRawItem,
   filteredViewItems,
@@ -69,9 +70,10 @@ const {
   importFromCsvText,
   selectItem,
   updateField,
-  updateFieldByUid,
+  toggleSuspendEditingByUid,
   resetToImportedSnapshot,
   createExportPayload,
+  createSuspendedItemsPayload,
   createCsvExportText,
   markAsSaved,
   isEditableSimpleValue,
@@ -112,7 +114,8 @@ const availableFieldKeys = computed(() => {
   const keys = new Set()
   rawItems.value.forEach((item) => {
     Object.keys(item || {}).forEach((key) => {
-      if (key !== 'scan') keys.add(key)
+      if (key === 'scan' || key === 'suspendEditing') return
+      keys.add(key)
     })
   })
   return Array.from(keys)
@@ -140,7 +143,7 @@ function onFieldChange(key, value, configuredType) {
 }
 
 function onSuspendEditingToggle({ uid, checked }) {
-  updateFieldByUid(uid, 'suspendEditing', checked, 'checkbox')
+  toggleSuspendEditingByUid(uid, checked)
 }
 
 function onApplyUserConfig() {
@@ -236,6 +239,7 @@ const { onDataFileSelected, onDownload, onStartFromScratch, onReset, onLoadSampl
   appendEditedTimestamp,
   markAsSaved,
   createExportPayload,
+  createSuspendedItemsPayload,
   createUserConfigPayload,
   createReplacementsPayload,
   isDirty,
@@ -432,6 +436,7 @@ watch(
           :result-count-label="resultCountLabel" :search-query="searchQuery" :search-label="t('searchLabel', 'Suche')"
           :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
           :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
+          :suspended-item-indices="suspendedItemIndices"
           :item-caption-field-key="appliedItemLabelField" :mark-as-edited-basis-field="appliedMarkAsEditedBasis"
           :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
           :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
@@ -455,6 +460,7 @@ watch(
             :search-label="t('searchLabel', 'Suche')"
             :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
             :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
+            :suspended-item-indices="suspendedItemIndices"
             :item-caption-field-key="appliedItemLabelField" :mark-as-edited-basis-field="appliedMarkAsEditedBasis"
             :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
             :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"

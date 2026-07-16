@@ -166,4 +166,28 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
     expect(payload.fields.species.hint).toBe('Use latin species name')
   })
+
+  test('does not include suspendEditing in config fields on initialize', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number', 'suspendEditing'], true)
+
+    expect(Object.keys(store.userConfigFields.value)).toEqual(['inventory_number'])
+  })
+
+  test('filters suspendEditing from imported config payload', () => {
+    const store = useUserConfigStore()
+    const imported = {
+      fields: {
+        inventory_number: { type: 'normal' },
+        suspendEditing: { type: 'checkbox' },
+      },
+      itemLabelField: 'suspendEditing',
+    }
+
+    const result = store.applyImportedConfigPayload(imported)
+
+    expect(result.ok).toBe(true)
+    expect(Object.keys(store.userConfigFields.value)).toEqual(['inventory_number'])
+    expect(store.itemLabelField.value).toBe('')
+  })
 })

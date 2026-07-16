@@ -18,6 +18,7 @@ Kernfunktionen:
 - Checkbox `suspendEditing` direkt in der grauen Item-Leiste (Karten- und Listenansicht), Text vor Checkbox-Icon
 - Checkbox `suspendEditing` wird nicht angezeigt, wenn ein Item bereits als bearbeitet markiert ist (Edit-Icon sichtbar)
 - Sortierregel in der Liste: `suspendEditing=true` ans Listenende, aber vor Eintraegen die wegen Mark-as-edited ans Ende sortiert werden
+- Suspend-Status wird nicht in die Item-Objekte geschrieben, sondern separat als Index-Array `suspendedItems` verwaltet
 - Dirty-State inkl. Warnung beim Verlassen der Seite
 - Reset auf Import-Snapshot
 - Export der bearbeiteten Daten als neue JSON- oder CSV-Datei
@@ -95,7 +96,7 @@ Die User-Config ist modularisiert:
 
 Im UI gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload verfuegbar ist.
 
-Pro erkanntem Feld (ohne `scan`) kann gesetzt werden:
+Pro erkanntem Feld (ohne reservierte Felder wie `scan` und `suspendEditing`) kann gesetzt werden:
 
 - `type`: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`
 - `label`: alternative Feldbeschriftung
@@ -153,6 +154,7 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 - `importedConfig`: optional eingebettete JSON-Config aus dem letzten JSON-Import
 - `replacements` (Store): `src/stores/useReplacementsStore.js` speichert und exportiert `replacements`
 - `replacementsSnapshot` (Store): Snapshot der importierten `replacements` fuer Change-Tracking
+- `suspendedItemIndices`: Array mit Item-Indizes (`number[]`), die in der Liste als `suspendEditing` markiert sind
 - `errorMessage`: Validierungs- oder Parse-Fehler
 
 ### Computed Values
@@ -329,8 +331,9 @@ Interne Script-Aufteilung:
 ## Export und Reset
 
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
-- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config>, replacements: <replacements> }` und nutzt die Store-Daten.
+- JSON-Export schreibt immer das kanonische Format `{ data: <items>, config: <user-config>, replacements: <replacements>, suspendedItems: <number[]> }` und nutzt die Store-Daten.
 - CSV-Export schreibt nur Nutzdaten (ohne Config, ohne `replacements`).
+- Beim JSON-Import ist `suspendedItems` optional; falls vorhanden, wird es als Array von Item-Indizes gelesen.
 - Vor jedem Download (JSON und CSV) wird eine noch nicht angewendete User-Config automatisch auf `rawItems` angewendet, damit Exportdaten und Konfigurationsstand nicht auseinanderlaufen.
 - Download wird in `useDataImportExport.js` ueber eine zentrale Helper-Funktion (`triggerBrowserDownload`) mit `Blob` + temporaerem Link ausgelagert.
 - Dateiname: `<importName>-edited.<json|csv>` bzw. `data-edited.<json|csv>`.

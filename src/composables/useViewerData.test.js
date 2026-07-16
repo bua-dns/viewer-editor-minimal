@@ -130,6 +130,27 @@ describe('useViewerData flow', () => {
     expect(model.isDirty.value).toBe(false)
   })
 
+  test('parseJsonPayload accepts suspendedItems array', () => {
+    const payload = JSON.stringify({
+      data: [{ a: 1 }, { a: 2 }],
+      suspendedItems: [1],
+    })
+    const result = __test.parseJsonPayload(payload)
+
+    expect(result.ok).toBe(true)
+    expect(result.suspendedItems).toEqual([1])
+  })
+
+  test('parseJsonPayload rejects non-array suspendedItems', () => {
+    const payload = JSON.stringify({
+      data: [{ a: 1 }],
+      suspendedItems: { index: 0 },
+    })
+    const result = __test.parseJsonPayload(payload)
+
+    expect(result.ok).toBe(false)
+  })
+
   test('only filters for search queries longer than two chars', () => {
     const model = useViewerData()
     model.initializeFromJsonArray([
@@ -213,10 +234,10 @@ describe('useViewerData flow', () => {
   test('pushes suspendEditing items to the end', () => {
     const model = useViewerData()
     model.initializeFromJsonArray([
-      { inventory_number: 'A1', suspendEditing: false },
-      { inventory_number: 'B2', suspendEditing: true },
-      { inventory_number: 'C3', suspendEditing: false },
-    ])
+      { inventory_number: 'A1' },
+      { inventory_number: 'B2' },
+      { inventory_number: 'C3' },
+    ], 'sample.json', [1])
 
     const orderedInventoryNumbers = model.filteredViewItems.value.map(
       (item) => model.rawItems.value[item._index].inventory_number,
@@ -229,11 +250,11 @@ describe('useViewerData flow', () => {
     const markAsEditedBasis = ref('edited_note')
     const model = useViewerData({ markAsEditedBasis })
     model.initializeFromJsonArray([
-      { inventory_number: 'A1', edited_note: '', suspendEditing: false },
-      { inventory_number: 'B2', edited_note: '', suspendEditing: true },
-      { inventory_number: 'C3', edited_note: 'done', suspendEditing: false },
-      { inventory_number: 'D4', edited_note: 'done', suspendEditing: true },
-    ])
+      { inventory_number: 'A1', edited_note: '' },
+      { inventory_number: 'B2', edited_note: '' },
+      { inventory_number: 'C3', edited_note: 'done' },
+      { inventory_number: 'D4', edited_note: 'done' },
+    ], 'sample.json', [1, 3])
 
     const orderedInventoryNumbers = model.filteredViewItems.value.map(
       (item) => model.rawItems.value[item._index].inventory_number,
@@ -247,11 +268,26 @@ describe('useViewerData flow', () => {
     model.initializeFromJsonArray([{ inventory_number: 'A1' }])
 
     const uid = model.viewItems.value[0]._uid
-    const updated = model.updateFieldByUid(uid, 'suspendEditing', true, 'checkbox')
+    const updated = model.toggleSuspendEditingByUid(uid, true)
 
     expect(updated).toBe(true)
-    expect(model.rawItems.value[0].suspendEditing).toBe(true)
+    expect(model.suspendedItemIndices.value).toEqual([0])
     expect(model.isDirty.value).toBe(true)
+  })
+
+  test('imports and exports suspended item indices separately from data', () => {
+    const model = useViewerData()
+    const payload = JSON.stringify({
+      data: [{ inventory_number: 'A1' }, { inventory_number: 'B2' }],
+      suspendedItems: [1],
+    })
+
+    const ok = model.importFromJsonText(payload, 'sample.json')
+
+    expect(ok).toBe(true)
+    expect(model.suspendedItemIndices.value).toEqual([1])
+    expect(model.rawItems.value[1].suspendEditing).toBeUndefined()
+    expect(model.createSuspendedItemsPayload()).toEqual([1])
   })
 
   test('imports csv data', () => {

@@ -7,6 +7,7 @@ import {
 } from '../fields/fieldRegistry'
 
 const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
+const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing'])
 
 const userConfigFields = ref({})
 const appliedUserConfigFields = ref({})
@@ -28,6 +29,12 @@ function isPlainObject(value) {
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function isConfigFieldAllowed(fieldKey) {
+  const normalized = String(fieldKey || '').trim()
+  if (!normalized) return false
+  return !EXCLUDED_CONFIG_FIELD_KEYS.has(normalized)
 }
 
 function createMinimalAutosuggestConfig() {
@@ -197,6 +204,7 @@ function initializeUserConfig(availableFieldKeys, hasData) {
 
   const defaults = {}
   availableFieldKeys.forEach((key, index) => {
+    if (!isConfigFieldAllowed(key)) return
     defaults[key] = normalizeUserConfigField({}, index)
   })
 
@@ -210,6 +218,7 @@ function initializeUserConfig(availableFieldKeys, hasData) {
   ])
 
   Array.from(allKeys).forEach((key) => {
+    if (!isConfigFieldAllowed(key)) return
     const defaultField = defaults[key] || normalizeUserConfigField({}, Object.keys(nextFields).length)
     nextFields[key] = normalizeUserConfigField(
       { ...defaultField, ...(persisted.fields[key] || {}) },
@@ -314,6 +323,10 @@ function addUserConfigField(t) {
   }
   if (Object.prototype.hasOwnProperty.call(userConfigFields.value, nextKey)) {
     addFieldError.value = t('addFieldDuplicateError', 'Feld existiert bereits.')
+    return
+  }
+  if (!isConfigFieldAllowed(nextKey)) {
+    addFieldError.value = t('addFieldReservedError', 'Feldname ist reserviert.')
     return
   }
 
@@ -451,6 +464,7 @@ function applyImportedConfigPayload(configPayload) {
 
   const nextFields = {}
   Object.keys(configPayload.fields).forEach((key, index) => {
+    if (!isConfigFieldAllowed(key)) return
     const source = configPayload.fields[key] || {}
     nextFields[key] = normalizeUserConfigField(source, index)
   })
