@@ -71,7 +71,47 @@ const limit = computed(() => {
   return Number.isFinite(value) ? String(value) : ''
 })
 const prefillWith = computed(() => String(getConfig().prefillWith || ''))
-const alsoGetDataFrom = computed(() => String(getConfig().alsoGetDataFrom || ''))
+
+function normalizeAlsoGetDataFromDefs(value) {
+  if (typeof value === 'string') {
+    return [
+      {
+        propertyId: value,
+        label: '',
+      },
+    ]
+  }
+
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.map((entry) => {
+    if (typeof entry === 'string') {
+      return {
+        propertyId: entry,
+        label: '',
+      }
+    }
+
+    return {
+      propertyId:
+        typeof entry?.propertyId === 'string'
+          ? entry.propertyId
+          : typeof entry?.property === 'string'
+            ? entry.property
+            : '',
+      label:
+        typeof entry?.label === 'string'
+          ? entry.label
+          : typeof entry?.propertyLabel === 'string'
+            ? entry.propertyLabel
+            : '',
+    }
+  })
+}
+
+const alsoGetDataFromDefs = computed(() => normalizeAlsoGetDataFromDefs(getConfig().alsoGetDataFrom))
 
 const claimPresenceDefs = computed(() => {
   const defs = getPrioritizeBlock('claimPresence').defs
@@ -199,14 +239,38 @@ function setPrefillWith(value) {
   })
 }
 
-function setAlsoGetDataFrom(value) {
+function addAlsoGetDataFromDef() {
   updateConfig((next) => {
-    const normalized = String(value || '').trim().toUpperCase()
-    if (normalized) {
-      next.alsoGetDataFrom = normalized
+    const defs = normalizeAlsoGetDataFromDefs(next.alsoGetDataFrom)
+    next.alsoGetDataFrom = [...defs, { propertyId: '', label: '' }]
+  })
+}
+
+function removeAlsoGetDataFromDef(index) {
+  updateConfig((next) => {
+    const defs = normalizeAlsoGetDataFromDefs(next.alsoGetDataFrom)
+    defs.splice(index, 1)
+    if (defs.length) {
+      next.alsoGetDataFrom = defs
       return
     }
     delete next.alsoGetDataFrom
+  })
+}
+
+function setAlsoGetDataFromDef(index, key, value) {
+  updateConfig((next) => {
+    const defs = normalizeAlsoGetDataFromDefs(next.alsoGetDataFrom)
+
+    while (defs.length <= index) {
+      defs.push({ propertyId: '', label: '' })
+    }
+
+    const entry = isPlainObject(defs[index]) ? { ...defs[index] } : { propertyId: '', label: '' }
+    const normalizedValue = String(value || '')
+    entry[key] = key === 'propertyId' ? normalizedValue.trim().toUpperCase() : normalizedValue
+    defs[index] = entry
+    next.alsoGetDataFrom = defs
   })
 }
 
@@ -324,12 +388,37 @@ function toggleAdvancedConfig() {
         </select>
 
         <label>{{ t('autosuggestAlsoGetDataFrom', 'Also get statement data from') }}</label>
-        <input
-          :value="alsoGetDataFrom"
-          type="text"
-          :placeholder="t('autosuggestAlsoGetDataFromPlaceholder', 'P31')"
-          @input="setAlsoGetDataFrom($event.target.value)"
-        />
+        <div class="claim-value-match-list">
+          <div class="claim-value-match-row claim-value-match-head">
+            <strong>{{ t('autosuggestPropertyId', 'Property ID') }}</strong>
+            <strong>{{ t('autosuggestLabel', 'Label') }}</strong>
+            <strong></strong>
+          </div>
+          <div
+            v-for="(entry, index) in alsoGetDataFromDefs"
+            :key="`also-get-data-from-${index}`"
+            class="claim-value-match-row"
+          >
+            <input
+              type="text"
+              :value="entry.propertyId"
+              :placeholder="t('autosuggestAlsoGetDataFromPlaceholder', 'P31')"
+              @input="setAlsoGetDataFromDef(index, 'propertyId', $event.target.value)"
+            />
+            <input
+              type="text"
+              :value="entry.label"
+              :placeholder="t('autosuggestLabelPlaceholder', 'Human')"
+              @input="setAlsoGetDataFromDef(index, 'label', $event.target.value)"
+            />
+            <button type="button" class="remove-def-btn" @click="removeAlsoGetDataFromDef(index)">
+              {{ t('removeFieldButton', 'Remove') }}
+            </button>
+          </div>
+          <button type="button" class="add-def-btn" @click="addAlsoGetDataFromDef">
+            {{ t('autosuggestAddDefinition', 'Add definition') }}
+          </button>
+        </div>
       </div>
 
       <section class="autosuggest-priority-block">

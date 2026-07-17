@@ -52,8 +52,20 @@ describe('useWikidataSearch', () => {
     })
 
     expect(results).toEqual([
-      { id: 'Q42', label: 'Douglas Adams', description: 'English writer' },
-      { id: 'Q64', label: 'Berlin', description: 'capital city of Germany' },
+      {
+        id: 'Q42',
+        label: 'Douglas Adams',
+        description: 'English writer',
+        labels: { en: 'Douglas Adams' },
+        descriptions: { en: 'English writer' },
+      },
+      {
+        id: 'Q64',
+        label: 'Berlin',
+        description: 'capital city of Germany',
+        labels: { en: 'Berlin' },
+        descriptions: { en: 'capital city of Germany' },
+      },
     ])
     expect(warnSpy).toHaveBeenCalledTimes(1)
   })
@@ -212,5 +224,52 @@ describe('useWikidataSearch', () => {
         },
       },
     ])
+  })
+
+  test('fetches localized labels and descriptions in de and en', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        const parsed = new URL(url)
+        const action = parsed.searchParams.get('action')
+
+        if (action !== 'wbgetentities') {
+          throw new Error(`Unexpected action: ${action}`)
+        }
+
+        expect(parsed.searchParams.get('props')).toBe('labels|descriptions')
+        expect(parsed.searchParams.get('languages')).toBe('de|en')
+        expect(parsed.searchParams.get('ids')).toBe('Q42')
+
+        return createJsonResponse({
+          entities: {
+            Q42: {
+              labels: {
+                de: { language: 'de', value: 'Douglas Adams' },
+                en: { language: 'en', value: 'Douglas Adams' },
+              },
+              descriptions: {
+                de: { language: 'de', value: 'britischer Schriftsteller' },
+                en: { language: 'en', value: 'English writer' },
+              },
+            },
+          },
+        })
+      }),
+    )
+
+    const { fetchEntityLocalizedTexts } = useWikidataSearch()
+    const localizedTexts = await fetchEntityLocalizedTexts('Q42', { languages: ['de', 'en'] })
+
+    expect(localizedTexts).toEqual({
+      labels: {
+        de: 'Douglas Adams',
+        en: 'Douglas Adams',
+      },
+      descriptions: {
+        de: 'britischer Schriftsteller',
+        en: 'English writer',
+      },
+    })
   })
 })

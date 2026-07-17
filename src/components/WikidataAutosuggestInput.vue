@@ -48,6 +48,10 @@ function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
+function readLocalizedTextValue(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 function isAbortError(error) {
   return Boolean(error) && (error.name === 'AbortError' || error.code === 20)
 }
@@ -168,18 +172,64 @@ function collectPropertyIdsByFlag(flagName) {
 const suggestionPropertyIds = computed(() => collectPropertyIdsByFlag('showInSuggestion'))
 const emitPropertyIds = computed(() => collectPropertyIdsByFlag('includeInEmitData'))
 const showSuggestionMetadata = computed(() => suggestionPropertyIds.value.length > 0)
-const alsoGetDataFromProperty = computed(() => {
-  const value = mergedConfig.value.alsoGetDataFrom
-  if (typeof value !== 'string') {
-    return ''
+function normalizeAlsoGetDataFromPropertyDefs(value) {
+  if (typeof value === 'string') {
+    return [
+      {
+        propertyId: value,
+        label: '',
+      },
+    ]
   }
 
-  const normalized = value.trim().toUpperCase()
-  if (!/^P\d+$/.test(normalized)) {
-    return ''
+  if (!Array.isArray(value)) {
+    return []
   }
 
-  return normalized
+  return value.map((entry) => {
+    if (typeof entry === 'string') {
+      return {
+        propertyId: entry,
+        label: '',
+      }
+    }
+
+    return {
+      propertyId:
+        typeof entry?.propertyId === 'string'
+          ? entry.propertyId
+          : typeof entry?.property === 'string'
+            ? entry.property
+            : '',
+      label:
+        typeof entry?.label === 'string'
+          ? entry.label
+          : typeof entry?.propertyLabel === 'string'
+            ? entry.propertyLabel
+            : '',
+    }
+  })
+}
+
+const alsoGetDataFromProperties = computed(() => {
+  const defs = normalizeAlsoGetDataFromPropertyDefs(mergedConfig.value.alsoGetDataFrom)
+  const seen = new Set()
+  const normalizedDefs = []
+
+  for (const definition of defs) {
+    const normalizedPropertyId = String(definition?.propertyId || '').trim().toUpperCase()
+    if (!/^P\d+$/.test(normalizedPropertyId) || seen.has(normalizedPropertyId)) {
+      continue
+    }
+
+    seen.add(normalizedPropertyId)
+    normalizedDefs.push({
+      propertyId: normalizedPropertyId,
+      label: String(definition?.label || '').trim(),
+    })
+  }
+
+  return normalizedDefs
 })
 
 const suggestionPropertyLabels = computed(() => {
@@ -293,6 +343,9 @@ function getSuggestionPrioritizationValuesText(item) {
 async function getEmitItem(item) {
   const nextItem = { ...item }
   const shouldIncludeClaimData = emitPropertyIds.value.length > 0
+  const fallbackLanguage = String(mergedConfig.value.resultLanguage || '').trim().toLowerCase()
+  const labelFallback = readLocalizedTextValue(nextItem.label)
+  const descriptionFallback = readLocalizedTextValue(nextItem.description)
 
   if (!shouldIncludeClaimData) {
     delete nextItem.ranking
@@ -308,18 +361,73 @@ async function getEmitItem(item) {
     }
   }
 
-  const propertyIdForStatementData = alsoGetDataFromProperty.value
-  if (propertyIdForStatementData && typeof nextItem.id === 'string' && nextItem.id.trim()) {
+  if (
+    alsoGetDataFromProperties.value.length &&
+    typeof nextItem.id === 'string' &&
+    nextItem.id.trim()
+  ) {
+    const statementRequests = alsoGetDataFromProperties.value.map(async ({ propertyId }) => ({
+      propertyId,
+      statementData: await fetchStatementDataForEntity(nextItem.id, propertyId),
+    }))
+
+    const settled = await Promise.allSettled(statementRequests)
+    const existingStatementData = isPlainObject(nextItem.statementData) ? nextItem.statementData : {}
+    const nextStatementData = { ...existingStatementData }
+
+    for (const result of settled) {
+      if (result.status === 'fulfilled') {
+        nextStatementData[result.value.propertyId] = result.value.statementData
+        continue
+      }
+
+      if (!isAbortError(result.reason) && import.meta.env.DEV) {
+        console.warn('[wikidata] statement data request failed', result.reason)
+      }
+    }
+
+    if (Object.keys(nextStatementData).length) {
+      nextItem.statementData = nextStatementData
+    }
+  }
+
+  if (typeof nextItem.id === 'string' && nextItem.id.trim()) {
     try {
-      const statementData = await fetchStatementDataForEntity(nextItem.id, propertyIdForStatementData)
-      const existingStatementData = isPlainObject(nextItem.statementData) ? nextItem.statementData : {}
-      nextItem.statementData = {
-        ...existingStatementData,
-        [propertyIdForStatementData]: statementData,
+      const localizedTexts = await fetchEntityLocalizedTexts(nextItem.id, {
+        languages: ['de', 'en'],
+      })
+
+      const labels = isPlainObject(nextItem.labels) ? { ...nextItem.labels } : {}
+      const descriptions = isPlainObject(nextItem.descriptions) ? { ...nextItem.descriptions } : {}
+
+      labels.de = readLocalizedTextValue(localizedTexts.labels?.de)
+      labels.en = readLocalizedTextValue(localizedTexts.labels?.en)
+      descriptions.de = readLocalizedTextValue(localizedTexts.descriptions?.de)
+      descriptions.en = readLocalizedTextValue(localizedTexts.descriptions?.en)
+
+      if (fallbackLanguage === 'de' || fallbackLanguage === 'en') {
+        if (!labels[fallbackLanguage] && labelFallback) {
+          labels[fallbackLanguage] = labelFallback
+        }
+        if (!descriptions[fallbackLanguage] && descriptionFallback) {
+          descriptions[fallbackLanguage] = descriptionFallback
+        }
+      }
+
+      nextItem.labels = labels
+      nextItem.descriptions = descriptions
+
+      if (!readLocalizedTextValue(nextItem.label)) {
+        nextItem.label = labels[fallbackLanguage] || labels.de || labels.en || nextItem.id
+      }
+
+      if (!readLocalizedTextValue(nextItem.description)) {
+        nextItem.description =
+          descriptions[fallbackLanguage] || descriptions.de || descriptions.en || ''
       }
     } catch (error) {
       if (!isAbortError(error) && import.meta.env.DEV) {
-        console.warn('[wikidata] statement data request failed', error)
+        console.warn('[wikidata] localized label/description request failed', error)
       }
     }
   }
@@ -327,7 +435,7 @@ async function getEmitItem(item) {
   return nextItem
 }
 
-const { search, fetchStatementDataForEntity } = useWikidataSearch()
+const { search, fetchStatementDataForEntity, fetchEntityLocalizedTexts } = useWikidataSearch()
 
 function scheduleSearch(normalized) {
   abortActiveSearch()

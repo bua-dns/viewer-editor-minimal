@@ -129,18 +129,60 @@ export function validateImportedConfigPayload(configPayload) {
     }
 
     if (isPlainObject(fieldConfig.autosuggest) && fieldConfig.autosuggest.alsoGetDataFrom != null) {
-      if (typeof fieldConfig.autosuggest.alsoGetDataFrom !== 'string') {
-        return {
-          ok: false,
-          error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss ein String sein.`,
-        }
-      }
+      const alsoGetDataFrom = fieldConfig.autosuggest.alsoGetDataFrom
 
-      const alsoGetDataFrom = fieldConfig.autosuggest.alsoGetDataFrom.trim()
-      if (alsoGetDataFrom && !/^P\d+$/i.test(alsoGetDataFrom)) {
+      if (typeof alsoGetDataFrom === 'string') {
+        const normalized = alsoGetDataFrom.trim()
+        if (normalized && !/^P\d+$/i.test(normalized)) {
+          return {
+            ok: false,
+            error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss eine gueltige Property-ID sein (z. B. P31).`,
+          }
+        }
+      } else if (Array.isArray(alsoGetDataFrom)) {
+        for (const entry of alsoGetDataFrom) {
+          const propertyId =
+            typeof entry === 'string'
+              ? entry
+              : typeof entry?.propertyId === 'string'
+                ? entry.propertyId
+                : typeof entry?.property === 'string'
+                  ? entry.property
+                  : ''
+
+          if (typeof entry !== 'string' && !isPlainObject(entry)) {
+            return {
+              ok: false,
+              error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss nur Strings oder Objekte enthalten.`,
+            }
+          }
+
+          if (isPlainObject(entry) && entry.label != null && typeof entry.label !== 'string') {
+            return {
+              ok: false,
+              error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom.label bei ${key} muss ein String sein.`,
+            }
+          }
+
+          if (isPlainObject(entry) && entry.propertyLabel != null && typeof entry.propertyLabel !== 'string') {
+            return {
+              ok: false,
+              error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom.propertyLabel bei ${key} muss ein String sein.`,
+            }
+          }
+
+          const normalized = String(propertyId || '').trim()
+          if (normalized && !/^P\d+$/i.test(normalized)) {
+            return {
+              ok: false,
+              error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss gueltige Property-IDs enthalten (z. B. P31).`,
+            }
+          }
+        }
+      } else {
         return {
           ok: false,
-          error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss eine gueltige Property-ID sein (z. B. P31).`,
+          error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss ein String oder ein Array sein.`,
         }
       }
     }

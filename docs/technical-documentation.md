@@ -55,7 +55,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/ViewerWikidataField.vue` - Viewer-spezifischer Wrapper fuer den Feldtyp `wikidata-autosuggest`
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (erhaelt Konfiguration als pass-through)
 - `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer autosuggest-spezifische Feldoptionen in der Konfigurationsansicht
-- `src/composables/useWikidataSearch.js` - Suche ueber Wikidata API inkl. Priorisierungslogik und Claim-Metadaten
+- `src/composables/useWikidataSearch.js` - Suche ueber Wikidata API inkl. Priorisierungslogik, Claim-Metadaten und lokalisierter Labels/Descriptions (`de`/`en`)
 - `src/composables/useWikidataSearch.test.js` - Unit-Tests fuer resiliente Wikidata-Suche (Teilausfaelle/Abort)
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
@@ -112,7 +112,7 @@ Fuer `wikidata-autosuggest` zusaetzlich:
 - GUI-Editierung aller `autosuggest`-Optionen in einem einklappbaren `Optionen`-Bereich
   - Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
   - `prefillWith`: Dropdown auf ein `normal`-Feld; dessen String-Wert wird als Suchtext vorbefuellt
-  - `alsoGetDataFrom`: optionale Wikidata-Property (`P...`), deren rohe Statement-Daten beim Auswaehlen einer Entity zusaetzlich gespeichert werden
+  - `alsoGetDataFrom`: Repeater fuer optionale Wikidata-Properties als Objekte `{ propertyId, label }`; pro Eintrag werden rohe Statement-Daten beim Auswaehlen einer Entity zusaetzlich gespeichert (Legacy-String bleibt lesbar)
   - Priorisierungsbloecke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`, `includeInEmitData`, `showInSuggestion`
   - `claimPresence.defs` als Repeater mit `{ propertyId, propertyLabel }` (Legacy-String-Defs bleiben lesbar)
   - `claimValueMatch.defs` als Repeater mit `{ property, value, label }`
@@ -286,8 +286,10 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 - `showInSuggestion`: zeigt priorisierungsbezogene Metadaten in der Trefferliste.
 - Bei gesetzten Def-Labels werden Metadaten als `Label (PropertyId): ...` angezeigt (statt nur `PropertyId: ...`) in Trefferliste und selektierten Ergebnissen.
 - `includeInEmitData`: behaelt priorisierungsbezogene Metadaten (`ranking`, `prioritizationValues`) im selektierten Entity-Payload.
+- Selektierte Entities enthalten zusaetzlich lokalisierte Begriffe unter `labels` und `descriptions` als Sprachmaps (mindestens `de` und `en`), z. B. `labels.de`, `labels.en`, `descriptions.de`, `descriptions.en`.
+- Datenquelle fuer lokalisierte Begriffe: sprachspezifischer Merge aus `wbsearchentities`; beim Auswaehlen wird zusaetzlich `wbgetentities` mit `props=labels|descriptions` und `languages=de|en` verwendet, damit die Werte stabil im Export-Payload landen.
 - `prefillWith`: wenn konfiguriert, wird beim Wechsel auf ein Item der Wert des referenzierten `normal`-Felds automatisch in die Autosuggest-Eingabe uebernommen; die Suche startet dabei nur automatisch, wenn noch keine Entity im Feld selektiert ist.
-- `alsoGetDataFrom`: wenn konfiguriert (`P...`), laedt die Auswahl-Logik beim Hinzufuegen einer Entity die rohen Statements fuer diese Property nach und speichert sie unter `statementData[PROPERTY_ID]` im Entity-Payload.
+- `alsoGetDataFrom`: wenn konfiguriert (ein oder mehrere `P...`-Eintraege), laedt die Auswahl-Logik beim Hinzufuegen einer Entity die rohen Statements fuer jede Property nach und speichert sie unter `statementData[PROPERTY_ID]` im Entity-Payload.
 - Bereits ausgewaehlte Entities werden in der Suggestion-Liste ausgefiltert (Anzeige nur in der selektierten Entity-Liste unterhalb des Inputs).
 - Die Suggestion-Liste ist auf `6rem` Hoehe begrenzt und nutzt vertikales Scrollen.
 - Wenn `statementData` vorhanden ist, zeigt die selektierte Entity-Liste einen Toggle (`Show/Hide statement data`) und rendert die rohen Daten als formatierten JSON-Block (`<pre>`).
@@ -408,6 +410,9 @@ Tests in `src/composables/useWikidataSearch.test.js` pruefen:
 
 - resilientes Merge-Verhalten bei Ausfall einer Suchsprache
 - `AbortError`-Pfad fuer aktiv abgebrochene Requests ohne zusaetzliches Warning-Logging
+- Priorisierungsfall `claimPresence` mit Objekt-Defs (`{ propertyId, propertyLabel }`)
+- Nachladen roher Statement-Daten je Entity/Property
+- Nachladen lokalisierter Labels/Descriptions (`de`/`en`) via `wbgetentities`
 
 Testlauf:
 

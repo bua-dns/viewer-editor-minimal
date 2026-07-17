@@ -124,11 +124,36 @@ function buildGetEntitiesUrl(ids, requiredProperties = []) {
   return `${WIKIDATA_API_URL}?${params.toString()}`
 }
 
-function normalizeResult(entity) {
+function buildGetEntityTermsUrl(entityId, languages = []) {
+  const params = new URLSearchParams({
+    action: 'wbgetentities',
+    format: 'json',
+    origin: '*',
+    ids: entityId,
+    props: 'labels|descriptions',
+  })
+
+  if (languages.length) {
+    params.set('languages', languages.join('|'))
+  }
+
+  return `${WIKIDATA_API_URL}?${params.toString()}`
+}
+
+function normalizeResult(entity, sourceLanguage = '') {
+  const normalizedLanguage = String(sourceLanguage || '').trim().toLowerCase()
+  const label = entity.label || ''
+  const description = entity.description || ''
+
+  const labels = normalizedLanguage && label ? { [normalizedLanguage]: label } : {}
+  const descriptions = normalizedLanguage && description ? { [normalizedLanguage]: description } : {}
+
   return {
     id: entity.id,
-    label: entity.label || '',
-    description: entity.description || '',
+    label,
+    description,
+    labels,
+    descriptions,
   }
 }
 
@@ -230,6 +255,25 @@ function normalizePropertyIds(propertyIds) {
   )
 }
 
+function normalizeLanguageCodes(languages) {
+  if (!Array.isArray(languages)) {
+    return []
+  }
+
+  return Array.from(
+    new Set(
+      languages
+        .map((language) => String(language || '').trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  )
+}
+
+function getLocalizedValueByLanguage(terms, language) {
+  const value = terms?.[language]?.value
+  return typeof value === 'string' ? value : ''
+}
+
 async function fetchEntityClaimsById(ids, requiredProperties, options = {}) {
   const { signal } = options
 
@@ -303,6 +347,39 @@ async function fetchStatementDataForEntity(entityId, propertyId, options = {}) {
   const statements = entityClaims?.[normalizedPropertyId]
 
   return Array.isArray(statements) ? statements : []
+}
+
+async function fetchEntityLocalizedTexts(entityId, options = {}) {
+  const normalizedEntityId = String(entityId || '').trim()
+  const languages = normalizeLanguageCodes(options.languages)
+  const { signal } = options
+
+  if (!normalizedEntityId || !languages.length) {
+    return {
+      labels: {},
+      descriptions: {},
+    }
+  }
+
+  const response = await fetch(buildGetEntityTermsUrl(normalizedEntityId, languages), { signal })
+  if (!response.ok) {
+    throw new Error(`Wikidata request failed (${response.status})`)
+  }
+
+  const data = await response.json()
+  const entity = data?.entities?.[normalizedEntityId]
+  const labels = {}
+  const descriptions = {}
+
+  for (const language of languages) {
+    labels[language] = getLocalizedValueByLanguage(entity?.labels, language)
+    descriptions[language] = getLocalizedValueByLanguage(entity?.descriptions, language)
+  }
+
+  return {
+    labels,
+    descriptions,
+  }
 }
 
 function getRankingForEntity(entityClaims, prioritizationBlocks) {
@@ -388,6 +465,7 @@ export function useWikidataSearch() {
 
     const languages =
       Array.isArray(searchLanguages) && searchLanguages.length ? searchLanguages : ['de', 'en']
+    const normalizedResultLanguage = String(resultLanguage || '').trim().toLowerCase()
 
     const requests = languages.map((language) =>
       fetch(
@@ -404,7 +482,7 @@ export function useWikidataSearch() {
 
         const data = await response.json()
         const entities = Array.isArray(data.search) ? data.search : []
-        return entities.map(normalizeResult)
+        return entities.map((entity) => normalizeResult(entity, language))
       }),
     )
 
@@ -430,7 +508,28 @@ export function useWikidataSearch() {
       for (const item of resultSet) {
         if (!byId.has(item.id)) {
           byId.set(item.id, item)
+          continue
         }
+
+        const existing = byId.get(item.id)
+        const mergedLabels = {
+          ...(existing?.labels && typeof existing.labels === 'object' ? existing.labels : {}),
+          ...(item?.labels && typeof item.labels === 'object' ? item.labels : {}),
+        }
+        const mergedDescriptions = {
+          ...(existing?.descriptions && typeof existing.descriptions === 'object' ? existing.descriptions : {}),
+          ...(item?.descriptions && typeof item.descriptions === 'object' ? item.descriptions : {}),
+        }
+
+        byId.set(item.id, {
+          ...existing,
+          ...item,
+          label: mergedLabels[normalizedResultLanguage] || existing.label || item.label || item.id,
+          description:
+            mergedDescriptions[normalizedResultLanguage] || existing.description || item.description || '',
+          labels: mergedLabels,
+          descriptions: mergedDescriptions,
+        })
       }
     }
 
@@ -459,5 +558,6 @@ export function useWikidataSearch() {
   return {
     search,
     fetchStatementDataForEntity,
+    fetchEntityLocalizedTexts,
   }
 }

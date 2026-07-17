@@ -217,6 +217,24 @@ describe('validateImportedConfigPayload', () => {
     expect(result.ok).toBe(true)
   })
 
+  test('accepts autosuggest alsoGetDataFrom as repeater entries with labels', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            alsoGetDataFrom: [
+              { propertyId: 'P31', label: 'instance of' },
+              { propertyId: 'P279', label: 'subclass of' },
+            ],
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
   test('rejects autosuggest alsoGetDataFrom when property id is invalid', () => {
     const result = validateImportedConfigPayload({
       fields: {
@@ -224,6 +242,36 @@ describe('validateImportedConfigPayload', () => {
           type: 'wikidata-autosuggest',
           autosuggest: {
             alsoGetDataFrom: 'Q5',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects autosuggest alsoGetDataFrom repeater entry when property id is invalid', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            alsoGetDataFrom: [{ propertyId: 'Q5', label: 'invalid property' }],
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects autosuggest alsoGetDataFrom when type is not string or array', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        subject: {
+          type: 'wikidata-autosuggest',
+          autosuggest: {
+            alsoGetDataFrom: 31,
           },
         },
       },
