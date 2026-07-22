@@ -112,6 +112,26 @@ const wording = {
     de: "Datenmodus wählen",
     en: "Choose data mode",
   },
+  appModeAria: {
+    de: "Anwendungsmodus",
+    en: "Application mode",
+  },
+  appModeOffline: {
+    de: "Offline",
+    en: "Offline",
+  },
+  appModeOnline: {
+    de: "Online",
+    en: "Online",
+  },
+  appModeOfflineNote: {
+    de: "Offline-Modus aktiv. Lokaler JSON/CSV-Workflow ist verfügbar.",
+    en: "Offline mode active. Local JSON/CSV workflow is enabled.",
+  },
+  transferDisabledInOnlineMode: {
+    de: "Online-Modus aktiv: JSON/CSV Upload und Download sind deaktiviert.",
+    en: "Online mode active: JSON/CSV upload and download are disabled.",
+  },
   appTabsAria: {
     de: "App-Bereiche",
     en: "App sections",
@@ -131,6 +151,98 @@ const wording = {
   tabReplacements: {
     de: "Ersetzungen",
     en: "Replacements",
+  },
+  tabDatabaseConnection: {
+    de: "Datenbankverbindung",
+    en: "Database Connection",
+  },
+  authStateAuthenticating: {
+    de: "Authentifizierung läuft...",
+    en: "Authenticating...",
+  },
+  authStateRestoring: {
+    de: "Sitzung wird wiederhergestellt...",
+    en: "Restoring session...",
+  },
+  authStateAuthenticated: {
+    de: "Authentifiziert",
+    en: "Authenticated",
+  },
+  authStateError: {
+    de: "Authentifizierungsfehler",
+    en: "Authentication error",
+  },
+  authStateAnonymous: {
+    de: "Nicht angemeldet",
+    en: "Not authenticated",
+  },
+  authUserFallback: {
+    de: "Nutzer",
+    en: "User",
+  },
+  authIdentifier: {
+    de: "Identifier (E-Mail oder Username)",
+    en: "Identifier (email or username)",
+  },
+  authPassword: {
+    de: "Passwort",
+    en: "Password",
+  },
+  authShowPassword: {
+    de: "Anzeigen",
+    en: "Show",
+  },
+  authHidePassword: {
+    de: "Ausblenden",
+    en: "Hide",
+  },
+  authLogin: {
+    de: "Anmelden",
+    en: "Login",
+  },
+  authLoginPending: {
+    de: "Anmeldung läuft...",
+    en: "Logging in...",
+  },
+  authLoginFailed: {
+    de: "Anmeldung fehlgeschlagen.",
+    en: "Login failed.",
+  },
+  authLogout: {
+    de: "Abmelden",
+    en: "Logout",
+  },
+  dbConnectionRequired: {
+    de: "Für den Online-Modus wird ein gespeichertes Verbindungsprofil benötigt.",
+    en: "A saved connection profile is required for online mode.",
+  },
+  dbConnectionOpenTab: {
+    de: "Tab Datenbankverbindung öffnen",
+    en: "Open Database Connection tab",
+  },
+  onlineSettingsLoaded: {
+    de: "Online-Konfiguration aus response.data.settings geladen.",
+    en: "Online settings loaded from response.data.settings.",
+  },
+  onlineSettingsLoading: {
+    de: "Online-Konfiguration wird geladen...",
+    en: "Loading online settings...",
+  },
+  onlineSettingsFailed: {
+    de: "Online-Konfiguration konnte nicht geladen werden.",
+    en: "Could not load online settings.",
+  },
+  onlineItemsLoadedPrefix: {
+    de: "Online-Items geladen",
+    en: "Online items loaded",
+  },
+  onlineItemsLoading: {
+    de: "Online-Items werden geladen...",
+    en: "Loading online items...",
+  },
+  onlineItemsFailed: {
+    de: "Online-Items konnten nicht geladen werden.",
+    en: "Could not load online items.",
   },
   uploadModeMismatchError: {
     de: "Dateityp passt nicht zum gewählten Modus.",
@@ -187,6 +299,102 @@ const wording = {
   replacementsTitle: {
     de: "Ersetzungen",
     en: "Replacements",
+  },
+  dbConnectionTitle: {
+    de: "Datenbankverbindung",
+    en: "Database Connection",
+  },
+  dbConnectionDescription: {
+    de: "Strapi-Backend-Verbindung zur Laufzeit konfigurieren, ohne feste Endpunkte im Code.",
+    en: "Configure Strapi backend connection at runtime without hardcoded endpoints.",
+  },
+  dbConnectionLabelField: {
+    de: "Profilname (optional)",
+    en: "Profile label (optional)",
+  },
+  dbConnectionLabelPlaceholder: {
+    de: "Meine Strapi Instanz",
+    en: "My Strapi Instance",
+  },
+  dbConnectionBaseUrlField: {
+    de: "Base URL (Strapi)",
+    en: "Base URL (Strapi)",
+  },
+  dbConnectionConfigPathField: {
+    de: "Pfad zum Konfig-Endpunkt",
+    en: "Config endpoint path",
+  },
+  dbConnectionSave: {
+    de: "Profil speichern",
+    en: "Save profile",
+  },
+  dbConnectionTest: {
+    de: "Verbindung testen",
+    en: "Test connection",
+  },
+  dbConnectionTesting: {
+    de: "Prüfe...",
+    en: "Testing...",
+  },
+  dbConnectionDownload: {
+    de: "Profil als JSON herunterladen",
+    en: "Download profile JSON",
+  },
+  dbConnectionUpload: {
+    de: "Profil-JSON importieren",
+    en: "Import profile JSON",
+  },
+  dbConnectionResetFormButton: {
+    de: "Formular zurücksetzen",
+    en: "Reset form",
+  },
+  dbConnectionClearSaved: {
+    de: "Gespeichertes Profil löschen",
+    en: "Clear saved profile",
+  },
+  dbConnectionSaveSuccess: {
+    de: "Verbindungsprofil gespeichert.",
+    en: "Connection profile saved.",
+  },
+  dbConnectionSaveFailed: {
+    de: "Verbindungsprofil konnte nicht gespeichert werden.",
+    en: "Connection profile could not be saved.",
+  },
+  dbConnectionResetForm: {
+    de: "Formular auf gespeichertes Profil zurückgesetzt.",
+    en: "Form reset to saved profile.",
+  },
+  dbConnectionCleared: {
+    de: "Gespeichertes Verbindungsprofil entfernt.",
+    en: "Saved connection profile removed.",
+  },
+  dbConnectionNoSavedProfile: {
+    de: "Kein gespeichertes Profil vorhanden.",
+    en: "No saved profile available.",
+  },
+  dbConnectionDownloadSuccess: {
+    de: "Verbindungsprofil heruntergeladen.",
+    en: "Connection profile downloaded.",
+  },
+  dbConnectionImportSuccess: {
+    de: "Verbindungsprofil importiert.",
+    en: "Connection profile imported.",
+  },
+  dbConnectionImportFailed: {
+    de: "Import des Verbindungsprofils fehlgeschlagen.",
+    en: "Connection profile import failed.",
+  },
+  dbConnectionTestSuccess: {
+    de: "Verbindungstest erfolgreich.",
+    en: "Connection test successful.",
+  },
+  dbConnectionTestFailed: {
+    de: "Verbindungstest fehlgeschlagen.",
+    en: "Connection test failed.",
+  },
+  dbConnectionLastSaved: {
+    de: "Zuletzt gespeichert",
+    en: "Last saved",
   },
   field_label: {
     de: "Feld",

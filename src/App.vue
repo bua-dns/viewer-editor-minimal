@@ -18,10 +18,17 @@ import InfoPanel from './components/InfoPanel.vue'
 import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import ReplacementsUnit from './components/ReplacementsUnit.vue'
+import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
+import OnlineAccessPanel from './components/OnlineAccessPanel.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
+import { useConnectionProfileStore } from './stores/useConnectionProfileStore'
+import { useOnlineModeStore } from './stores/useOnlineModeStore'
+import { useAuthStore } from './stores/useAuthStore'
+import { useOnlineSettingsStore } from './stores/useOnlineSettingsStore'
+import { useOnlineItemsStore } from './stores/useOnlineItemsStore'
 
-const tabs = ['edit', 'configuration', 'replacements', 'info']
+const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
 const appShellRef = ref(null)
 const appTabsRowRef = ref(null)
@@ -39,6 +46,11 @@ const {
 } = useDataTransferStore()
 
 const { primaryColor, language, setLanguage, t } = useAppConfigStore()
+const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
+const { appMode, loadAppModeFromStorage } = useOnlineModeStore()
+const { isAuthenticated, restoreSession } = useAuthStore()
+const { fetchOnlineSettings, clearOnlineSettings, markOnlineSettingsInvalid } = useOnlineSettingsStore()
+const { fetchOnlineItems, clearOnlineItems } = useOnlineItemsStore()
 
 const {
   initializeUserConfig,
@@ -66,6 +78,7 @@ const {
   importedConfig,
   errorMessage,
   hasData,
+  initializeFromJsonArray,
   importFromJsonText,
   importFromCsvText,
   selectItem,
@@ -185,6 +198,10 @@ function hasListImageFailed(uid) {
 
 function setActiveTab(tab) {
   activeTab.value = tab
+}
+
+function openDatabaseConnectionTab() {
+  setActiveTab('database-connection')
 }
 
 function onTabKeydown(event, tab) {
@@ -319,6 +336,9 @@ function updateStickyMeasurements() {
 onMounted(() => {
   document.documentElement.style.setProperty('--color-primary', primaryColor)
   loadDataModeFromSession()
+  loadAppModeFromStorage()
+  loadConnectionProfileFromStorage()
+  restoreSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
   window.addEventListener('keydown', keydownListener)
   window.addEventListener('resize', updateStickyMeasurements)
@@ -385,6 +405,7 @@ watch(
 watch(
   () => availableFieldKeys.value.join('|'),
   () => {
+    if (appMode.value === 'online' && isAuthenticated.value) return
     initializeUserConfigForCurrentData()
   },
 )
@@ -397,6 +418,39 @@ watch(
       if (stickyResizeObserver && appTabsRowRef.value) stickyResizeObserver.observe(appTabsRowRef.value)
       if (stickyResizeObserver && editStickyTopRef.value) stickyResizeObserver.observe(editStickyTopRef.value)
     })
+  },
+)
+
+watch(
+  [
+    () => appMode.value,
+    () => isAuthenticated.value,
+    () => connectionProfile.value?.baseUrl || '',
+    () => connectionProfile.value?.configPath || '',
+  ],
+  async ([nextMode, nextAuthenticated]) => {
+    if (nextMode !== 'online' || !nextAuthenticated) {
+      clearOnlineSettings()
+      clearOnlineItems()
+      return
+    }
+
+    const result = await fetchOnlineSettings()
+    if (!result.ok) return
+
+    const itemsResult = await fetchOnlineItems({ settings: result.settings })
+    if (!itemsResult.ok) return
+
+    initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
+    resetReplacements()
+
+    const applyResult = applyImportedConfigPayload(result.settings)
+    if (!applyResult.ok) {
+      markOnlineSettingsInvalid(applyResult.error)
+      return
+    }
+
+    applyUserConfigToRawItems(rawItems.value)
   },
 )
 
@@ -415,7 +469,9 @@ watch(
     <header class="topbar content-grid-topbar content-grid-full">
       <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
       <div class="actions">
+        <OnlineAccessPanel @open-connection-tab="openDatabaseConnectionTab" />
         <DataTransferControls :has-data="hasData" :is-dirty="hasPendingChanges"
+          :app-mode="appMode"
           :show-sample-data-button="showSampleDataButton" :show-start-from-scratch-button="showStartFromScratchButton"
           @file-selected="onDataFileSelected" @download="onDownload" @start-from-scratch="onStartFromScratchOpen"
           @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
@@ -441,6 +497,13 @@ watch(
             :class="{ active: activeTab === 'replacements' }" @click="setActiveTab('replacements')"
             @keydown="onTabKeydown($event, 'replacements')">
             {{ t('tabReplacements', 'Replacements') }}
+          </button>
+          <button id="tab-database-connection" type="button" class="app-tab-btn" role="tab"
+            aria-controls="panel-database-connection" :aria-selected="activeTab === 'database-connection'"
+            :tabindex="activeTab === 'database-connection' ? 0 : -1"
+            :class="{ active: activeTab === 'database-connection' }" @click="setActiveTab('database-connection')"
+            @keydown="onTabKeydown($event, 'database-connection')">
+            {{ t('tabDatabaseConnection', 'Database Connection') }}
           </button>
           <button id="tab-info" type="button" class="app-tab-btn" role="tab" aria-controls="panel-info"
             :aria-selected="activeTab === 'info'" :tabindex="activeTab === 'info' ? 0 : -1"
@@ -570,6 +633,11 @@ watch(
         <section v-if="activeTab === 'replacements'" id="panel-replacements"
           class="replacements-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-replacements">
           <ReplacementsPanel />
+        </section>
+
+        <section v-if="activeTab === 'database-connection'" id="panel-database-connection"
+          class="database-connection-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-database-connection">
+          <DatabaseConnectionPanel />
         </section>
 
         <section v-if="activeTab === 'info'" id="panel-info" class="info-tab-panel tab-sheet-panel" role="tabpanel"

@@ -33,6 +33,7 @@ button:disabled {
 }
 
 input[type='text'],
+input[type='password'],
 input[type='number'],
 input[type='search'],
 textarea,
@@ -46,6 +47,7 @@ select {
 }
 
 input[type='text']::placeholder,
+input[type='password']::placeholder,
 input[type='number']::placeholder,
 input[type='search']::placeholder,
 textarea::placeholder {

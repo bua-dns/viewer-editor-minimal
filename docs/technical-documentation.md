@@ -29,7 +29,11 @@ Kernfunktionen:
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 - Optionaler Timestamp im Export-Dateinamen
 - Keyboard-Shortcuts mit `Escape` (Start-From-Scratch-Modal und Lightbox schliessen / Sidebar-Auswahl aufheben)
-- Tab-Navigation mit vier Bereichen (`Editieren`, `Konfiguration`, `Ersetzungen`, `Info`)
+- Tab-Navigation mit fuenf Bereichen (`Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info`)
+- Neuer Tab `Datenbankverbindung` fuer runtime-konfigurierbare Strapi-Connection-Profile (localStorage + JSON Import/Export + Verbindungstest)
+- Online/Offline-App-Modus mit Strapi-Login (FE-Users), persistenter Session und automatischem Session-Restore
+- Online-Modus laedt Konfiguration aus `response.data.settings` und Items aus `settings.itemsPath` (Legacy-Fallback: `item_path`) inklusive Pagination
+- Lokale Datei-Transfer-Controls (JSON/CSV Upload, Beispieldaten, lokaler Download) sind im Online-Modus deaktiviert/ausgeblendet
 - Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
 
 ## Tech Stack
@@ -60,6 +64,8 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
 - `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow
+- `src/components/DatabaseConnectionPanel.vue` - GUI fuer Strapi-Verbindungsprofil (Base URL, Config-Pfad, Speichern, Test, JSON Import/Export)
+- `src/components/OnlineAccessPanel.vue` - Umschalter Offline/Online inkl. Login/Logout und Status fuer Auth/Online-Settings/Online-Items
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Hint/Sortierung und Binding zur Feld-Registry
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
 - `src/composables/useDataImportExport.js` - Import/Export-Flow inkl. Dateimodus-Validierung und Download-Ausleitung
@@ -70,6 +76,13 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
 - `src/stores/useUserConfigStore.js` - User-Config-Store (State, Session, Add/Remove, Reorder, Apply)
 - `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Modus, Session, Dateinamenlogik)
+- `src/stores/useConnectionProfileStore.js` - Store fuer persistentes Connection-Profil (`localStorage`) inkl. Import/Export und Endpoint-Tests
+- `src/stores/useOnlineModeStore.js` - App-Modus-Store (`offline`/`online`, Persistenz in `localStorage`)
+- `src/stores/useAuthStore.js` - Auth-Store fuer Strapi FE-User (JWT Login/Logout/Restore via `localStorage`)
+- `src/stores/useOnlineSettingsStore.js` - Laden von Online-Konfiguration aus Strapi (`response.data.settings`)
+- `src/composables/connectionProfile.js` - Validator/Normalizer fuer Connection-Profile + URL-Join-Helper
+- `src/stores/useOnlineItemsStore.js` - Laden von Online-Items aus `settings.itemsPath` (inkl. Sanitizing fuer Editor-Modell)
+- `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch und paginiertes Item-Fetching
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
 - `src/assets/texts/info.md` - editierbare Markdown-Inhalte fuer den Info-Tab
@@ -84,7 +97,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
 - Sprachwechsel passiert in `App.vue` per einfachem `DE | EN`-Schalter in der Topbar.
-- Tab-Beschriftungen (`Editieren`/`Info`) sowie Footer-Credit und zugehoerige ARIA-Labels werden ebenfalls ueber Wording-Handles lokalisiert.
+- Tab-Beschriftungen (`Editieren`/`Info`/`Datenbankverbindung`) sowie Footer-Credit und zugehoerige ARIA-Labels werden ebenfalls ueber Wording-Handles lokalisiert.
 
 ## User-Config-GUI (minimal)
 
@@ -182,6 +195,21 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Dateityp-Mismatch wird mit Fehlermeldung blockiert.
 - Die Umschalter fuer Datenmodus und Sprache sind als visuell aktive/inaktive Segmented Controls umgesetzt.
 - Download-Dateinamen koennen optional einen Timestamp enthalten (UI-Checkbox in `DataTransferControls.vue`).
+- Im App-Modus `online` werden lokale Transfer-Aktionen im Header unterdrueckt, damit kein lokaler Import/Export parallel zum Strapi-Datenfluss erfolgt.
+
+## Online-Modus und Strapi-Integration
+
+- Der App-Modus wird in `src/stores/useOnlineModeStore.js` verwaltet (`offline`/`online`) und in `localStorage` persistiert.
+- Login/Logout fuer Strapi FE-Users laeuft ueber `src/stores/useAuthStore.js` + `src/services/strapiApi.js` (JWT + Session-Restore beim App-Start).
+- Das Verbindungsprofil (Base URL, Auth-/Settings-Endpoint) kommt aus `src/stores/useConnectionProfileStore.js`; die GUI liegt in `src/components/DatabaseConnectionPanel.vue`.
+- Der Online-Initialisierungsfluss in `App.vue` ist strikt sequenziell:
+  1. Settings laden (`response.data.settings`)
+  2. `itemsPath` aus Settings lesen (Legacy-Fallback: `item_path`)
+  3. Items paginiert aus Strapi laden (`pagination[page]`, `pagination[pageSize]`)
+  4. Items fuer das Editor-Modell sanitizen und als Viewer-Daten initialisieren
+  5. geladene Settings-Config auf den Datenbestand anwenden
+- Wenn `response.data.settings` nicht als gueltige Config interpretierbar ist, wechselt die UI in einen expliziten Fehlerzustand (kein stilles Weiterlaufen mit inkonsistentem Stand).
+- `src/components/OnlineAccessPanel.vue` zeigt Auth-, Settings- und Item-Status inklusive geladener Item-Anzahl und aktivem `itemsPath`.
 
 ### JSON-Import
 
@@ -330,6 +358,7 @@ Interne Script-Aufteilung:
 - `useSelectionNavigation.js` kapselt `selectedFilteredIndex`, `canGoPrevious`, `canGoNext` sowie die Aktionen fuer vorheriges/naechstes Item und Selektion aufheben.
 - `useDataImportExport.js` kapselt Dateityp-Mismatch-Checks, Datei-Importpfad (`csv/json`), optionales Anwenden eingebetteter JSON-Config sowie Download/Reset-Handler.
 - `App.vue` bleibt damit der Composition-Root und konzentriert sich auf Verdrahtung von Komponenten, Stores, Watchern und Lifecycle-Events.
+- Im Online-Modus verhindert `App.vue` zusaetzlich, dass lokale Feld-Auto-Initialisierung die aus Strapi geladenen Settings ueberschreibt.
 
 ## Export und Reset
 

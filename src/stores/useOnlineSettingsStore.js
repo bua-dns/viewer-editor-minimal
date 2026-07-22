@@ -1,0 +1,62 @@
+import { ref } from 'vue'
+import { fetchViewerSettingsFromStrapi } from '../services/strapiApi'
+import { useAuthStore } from './useAuthStore'
+import { useConnectionProfileStore } from './useConnectionProfileStore'
+
+const settings = ref(null)
+const settingsStatus = ref('idle')
+const lastSettingsError = ref('')
+
+function clearOnlineSettings() {
+  settings.value = null
+  settingsStatus.value = 'idle'
+  lastSettingsError.value = ''
+}
+
+function markOnlineSettingsInvalid(message) {
+  settingsStatus.value = 'error'
+  lastSettingsError.value = String(message || 'Online settings payload is invalid.')
+}
+
+async function fetchOnlineSettings() {
+  const { connectionProfile } = useConnectionProfileStore()
+  const { token } = useAuthStore()
+
+  if (!connectionProfile.value) {
+    settingsStatus.value = 'error'
+    lastSettingsError.value = 'No saved connection profile found.'
+    return { ok: false, error: lastSettingsError.value }
+  }
+
+  settingsStatus.value = 'loading'
+  lastSettingsError.value = ''
+
+  try {
+    const result = await fetchViewerSettingsFromStrapi({
+      profile: connectionProfile.value,
+      token: token.value || '',
+    })
+    settings.value = result.settings
+    settingsStatus.value = 'ready'
+    return { ok: true, settings: result.settings, payload: result.payload }
+  } catch (error) {
+    settings.value = null
+    settingsStatus.value = 'error'
+    lastSettingsError.value =
+      typeof error?.message === 'string' && error.message.trim()
+        ? error.message.trim()
+        : 'Could not load online settings.'
+    return { ok: false, error: lastSettingsError.value }
+  }
+}
+
+export function useOnlineSettingsStore() {
+  return {
+    settings,
+    settingsStatus,
+    lastSettingsError,
+    clearOnlineSettings,
+    markOnlineSettingsInvalid,
+    fetchOnlineSettings,
+  }
+}
