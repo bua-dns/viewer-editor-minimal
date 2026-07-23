@@ -244,6 +244,34 @@ const wording = {
     de: "Online-Items konnten nicht geladen werden.",
     en: "Could not load online items.",
   },
+  onlineSaveButton: {
+    de: "Aenderungen speichern",
+    en: "Save changes",
+  },
+  onlineSavePending: {
+    de: "Speichert...",
+    en: "Saving...",
+  },
+  onlineSaveSuccess: {
+    de: "Gespeichert",
+    en: "Saved",
+  },
+  onlineSaveSuccessMessage: {
+    de: "Online-Aenderungen gespeichert.",
+    en: "Online changes saved.",
+  },
+  onlineSaveFailed: {
+    de: "Online-Aenderungen konnten nicht gespeichert werden.",
+    en: "Could not save online changes.",
+  },
+  onlineSaveRetry: {
+    de: "Speichern erneut versuchen",
+    en: "Retry save",
+  },
+  onlineUnsavedChangesCount: {
+    de: "Ungespeicherte Online-Aenderungen in Items:",
+    en: "Unsaved online changes in items:",
+  },
   uploadModeMismatchError: {
     de: "Dateityp passt nicht zum gewählten Modus.",
     en: "File type does not match selected mode.",

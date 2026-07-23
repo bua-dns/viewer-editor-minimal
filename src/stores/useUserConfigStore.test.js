@@ -174,6 +174,13 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(Object.keys(store.userConfigFields.value)).toEqual(['inventory_number'])
   })
 
+  test('does not include __onlineMeta in config fields on initialize', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number', '__onlineMeta'], true)
+
+    expect(Object.keys(store.userConfigFields.value)).toEqual(['inventory_number'])
+  })
+
   test('filters suspendEditing from imported config payload', () => {
     const store = useUserConfigStore()
     const imported = {

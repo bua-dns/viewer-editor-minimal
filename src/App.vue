@@ -27,6 +27,7 @@ import { useOnlineModeStore } from './stores/useOnlineModeStore'
 import { useAuthStore } from './stores/useAuthStore'
 import { useOnlineSettingsStore } from './stores/useOnlineSettingsStore'
 import { useOnlineItemsStore } from './stores/useOnlineItemsStore'
+import { useOnlineUpdatesStore } from './stores/useOnlineUpdatesStore'
 
 const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
@@ -48,9 +49,19 @@ const {
 const { primaryColor, language, setLanguage, t } = useAppConfigStore()
 const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
 const { appMode, loadAppModeFromStorage } = useOnlineModeStore()
-const { isAuthenticated, restoreSession } = useAuthStore()
+const { token, isAuthenticated, restoreSession } = useAuthStore()
 const { fetchOnlineSettings, clearOnlineSettings, markOnlineSettingsInvalid } = useOnlineSettingsStore()
 const { fetchOnlineItems, clearOnlineItems } = useOnlineItemsStore()
+const {
+  pendingUpdateCount,
+  hasPendingUpdates,
+  saveStatus: onlineSaveStatus,
+  lastSaveError: onlineSaveError,
+  clearOnlineUpdates,
+  clearSaveFeedback,
+  trackOnlineFieldChange,
+  saveOnlineUpdates,
+} = useOnlineUpdatesStore()
 
 const {
   initializeUserConfig,
@@ -68,6 +79,7 @@ const showEditedSortToggle = computed(() => Boolean(appliedMarkAsEditedBasis.val
 
 const {
   rawItems,
+  importSnapshot,
   suspendedItemIndices,
   searchQuery,
   selectedRawItem,
@@ -128,6 +140,7 @@ const availableFieldKeys = computed(() => {
   rawItems.value.forEach((item) => {
     Object.keys(item || {}).forEach((key) => {
       if (key === 'scan' || key === 'suspendEditing') return
+      if (key === '__onlineMeta') return
       keys.add(key)
     })
   })
@@ -152,7 +165,39 @@ function onDataModeChanged() {
 }
 
 function onFieldChange(key, value, configuredType) {
-  updateField(key, value, configuredType)
+  const selectedIndex = selectedViewItem.value?._index
+  const changed = updateField(key, value, configuredType)
+  if (!changed) return
+
+  if (appMode.value !== 'online' || !isAuthenticated.value) return
+  if (!Number.isInteger(selectedIndex)) return
+
+  const currentItem = rawItems.value[selectedIndex]
+  const snapshotItem = importSnapshot.value[selectedIndex]
+  if (!currentItem || !snapshotItem) return
+
+  trackOnlineFieldChange({
+    item: currentItem,
+    snapshotItem,
+    key,
+    nextValue: currentItem[key],
+  })
+}
+
+async function onSaveOnlineChanges() {
+  if (appMode.value !== 'online') return
+  if (!isAuthenticated.value) return
+  if (!connectionProfile.value) return
+  if (!hasPendingUpdates.value) return
+
+  const result = await saveOnlineUpdates({
+    profile: connectionProfile.value,
+    token: token.value || '',
+  })
+
+  if (result.ok) {
+    markAsSaved(importFileName.value)
+  }
 }
 
 function onSuspendEditingToggle({ uid, checked }) {
@@ -251,7 +296,13 @@ const {
   selectItem,
 })
 
-const { onDataFileSelected, onDownload, onStartFromScratch, onReset, onLoadSampleData } = useDataImportExport({
+const {
+  onDataFileSelected,
+  onDownload,
+  onStartFromScratch,
+  onReset: onDataReset,
+  onLoadSampleData,
+} = useDataImportExport({
   dataMode,
   t,
   setModeErrorMessage,
@@ -279,6 +330,13 @@ const { onDataFileSelected, onDownload, onStartFromScratch, onReset, onLoadSampl
   resetToImportedSnapshot,
   resetReplacements,
 })
+
+function onReset() {
+  const hasReset = onDataReset()
+  if (hasReset) {
+    clearOnlineUpdates()
+  }
+}
 
 function onStartFromScratchOpen() {
   startFromScratchModalError.value = ''
@@ -432,6 +490,7 @@ watch(
     if (nextMode !== 'online' || !nextAuthenticated) {
       clearOnlineSettings()
       clearOnlineItems()
+      clearOnlineUpdates()
       return
     }
 
@@ -442,6 +501,7 @@ watch(
     if (!itemsResult.ok) return
 
     initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
+    clearOnlineUpdates()
     resetReplacements()
 
     const applyResult = applyImportedConfigPayload(result.settings)
@@ -469,7 +529,15 @@ watch(
     <header class="topbar content-grid-topbar content-grid-full">
       <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
       <div class="actions">
-        <OnlineAccessPanel @open-connection-tab="openDatabaseConnectionTab" />
+        <OnlineAccessPanel
+          :has-pending-online-updates="hasPendingUpdates"
+          :pending-online-update-count="pendingUpdateCount"
+          :save-status="onlineSaveStatus"
+          :save-error="onlineSaveError"
+          @open-connection-tab="openDatabaseConnectionTab"
+          @save-online-updates="onSaveOnlineChanges"
+          @clear-save-feedback="clearSaveFeedback"
+        />
         <DataTransferControls :has-data="hasData" :is-dirty="hasPendingChanges"
           :app-mode="appMode"
           :show-sample-data-button="showSampleDataButton" :show-start-from-scratch-button="showStartFromScratchButton"

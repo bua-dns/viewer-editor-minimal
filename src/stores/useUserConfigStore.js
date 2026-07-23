@@ -7,7 +7,7 @@ import {
 } from '../fields/fieldRegistry'
 
 const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
-const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing'])
+const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
 
 const userConfigFields = ref({})
 const appliedUserConfigFields = ref({})

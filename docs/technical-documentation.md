@@ -34,6 +34,10 @@ Kernfunktionen:
 - Online/Offline-App-Modus mit Strapi-Login (FE-Users), persistenter Session und automatischem Session-Restore
 - Online-Modus laedt Konfiguration aus `response.data.settings` und Items aus `settings.itemsPath` (Legacy-Fallback: `item_path`) inklusive Pagination
 - Lokale Datei-Transfer-Controls (JSON/CSV Upload, Beispieldaten, lokaler Download) sind im Online-Modus deaktiviert/ausgeblendet
+- Online-Login erfolgt ueber ein Modal (oeffnet per `Anmelden`) mit Icon-Toggle fuer Passwortsichtbarkeit (Eye/Eye-off SVG)
+- Online-Bearbeitungen werden feldgenau als Delta gegen einen Snapshot getrackt und gezielt nach Strapi gespeichert
+- Online-Speicher-UX mit Status `idle | saving | success | error`, Unsaved-Counter und Retry bei Teilfehlern
+- Interne Strapi-Metadaten (`__onlineMeta`) bleiben aus Editor-, Mapping- und Config-Oberflaechen ausgeblendet
 - Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
 
 ## Tech Stack
@@ -80,9 +84,10 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/stores/useOnlineModeStore.js` - App-Modus-Store (`offline`/`online`, Persistenz in `localStorage`)
 - `src/stores/useAuthStore.js` - Auth-Store fuer Strapi FE-User (JWT Login/Logout/Restore via `localStorage`)
 - `src/stores/useOnlineSettingsStore.js` - Laden von Online-Konfiguration aus Strapi (`response.data.settings`)
+- `src/stores/useOnlineUpdatesStore.js` - Delta-Tracking fuer Online-Aenderungen inkl. sequenziellem Save-Orchestrator und Save-Status
 - `src/composables/connectionProfile.js` - Validator/Normalizer fuer Connection-Profile + URL-Join-Helper
 - `src/stores/useOnlineItemsStore.js` - Laden von Online-Items aus `settings.itemsPath` (inkl. Sanitizing fuer Editor-Modell)
-- `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch und paginiertes Item-Fetching
+- `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch, paginiertes Item-Fetching und feldbasierte Item-Updates
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
 - `src/assets/texts/info.md` - editierbare Markdown-Inhalte fuer den Info-Tab
@@ -209,7 +214,26 @@ Die Data-Transfer-Funktion ist modularisiert:
   4. Items fuer das Editor-Modell sanitizen und als Viewer-Daten initialisieren
   5. geladene Settings-Config auf den Datenbestand anwenden
 - Wenn `response.data.settings` nicht als gueltige Config interpretierbar ist, wechselt die UI in einen expliziten Fehlerzustand (kein stilles Weiterlaufen mit inkonsistentem Stand).
-- `src/components/OnlineAccessPanel.vue` zeigt Auth-, Settings- und Item-Status inklusive geladener Item-Anzahl und aktivem `itemsPath`.
+- `src/components/OnlineAccessPanel.vue` zeigt Auth-, Settings- und Item-Status inkl. Save-Controls (`Save changes`), Unsaved-Counter, Save-Feedback und Retry-Aktion.
+- Erfolgs-Feedback des Speicherns wird nach kurzem Timeout automatisch ausgeblendet; alle Texte der Save-UX (Button-States, Fehler/Retry) sind als Wording-Handles in `config/wording.js` hinterlegt.
+- Authentifiziert zeigt der Header im Online-Modus nur den Button `Abmelden` (kein zusaetzliches User-Label); nicht notwendige Erfolgsmeldungen/Transfer-Hinweise wurden entfernt.
+
+### Online-Login-Modal
+
+- Im Online-Modus startet der Login ueber ein Modal, das per `Anmelden` geoeffnet wird.
+- Inputs `Identifier` und `Passwort` haben vereinheitlichte Feldgroessen und nutzen denselben globalen Input-Basissatz.
+- Die Passwortsichtbarkeit wird ueber Icon-Buttons (Eye/Eye-off SVG) umgeschaltet.
+- Das Modal schliesst bei Backdrop-Klick, Moduswechsel und nach erfolgreicher Authentifizierung automatisch.
+
+### Online-Update-Flow (Strapi)
+
+- `src/services/strapiApi.js` normalisiert Online-Items robust (`normalizeStrapiItem`) fuer beide Formen: flache Zeilen und `{ id, attributes }`.
+- Stabile Identifikation nutzt primaer `documentId` (Strapi v5), mit Fallback auf `id`; fehlende stabile IDs fuehren beim Ingest zu einem harten Fehler.
+- Pro Item werden interne Metadaten unter `__onlineMeta` gehalten (nicht Teil der sichtbaren Edit-Felder).
+- Aenderungen werden als Feld-Deltas gegen einen Snapshot verfolgt; Rueckgaengigmachen auf Ursprungswert entfernt die Delta-Aenderung wieder.
+- Speichern laeuft sequenziell ueber `updateCollectionItemInStrapi(...)` als `PUT <itemsPath>/<documentId>` mit Payload `{ data: changedFields }`; die Payload wird dabei ueber `buildStrapiUpdatePayload(...)` aus den getrackten Feld-Deltas gebaut.
+- Bei Vollerfolg synchronisiert `markAsSaved(...)` die Baseline; bei Teilfehlern bleibt ein konsistenter Retry-faehiger Pending-Stand erhalten.
+- `useDataImportExport.js` meldet explizit zurueck, ob ein Reset tatsaechlich ausgefuehrt wurde; nur dann raeumt `App.vue` ausstehende Online-Updates ab.
 
 ### JSON-Import
 
@@ -336,6 +360,7 @@ Die Seite ist in mehrere Bereiche gegliedert:
 
 - Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
 - Topbar (Titel + Transfer-Controls) steht oberhalb der Tabs und bleibt damit immer sichtbar
+- Header-Controls sind so ausgerichtet, dass sie bei ausreichend Platz in einem einzigen horizontalen Fluss stehen
 - Im Edit-Tab: sticky Header-Stack mit Konfiguration und Listenkopf (`Digitalisate` + Suche)
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname-Hinweis und Dirty-Hinweis
@@ -384,6 +409,7 @@ Die Styles sind in Layer aufgeteilt (`src/assets/styles/index.scss`):
 - `legacy.scss`: temporaerer Migrations-Layer fuer globale Alt-Styles
 - Wichtige interaktive Controls uebersteuern `button:hover` lokal (z. B. Tabs, Datenmodus-Switch, Transfer-Buttons, Listenkarten), damit Hover-Farben konsistent mit Primary/Secondary bleiben.
 - Placeholder in Inputs/Textareas werden global heller gerendert, damit Platzhalter visuell klarer von echten Feldwerten getrennt sind.
+- Das globale Input-Basestyling umfasst explizit auch `input[type='password']`, damit Passwort- und Textfelder konsistent aussehen.
 
 Das aktuelle Farbschema nutzt semantische Root-Tokens (`--color-*`) mit Mapping auf bestehende `--ve-*` Variablen, damit bestehende Komponenten-Regeln unveraendert bleiben.
 

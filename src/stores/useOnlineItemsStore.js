@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import {
   fetchAllCollectionItemsFromStrapi,
+  normalizeStrapiItem,
   resolveItemsPathFromSettings,
 } from '../services/strapiApi'
 import { useAuthStore } from './useAuthStore'
@@ -16,23 +17,6 @@ function clearOnlineItems() {
   itemsStatus.value = 'idle'
   lastItemsError.value = ''
   activeItemsPath.value = ''
-}
-
-function sanitizeOnlineItem(rawItem, settingsFieldKeys = []) {
-  const source = rawItem && typeof rawItem === 'object' ? rawItem : {}
-  const nextItem = {}
-
-  settingsFieldKeys.forEach((fieldKey) => {
-    if (Object.prototype.hasOwnProperty.call(source, fieldKey)) {
-      nextItem[fieldKey] = source[fieldKey]
-    }
-  })
-
-  if (Object.prototype.hasOwnProperty.call(source, 'scan')) {
-    nextItem.scan = source.scan
-  }
-
-  return nextItem
 }
 
 async function fetchOnlineItems({ settings }) {
@@ -65,7 +49,7 @@ async function fetchOnlineItems({ settings }) {
       token: token.value || '',
     })
 
-    items.value = fetchedRows.map((rawRow) => sanitizeOnlineItem(rawRow, settingsFieldKeys))
+    items.value = fetchedRows.map((rawRow) => normalizeStrapiItem(rawRow, settingsFieldKeys, itemsPath))
     itemsStatus.value = 'ready'
     return {
       ok: true,

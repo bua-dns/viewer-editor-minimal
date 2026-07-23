@@ -47,4 +47,15 @@ describe('useFieldMapping', () => {
 
     expect(keys).toEqual(['title', 'note'])
   })
+
+  test('never shows __onlineMeta as editable field key', () => {
+    const { getDisplayedFieldKeys } = useFieldMapping()
+    const keys = getDisplayedFieldKeys({
+      title: 'A',
+      __onlineMeta: { id: 'doc-1' },
+      note: 'B',
+    })
+
+    expect(keys).toEqual(['title', 'note'])
+  })
 })

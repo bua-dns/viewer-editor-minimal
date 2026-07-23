@@ -1,5 +1,7 @@
 import { joinBaseUrlAndPath } from '../composables/connectionProfile'
 
+const ONLINE_META_KEY = '__onlineMeta'
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -137,4 +139,105 @@ export async function fetchAllCollectionItemsFromStrapi({ profile, itemsPath, to
   }
 
   return collected
+}
+
+function stripQueryAndHash(path) {
+  return String(path || '').split('#')[0].split('?')[0]
+}
+
+function isValidOnlineIdentifier(value) {
+  if (typeof value === 'number') return Number.isFinite(value)
+  if (typeof value === 'string') return value.trim().length > 0
+  return false
+}
+
+function resolveStableIdentifier(source) {
+  if (!isPlainObject(source)) return null
+
+  if (isValidOnlineIdentifier(source.documentId)) {
+    return {
+      id: String(source.documentId).trim(),
+      idKind: 'documentId',
+    }
+  }
+
+  if (isValidOnlineIdentifier(source.id)) {
+    return {
+      id: source.id,
+      idKind: 'id',
+    }
+  }
+
+  return null
+}
+
+export function normalizeStrapiItem(row, settingsFieldKeys = [], itemsPath = '') {
+  const source = isPlainObject(row) ? row : {}
+  const attributes = isPlainObject(source.attributes) ? source.attributes : null
+  const valueSource = attributes || source
+
+  const stableIdentifier = resolveStableIdentifier(source) || resolveStableIdentifier(valueSource)
+  if (!stableIdentifier) {
+    throw createHttpError('Online item is missing a stable identifier (documentId or id).', 500, row)
+  }
+
+  const nextItem = {}
+
+  settingsFieldKeys.forEach((fieldKey) => {
+    if (Object.prototype.hasOwnProperty.call(valueSource, fieldKey)) {
+      nextItem[fieldKey] = valueSource[fieldKey]
+    }
+  })
+
+  if (Object.prototype.hasOwnProperty.call(valueSource, 'scan')) {
+    nextItem.scan = valueSource.scan
+  }
+
+  nextItem[ONLINE_META_KEY] = {
+    id: stableIdentifier.id,
+    idKind: stableIdentifier.idKind,
+    idValue: stableIdentifier.id,
+    itemsPath: stripQueryAndHash(itemsPath),
+    updatedAt: valueSource.updatedAt,
+  }
+
+  return nextItem
+}
+
+export function buildStrapiUpdatePayload(changedFields = {}) {
+  if (!isPlainObject(changedFields)) {
+    throw createHttpError('Changed fields payload must be an object.', 400, changedFields)
+  }
+  return {
+    data: changedFields,
+  }
+}
+
+export async function updateCollectionItemInStrapi({
+  profile,
+  itemsPath,
+  token = '',
+  id,
+  changedFields,
+  method = 'PUT',
+}) {
+  const normalizedPath = stripQueryAndHash(itemsPath)
+  const normalizedId = String(id || '').trim()
+  if (!normalizedPath) {
+    throw createHttpError('Items path is required for online item update.', 400, { itemsPath })
+  }
+  if (!normalizedId) {
+    throw createHttpError('Item identifier is required for online item update.', 400, { id })
+  }
+
+  const payload = buildStrapiUpdatePayload(changedFields)
+  const itemPath = `${normalizedPath.replace(/\/+$/, '')}/${encodeURIComponent(normalizedId)}`
+
+  return strapiFetchJson({
+    profile,
+    path: itemPath,
+    method,
+    token,
+    body: payload,
+  })
 }

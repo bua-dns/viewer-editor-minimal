@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
@@ -7,13 +7,21 @@ import { useOnlineModeStore } from '../stores/useOnlineModeStore'
 import { useOnlineSettingsStore } from '../stores/useOnlineSettingsStore'
 import { useOnlineItemsStore } from '../stores/useOnlineItemsStore'
 
-const emit = defineEmits(['open-connection-tab'])
+const props = defineProps({
+  hasPendingOnlineUpdates: { type: Boolean, default: false },
+  pendingOnlineUpdateCount: { type: Number, default: 0 },
+  saveStatus: { type: String, default: 'idle' },
+  saveError: { type: String, default: '' },
+})
+
+const emit = defineEmits(['open-connection-tab', 'save-online-updates', 'clear-save-feedback'])
 
 const identifier = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const loginError = ref('')
 const isLoginModalOpen = ref(false)
+let saveStatusTimeoutId = null
 
 const { t } = useAppConfigStore()
 const { appMode, setAppMode } = useOnlineModeStore()
@@ -44,6 +52,10 @@ function onLogout() {
   logout()
 }
 
+function onSaveOnlineChanges() {
+  emit('save-online-updates')
+}
+
 function openLoginModal() {
   loginError.value = ''
   isLoginModalOpen.value = true
@@ -64,6 +76,28 @@ watch(
     }
   },
 )
+
+watch(
+  () => props.saveStatus,
+  (nextSaveStatus) => {
+    if (saveStatusTimeoutId) {
+      clearTimeout(saveStatusTimeoutId)
+      saveStatusTimeoutId = null
+    }
+    if (nextSaveStatus !== 'success') return
+    saveStatusTimeoutId = setTimeout(() => {
+      emit('clear-save-feedback')
+      saveStatusTimeoutId = null
+    }, 1800)
+  },
+)
+
+onBeforeUnmount(() => {
+  if (saveStatusTimeoutId) {
+    clearTimeout(saveStatusTimeoutId)
+    saveStatusTimeoutId = null
+  }
+})
 </script>
 
 <template>
@@ -99,6 +133,20 @@ watch(
         <button type="button" class="transfer-btn transfer-btn-reset" @click="onLogout">
           {{ t('authLogout', 'Logout') }}
         </button>
+        <button
+          type="button"
+          class="transfer-btn transfer-btn-mode"
+          :disabled="!props.hasPendingOnlineUpdates || props.saveStatus === 'saving'"
+          @click="onSaveOnlineChanges"
+        >
+          {{
+            props.saveStatus === 'saving'
+              ? t('onlineSavePending', 'Saving...')
+              : props.saveStatus === 'success'
+                ? t('onlineSaveSuccess', 'Saved')
+                : t('onlineSaveButton', 'Save changes')
+          }}
+        </button>
       </div>
 
       <p v-if="!isLoginModalOpen && (loginError || lastAuthError)" class="auth-note status-error">
@@ -117,6 +165,24 @@ watch(
       </p>
       <p v-if="itemsStatus === 'error'" class="auth-note status-error">
         {{ lastItemsError || t('onlineItemsFailed', 'Could not load online items.') }}
+      </p>
+
+      <p v-if="isAuthenticated && props.hasPendingOnlineUpdates" class="auth-note status-neutral">
+        {{
+          t('onlineUnsavedChangesCount', 'Unsaved online changes in items:')
+        }}
+        {{ props.pendingOnlineUpdateCount }}
+      </p>
+
+      <p v-if="isAuthenticated && (props.saveError || props.saveStatus === 'error')" class="auth-note status-error">
+        {{ props.saveError || t('onlineSaveFailed', 'Could not save online changes.') }}
+        <button type="button" class="inline-link" @click="onSaveOnlineChanges">
+          {{ t('onlineSaveRetry', 'Retry save') }}
+        </button>
+      </p>
+
+      <p v-if="isAuthenticated && props.saveStatus === 'success'" class="auth-note status-success">
+        {{ t('onlineSaveSuccessMessage', 'Online changes saved.') }}
       </p>
     </template>
 
@@ -267,6 +333,7 @@ watch(
 .auth-user-card {
   display: inline-flex;
   align-items: center;
+  gap: 0.45rem;
 }
 
 .auth-note {

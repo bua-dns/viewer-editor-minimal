@@ -300,11 +300,12 @@ export function useDataImportExport({
   }
 
   function onReset() {
-    if (!hasPendingChanges.value) return
+    if (!hasPendingChanges.value) return false
     const confirmed = globalThis.confirm(t('resetConfirm', 'Aenderungen verwerfen und auf Import zuruecksetzen?'))
-    if (!confirmed) return
+    if (!confirmed) return false
     resetToImportedSnapshot()
     resetReplacements()
+    return true
   }
 
   return {
