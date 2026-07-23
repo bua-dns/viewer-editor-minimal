@@ -108,6 +108,18 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  showCreateItemButton: {
+    type: Boolean,
+    default: false,
+  },
+  createItemLabel: {
+    type: String,
+    default: '',
+  },
+  newItemFallbackLabel: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits([
@@ -117,6 +129,7 @@ const emit = defineEmits([
   'toggle-suspend-editing',
   'update:search-query',
   'update:edited-items-first',
+  'create-item',
 ])
 
 function onClearSelection() {
@@ -158,6 +171,9 @@ function resolveItemCaption(item) {
   }
   const inventoryNumber = String(item?.inventory_number ?? '').trim()
   if (inventoryNumber) return inventoryNumber
+  if (item?.__onlineMeta?.isDraft === true && props.newItemFallbackLabel) {
+    return props.newItemFallbackLabel
+  }
   return ''
 }
 
@@ -186,6 +202,14 @@ function isSuspendEditingItem(item) {
     <div v-if="props.renderHeader" class="list-panel-head">
       <h2>{{ props.itemLabel }} <span v-if="props.importFileName">({{ props.resultCountLabel }})</span></h2>
       <div class="list-panel-controls" @click.stop>
+        <button
+          v-if="props.showCreateItemButton"
+          type="button"
+          class="create-item-btn"
+          @click="emit('create-item')"
+        >
+          {{ props.createItemLabel }}
+        </button>
         <label class="search-wrap">
           <span>{{ props.searchLabel }}</span>
           <input
@@ -345,6 +369,22 @@ function isSuspendEditingItem(item) {
   gap: 0.4rem;
   color: var(--ve-color-text-muted);
   font-size: 0.92rem;
+}
+
+.create-item-btn {
+  background: var(--color-primary);
+  color: var(--ve-color-white);
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.create-item-btn:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .search-wrap input {

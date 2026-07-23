@@ -1,9 +1,15 @@
 import { computed, ref } from 'vue'
-import { updateCollectionItemInStrapi } from '../services/strapiApi'
+import {
+  createCollectionItemInStrapi,
+  pickNonEmptyOnlineFields,
+  resolveStableIdentifierFromRow,
+  updateCollectionItemInStrapi,
+} from '../services/strapiApi'
 
 const ONLINE_META_KEY = '__onlineMeta'
 
 const pendingUpdatesById = ref({})
+const pendingCreatesById = ref({})
 const saveStatus = ref('idle')
 const lastSaveError = ref('')
 
@@ -29,14 +35,70 @@ function clearSaveFeedback() {
 
 function clearOnlineUpdates() {
   pendingUpdatesById.value = {}
+  pendingCreatesById.value = {}
   saveStatus.value = 'idle'
   lastSaveError.value = ''
+}
+
+function trackOnlineDraftCreate({ item }) {
+  const onlineMeta = item?.[ONLINE_META_KEY]
+  if (!onlineMeta || typeof onlineMeta !== 'object') return false
+  if (onlineMeta.isDraft !== true) return false
+
+  const draftId = String(onlineMeta.draftId || '').trim()
+  const itemsPath = String(onlineMeta.itemsPath || '').trim()
+  if (!draftId || !itemsPath) return false
+
+  clearSaveFeedback()
+
+  const entryKey = createEntryKey(itemsPath, draftId)
+  const currentEntry = pendingCreatesById.value[entryKey] || {
+    draftId,
+    itemsPath,
+    item,
+    changedFields: {},
+  }
+  currentEntry.item = item
+
+  pendingCreatesById.value = {
+    ...pendingCreatesById.value,
+    [entryKey]: currentEntry,
+  }
+  return true
+}
+
+function trackOnlineDraftFieldChange({ item, onlineMeta, key, nextValue }) {
+  const draftId = String(onlineMeta.draftId || '').trim()
+  const itemsPath = String(onlineMeta.itemsPath || '').trim()
+  if (!draftId || !itemsPath) return false
+
+  clearSaveFeedback()
+
+  const entryKey = createEntryKey(itemsPath, draftId)
+  const currentEntry = pendingCreatesById.value[entryKey] || {
+    draftId,
+    itemsPath,
+    item,
+    changedFields: {},
+  }
+  currentEntry.item = item
+  currentEntry.changedFields[key] = cloneValue(nextValue)
+
+  pendingCreatesById.value = {
+    ...pendingCreatesById.value,
+    [entryKey]: currentEntry,
+  }
+  return true
 }
 
 function trackOnlineFieldChange({ item, snapshotItem, key, nextValue }) {
   if (key === ONLINE_META_KEY) return false
   const onlineMeta = item?.[ONLINE_META_KEY]
   if (!onlineMeta || typeof onlineMeta !== 'object') return false
+
+  if (onlineMeta.isDraft === true) {
+    return trackOnlineDraftFieldChange({ item, onlineMeta, key, nextValue })
+  }
 
   const id = onlineMeta.id
   const itemsPath = onlineMeta.itemsPath
@@ -79,9 +141,23 @@ function removePendingUpdate(entryKey) {
   pendingUpdatesById.value = nextEntries
 }
 
+function removePendingCreate(entryKey) {
+  if (!Object.prototype.hasOwnProperty.call(pendingCreatesById.value, entryKey)) return
+  const nextEntries = { ...pendingCreatesById.value }
+  delete nextEntries[entryKey]
+  pendingCreatesById.value = nextEntries
+}
+
+function normalizeSaveErrorMessage(error, fallback) {
+  return typeof error?.message === 'string' && error.message.trim()
+    ? error.message.trim()
+    : fallback
+}
+
 async function saveOnlineUpdates({ profile, token = '' }) {
-  const entries = Object.entries(pendingUpdatesById.value)
-  if (!entries.length) {
+  const updateEntries = Object.entries(pendingUpdatesById.value)
+  const createEntries = Object.entries(pendingCreatesById.value)
+  if (!updateEntries.length && !createEntries.length) {
     saveStatus.value = 'idle'
     lastSaveError.value = ''
     return { ok: true, savedCount: 0, failedCount: 0 }
@@ -91,9 +167,48 @@ async function saveOnlineUpdates({ profile, token = '' }) {
   lastSaveError.value = ''
 
   const failed = []
+  const createdItems = []
   let savedCount = 0
 
-  for (const [entryKey, entry] of entries) {
+  for (const [entryKey, entry] of createEntries) {
+    try {
+      const createFields = pickNonEmptyOnlineFields(entry.changedFields)
+      const payload = await createCollectionItemInStrapi({
+        profile,
+        itemsPath: entry.itemsPath,
+        token,
+        fields: createFields,
+      })
+      const createdRow = payload?.data && typeof payload.data === 'object' ? payload.data : null
+      const stableIdentifier = resolveStableIdentifierFromRow(createdRow)
+      if (!stableIdentifier) {
+        throw new Error('Create response does not contain a stable identifier (documentId or id).')
+      }
+
+      const draftItem = entry.item
+      if (draftItem && typeof draftItem === 'object') {
+        draftItem[ONLINE_META_KEY] = {
+          id: stableIdentifier.id,
+          idKind: stableIdentifier.idKind,
+          idValue: stableIdentifier.id,
+          itemsPath: entry.itemsPath,
+          updatedAt: createdRow?.updatedAt,
+        }
+        createdItems.push(draftItem)
+      }
+
+      removePendingCreate(entryKey)
+      savedCount += 1
+    } catch (error) {
+      failed.push({
+        entryKey,
+        id: entry.draftId,
+        error: normalizeSaveErrorMessage(error, 'Could not create online item.'),
+      })
+    }
+  }
+
+  for (const [entryKey, entry] of updateEntries) {
     try {
       await updateCollectionItemInStrapi({
         profile,
@@ -108,10 +223,7 @@ async function saveOnlineUpdates({ profile, token = '' }) {
       failed.push({
         entryKey,
         id: entry.id,
-        error:
-          typeof error?.message === 'string' && error.message.trim()
-            ? error.message.trim()
-            : 'Could not save online changes.',
+        error: normalizeSaveErrorMessage(error, 'Could not save online changes.'),
       })
     }
   }
@@ -119,7 +231,7 @@ async function saveOnlineUpdates({ profile, token = '' }) {
   if (!failed.length) {
     saveStatus.value = 'success'
     lastSaveError.value = ''
-    return { ok: true, savedCount, failedCount: 0 }
+    return { ok: true, savedCount, failedCount: 0, createdItems }
   }
 
   saveStatus.value = 'error'
@@ -129,22 +241,27 @@ async function saveOnlineUpdates({ profile, token = '' }) {
     savedCount,
     failedCount: failed.length,
     failed,
+    createdItems,
     error: lastSaveError.value,
   }
 }
 
-const pendingUpdateCount = computed(() => Object.keys(pendingUpdatesById.value).length)
+const pendingUpdateCount = computed(
+  () => Object.keys(pendingUpdatesById.value).length + Object.keys(pendingCreatesById.value).length,
+)
 const hasPendingUpdates = computed(() => pendingUpdateCount.value > 0)
 
 export function useOnlineUpdatesStore() {
   return {
     pendingUpdatesById,
+    pendingCreatesById,
     pendingUpdateCount,
     hasPendingUpdates,
     saveStatus,
     lastSaveError,
     clearOnlineUpdates,
     clearSaveFeedback,
+    trackOnlineDraftCreate,
     trackOnlineFieldChange,
     saveOnlineUpdates,
   }

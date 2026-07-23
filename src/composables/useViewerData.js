@@ -1,6 +1,6 @@
 import { computed, ref, unref } from 'vue'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
-import { normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
+import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -431,6 +431,45 @@ export function useViewerData(options = {}) {
     return true
   }
 
+  function appendOnlineDraftItem({ fieldConfigs = {}, itemsPath = '', includeScan = false } = {}) {
+    const draftItem = {}
+    Object.entries(fieldConfigs)
+      .sort((a, b) => (a[1]?.order ?? 0) - (b[1]?.order ?? 0))
+      .forEach(([key, config]) => {
+        draftItem[key] = createDefaultValueForFieldType(config?.type)
+      })
+
+    if (includeScan && !Object.prototype.hasOwnProperty.call(draftItem, 'scan')) {
+      draftItem.scan = ''
+    }
+
+    draftItem.__onlineMeta = {
+      isDraft: true,
+      draftId: `draft-${uid()}`,
+      itemsPath: String(itemsPath || '').split('#')[0].split('?')[0],
+    }
+
+    rawItems.value = [...rawItems.value, draftItem]
+    const nextUid = uid()
+    viewItems.value = [
+      ...viewItems.value,
+      {
+        _uid: nextUid,
+        _index: rawItems.value.length - 1,
+        _searchText: toSearchText(draftItem),
+      },
+    ]
+    isDirty.value = true
+    return nextUid
+  }
+
+  function syncSnapshotItemAtIndex(index) {
+    if (!Number.isInteger(index)) return false
+    if (index < 0 || index >= rawItems.value.length) return false
+    importSnapshot.value[index] = cloneData(rawItems.value[index])
+    return true
+  }
+
   return {
     rawItems,
     viewItems,
@@ -457,6 +496,8 @@ export function useViewerData(options = {}) {
     createCsvExportText,
     createSuspendedItemsPayload,
     markAsSaved,
+    appendOnlineDraftItem,
+    syncSnapshotItemAtIndex,
     isEditableSimpleValue,
     looksLikeImageUrl,
   }

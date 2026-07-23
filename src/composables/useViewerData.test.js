@@ -354,4 +354,78 @@ describe('useViewerData flow', () => {
       },
     ])
   })
+
+  test('appendOnlineDraftItem appends a selectable draft with type defaults and online meta', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([{ inventory_number: 'A1', scan: 'https://example.com/a.jpg' }])
+
+    const nextUid = model.appendOnlineDraftItem({
+      fieldConfigs: {
+        inventory_number: { type: 'normal', order: 0 },
+        year: { type: 'integer', order: 1 },
+        reviewed: { type: 'checkbox', order: 2 },
+        subject: { type: 'wikidata-autosuggest', order: 3 },
+      },
+      itemsPath: '/api/items?populate=*',
+      includeScan: true,
+    })
+
+    expect(model.rawItems.value).toHaveLength(2)
+    const draft = model.rawItems.value[1]
+    expect(draft.inventory_number).toBe('')
+    expect(draft.year).toBeNull()
+    expect(draft.reviewed).toBe(false)
+    expect(draft.subject).toEqual([])
+    expect(draft.scan).toBe('')
+    expect(draft.__onlineMeta.isDraft).toBe(true)
+    expect(draft.__onlineMeta.draftId).toMatch(/^draft-/)
+    expect(draft.__onlineMeta.itemsPath).toBe('/api/items')
+    expect(model.isDirty.value).toBe(true)
+
+    const draftViewItem = model.viewItems.value[1]
+    expect(draftViewItem._uid).toBe(nextUid)
+    expect(draftViewItem._index).toBe(1)
+
+    model.selectItem(nextUid)
+    expect(model.selectedRawItem.value).toBe(draft)
+
+    const updated = model.updateField('inventory_number', 'NEW-1', 'normal')
+    expect(updated).toBe(true)
+    expect(draft.inventory_number).toBe('NEW-1')
+  })
+
+  test('appendOnlineDraftItem draft is dropped on reset unless synced into the snapshot', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([{ inventory_number: 'A1' }])
+
+    model.appendOnlineDraftItem({
+      fieldConfigs: { inventory_number: { type: 'normal', order: 0 } },
+      itemsPath: '/api/items',
+    })
+
+    expect(model.rawItems.value).toHaveLength(2)
+    expect(model.importSnapshot.value).toHaveLength(1)
+
+    model.resetToImportedSnapshot()
+    expect(model.rawItems.value).toHaveLength(1)
+
+    model.appendOnlineDraftItem({
+      fieldConfigs: { inventory_number: { type: 'normal', order: 0 } },
+      itemsPath: '/api/items',
+    })
+    expect(model.syncSnapshotItemAtIndex(1)).toBe(true)
+    expect(model.importSnapshot.value).toHaveLength(2)
+
+    model.resetToImportedSnapshot()
+    expect(model.rawItems.value).toHaveLength(2)
+  })
+
+  test('syncSnapshotItemAtIndex rejects invalid indices', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([{ inventory_number: 'A1' }])
+
+    expect(model.syncSnapshotItemAtIndex(-1)).toBe(false)
+    expect(model.syncSnapshotItemAtIndex(5)).toBe(false)
+    expect(model.syncSnapshotItemAtIndex('1')).toBe(false)
+  })
 })

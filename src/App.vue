@@ -51,7 +51,7 @@ const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionPro
 const { appMode, loadAppModeFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
 const { fetchOnlineSettings, clearOnlineSettings, markOnlineSettingsInvalid } = useOnlineSettingsStore()
-const { fetchOnlineItems, clearOnlineItems } = useOnlineItemsStore()
+const { fetchOnlineItems, clearOnlineItems, activeItemsPath } = useOnlineItemsStore()
 const {
   pendingUpdateCount,
   hasPendingUpdates,
@@ -59,6 +59,7 @@ const {
   lastSaveError: onlineSaveError,
   clearOnlineUpdates,
   clearSaveFeedback,
+  trackOnlineDraftCreate,
   trackOnlineFieldChange,
   saveOnlineUpdates,
 } = useOnlineUpdatesStore()
@@ -70,6 +71,7 @@ const {
   createUserConfigPayload,
   applyImportedConfigPayload,
   hasUnappliedUserConfigChanges,
+  appliedUserConfigFields,
   appliedItemLabelField,
   appliedMarkAsEditedBasis,
 } = useUserConfigStore()
@@ -101,6 +103,8 @@ const {
   createSuspendedItemsPayload,
   createCsvExportText,
   markAsSaved,
+  appendOnlineDraftItem,
+  syncSnapshotItemAtIndex,
   isEditableSimpleValue,
   looksLikeImageUrl,
 } = useViewerData({
@@ -173,8 +177,11 @@ function onFieldChange(key, value, configuredType) {
   if (!Number.isInteger(selectedIndex)) return
 
   const currentItem = rawItems.value[selectedIndex]
-  const snapshotItem = importSnapshot.value[selectedIndex]
-  if (!currentItem || !snapshotItem) return
+  if (!currentItem) return
+
+  const isOnlineDraft = currentItem.__onlineMeta?.isDraft === true
+  const snapshotItem = isOnlineDraft ? {} : importSnapshot.value[selectedIndex]
+  if (!isOnlineDraft && !snapshotItem) return
 
   trackOnlineFieldChange({
     item: currentItem,
@@ -182,6 +189,31 @@ function onFieldChange(key, value, configuredType) {
     key,
     nextValue: currentItem[key],
   })
+}
+
+const canCreateOnlineItem = computed(
+  () => appMode.value === 'online' && isAuthenticated.value && Boolean(activeItemsPath.value),
+)
+
+function onCreateOnlineItem() {
+  if (!canCreateOnlineItem.value) return
+
+  const configuredFields = appliedUserConfigFields.value || {}
+  const fieldConfigs = Object.keys(configuredFields).length
+    ? configuredFields
+    : Object.fromEntries(availableFieldKeys.value.map((key) => [key, { type: 'normal' }]))
+
+  const nextUid = appendOnlineDraftItem({
+    fieldConfigs,
+    itemsPath: activeItemsPath.value,
+    includeScan: hasScanField.value,
+  })
+
+  const draftItem = rawItems.value[rawItems.value.length - 1]
+  if (draftItem) {
+    trackOnlineDraftCreate({ item: draftItem })
+  }
+  selectItem(nextUid)
 }
 
 async function onSaveOnlineChanges() {
@@ -197,6 +229,16 @@ async function onSaveOnlineChanges() {
 
   if (result.ok) {
     markAsSaved(importFileName.value)
+    return
+  }
+
+  if (Array.isArray(result.createdItems) && result.createdItems.length) {
+    result.createdItems.forEach((createdItem) => {
+      const createdIndex = rawItems.value.indexOf(createdItem)
+      if (createdIndex !== -1) {
+        syncSnapshotItemAtIndex(createdIndex)
+      }
+    })
   }
 }
 
@@ -606,7 +648,10 @@ watch(
           :show-edited-sort-toggle="showEditedSortToggle" :edited-items-first="editedItemsFirst"
           :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
-          :render-body="false" @update:search-query="searchQuery = $event"
+          :render-body="false" :show-create-item-button="canCreateOnlineItem"
+          :create-item-label="t('onlineCreateItem', 'New item')"
+          :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateOnlineItem"
+          @update:search-query="searchQuery = $event"
           @update:edited-items-first="editedItemsFirst = $event" @toggle-suspend-editing="onSuspendEditingToggle" />
       </section>
 
@@ -627,6 +672,7 @@ watch(
             :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
             :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
             :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
+            :new-item-fallback-label="t('onlineNewItemFallback', 'New item')"
             :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="false"
             :render-body="true" @clear-selection="clearSelection" @select-item="selectItem"
             @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed"

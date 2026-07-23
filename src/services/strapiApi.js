@@ -241,3 +241,43 @@ export async function updateCollectionItemInStrapi({
     body: payload,
   })
 }
+
+export function hasNonEmptyOnlineFieldValue(value) {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (Array.isArray(value)) return value.length > 0
+  if (typeof value === 'object') return Object.keys(value).length > 0
+  return true
+}
+
+export function pickNonEmptyOnlineFields(fields = {}) {
+  if (!isPlainObject(fields)) return {}
+  const picked = {}
+  Object.entries(fields).forEach(([key, value]) => {
+    if (key === ONLINE_META_KEY) return
+    if (!hasNonEmptyOnlineFieldValue(value)) return
+    picked[key] = value
+  })
+  return picked
+}
+
+export async function createCollectionItemInStrapi({ profile, itemsPath, token = '', fields }) {
+  const normalizedPath = stripQueryAndHash(itemsPath)
+  if (!normalizedPath) {
+    throw createHttpError('Items path is required for online item create.', 400, { itemsPath })
+  }
+
+  const payload = buildStrapiUpdatePayload(isPlainObject(fields) ? fields : {})
+
+  return strapiFetchJson({
+    profile,
+    path: normalizedPath,
+    method: 'POST',
+    token,
+    body: payload,
+  })
+}
+
+export function resolveStableIdentifierFromRow(row) {
+  return resolveStableIdentifier(row)
+}

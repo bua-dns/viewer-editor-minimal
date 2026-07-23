@@ -36,6 +36,7 @@ Kernfunktionen:
 - Lokale Datei-Transfer-Controls (JSON/CSV Upload, Beispieldaten, lokaler Download) sind im Online-Modus deaktiviert/ausgeblendet
 - Online-Login erfolgt ueber ein Modal (oeffnet per `Anmelden`) mit Icon-Toggle fuer Passwortsichtbarkeit (Eye/Eye-off SVG)
 - Online-Bearbeitungen werden feldgenau als Delta gegen einen Snapshot getrackt und gezielt nach Strapi gespeichert
+- Online-Modus erlaubt das Anlegen neuer Items als lokale Entwuerfe (Button im Listenkopf), die beim Speichern per `POST <itemsPath>` in Strapi erstellt werden
 - Online-Speicher-UX mit Status `idle | saving | success | error`, Unsaved-Counter und Retry bei Teilfehlern
 - Interne Strapi-Metadaten (`__onlineMeta`) bleiben aus Editor-, Mapping- und Config-Oberflaechen ausgeblendet
 - Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
@@ -84,7 +85,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/stores/useOnlineModeStore.js` - App-Modus-Store (`offline`/`online`, Persistenz in `localStorage`)
 - `src/stores/useAuthStore.js` - Auth-Store fuer Strapi FE-User (JWT Login/Logout/Restore via `localStorage`)
 - `src/stores/useOnlineSettingsStore.js` - Laden von Online-Konfiguration aus Strapi (`response.data.settings`)
-- `src/stores/useOnlineUpdatesStore.js` - Delta-Tracking fuer Online-Aenderungen inkl. sequenziellem Save-Orchestrator und Save-Status
+- `src/stores/useOnlineUpdatesStore.js` - Delta-Tracking fuer Online-Aenderungen inkl. Draft-Create-Tracking (`pendingCreatesById`), sequenziellem Save-Orchestrator (Creates vor Updates) und Save-Status
 - `src/composables/connectionProfile.js` - Validator/Normalizer fuer Connection-Profile + URL-Join-Helper
 - `src/stores/useOnlineItemsStore.js` - Laden von Online-Items aus `settings.itemsPath` (inkl. Sanitizing fuer Editor-Modell)
 - `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch, paginiertes Item-Fetching und feldbasierte Item-Updates
@@ -234,6 +235,17 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Speichern laeuft sequenziell ueber `updateCollectionItemInStrapi(...)` als `PUT <itemsPath>/<documentId>` mit Payload `{ data: changedFields }`; die Payload wird dabei ueber `buildStrapiUpdatePayload(...)` aus den getrackten Feld-Deltas gebaut.
 - Bei Vollerfolg synchronisiert `markAsSaved(...)` die Baseline; bei Teilfehlern bleibt ein konsistenter Retry-faehiger Pending-Stand erhalten.
 - `useDataImportExport.js` meldet explizit zurueck, ob ein Reset tatsaechlich ausgefuehrt wurde; nur dann raeumt `App.vue` ausstehende Online-Updates ab.
+
+### Online-Create-Flow (Neues Item)
+
+- Im Online-Modus zeigt der Listenkopf fuer authentifizierte Nutzer einen Button `Neues Item` / `New item` (optimistisch sichtbar, Backend-Fehler werden im Save-Feedback angezeigt).
+- Klick legt einen lokalen Entwurf an (`appendOnlineDraftItem` in `useViewerData`): gleiche Feld-Schluessel wie die geladenen Items, initialisiert mit Registry-Defaults je konfiguriertem Feldtyp (`''`, `null`, `false`, `[]`), optional `scan: ''`, plus `__onlineMeta: { isDraft: true, draftId, itemsPath }`.
+- Der Entwurf wird sofort selektiert, zaehlt ab Anlage im Unsaved-Counter mit und nutzt die allgemeine Listen-Sortierlogik; ohne eigenen Titel erscheint das Fallback-Label `Neues Objekt` / `New item`.
+- Feldaenderungen am Entwurf werden in `pendingCreatesById` (`useOnlineUpdatesStore`) getrackt; `showOnlyNonEmptyFields` blendet leere Entwurfs-Felder nicht aus.
+- Beim Speichern laufen Creates sequenziell vor den Updates: `POST <itemsPath>` mit `{ data: <nur nicht-leere Felder> }` (`createCollectionItemInStrapi`, Nicht-leer-Regel wie `hasNonEmptyValue`; `false` gilt als Wert).
+- Bei Erfolg erhaelt das Item die vom Server gelieferte `documentId` (Fallback `id`) in `__onlineMeta`; nachfolgende Edits laufen als reguläres PUT-Delta. Bei Vollerfolg uebernimmt `markAsSaved` den Baseline-Sync, bei Teilfehlern synchronisiert `syncSnapshotItemAtIndex` gezielt die bereits erstellten Items.
+- Bei Fehlern bleibt der Entwurf als pending Create bestehen (Retry-faehig); Fehlermeldungen erscheinen im bestehenden Save-Status (`error`) des Online-Panels.
+- Ein Reset vor dem Speichern verwirft nicht gespeicherte Entwuerfe samt Pending-Eintraegen.
 
 ### JSON-Import
 
@@ -468,6 +480,12 @@ Tests in `src/composables/useWikidataSearch.test.js` pruefen:
 - Priorisierungsfall `claimPresence` mit Objekt-Defs (`{ propertyId, propertyLabel }`)
 - Nachladen roher Statement-Daten je Entity/Property
 - Nachladen lokalisierter Labels/Descriptions (`de`/`en`) via `wbgetentities`
+
+Tests in `src/stores/useOnlineUpdatesStore.test.js` pruefen:
+
+- Delta-Tracking und Revert-Verhalten fuer bestehende Items
+- Fehlerbehandlung bei Teilfehlern im Save-Orchestrator
+- Draft-Create-Tracking inkl. POST-Payload (nur nicht-leere Felder), documentId-Uebernahme und Retry-faehigem Fehlerpfad
 
 Testlauf:
 

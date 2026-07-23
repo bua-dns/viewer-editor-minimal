@@ -60,11 +60,13 @@ export function useFieldMapping() {
 
   function getDisplayedFieldKeys(selectedRawItem) {
     if (!selectedRawItem) return []
+    const isOnlineDraft = selectedRawItem?.__onlineMeta?.isDraft === true
     const keys = Object.keys(selectedRawItem).filter((key) => {
       if (key === 'scan') return false
       if (key === 'suspendEditing') return false
       if (key === '__onlineMeta') return false
       if (!appliedShowOnlyNonEmptyFields.value) return true
+      if (isOnlineDraft) return true
       if (isAutosuggestFieldType(appliedUserConfigFields.value[key]?.type)) return true
       return !isFieldValueEmpty(selectedRawItem[key])
     })

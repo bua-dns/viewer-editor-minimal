@@ -272,6 +272,14 @@ const wording = {
     de: "Ungespeicherte Online-Aenderungen in Items:",
     en: "Unsaved online changes in items:",
   },
+  onlineCreateItem: {
+    de: "Neues Item",
+    en: "New item",
+  },
+  onlineNewItemFallback: {
+    de: "Neues Objekt",
+    en: "New item",
+  },
   uploadModeMismatchError: {
     de: "Dateityp passt nicht zum gewählten Modus.",
     en: "File type does not match selected mode.",
