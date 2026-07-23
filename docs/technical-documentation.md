@@ -88,7 +88,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/stores/useOnlineUpdatesStore.js` - Delta-Tracking fuer Online-Aenderungen inkl. Draft-Create-Tracking (`pendingCreatesById`), sequenziellem Save-Orchestrator (Creates vor Updates) und Save-Status
 - `src/composables/connectionProfile.js` - Validator/Normalizer fuer Connection-Profile + URL-Join-Helper
 - `src/stores/useOnlineItemsStore.js` - Laden von Online-Items aus `settings.itemsPath` (inkl. Sanitizing fuer Editor-Modell)
-- `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch, paginiertes Item-Fetching und feldbasierte Item-Updates
+- `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch, paginiertes Item-Fetching sowie feldbasierte Item-Creates/Updates inkl. Payload-Filter fuer nicht-leere Werte
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
 - `src/assets/texts/info.md` - editierbare Markdown-Inhalte fuer den Info-Tab
@@ -101,6 +101,7 @@ Abhaengigkeiten stehen in `package.json`.
 
 - `config/app.config.js` definiert die app-weiten Handles (z. B. `title`, `itemLabel`) und Basiswerte wie `language` und `primaryColor`.
 - `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
+- Online-Create-Texte sind ebenfalls ueber Handles abgedeckt (u. a. `onlineCreateItem`, `onlineNewItemFallback`) und werden in Listenkopf/Fallback-Label verwendet.
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
 - Sprachwechsel passiert in `App.vue` per einfachem `DE | EN`-Schalter in der Topbar.
 - Tab-Beschriftungen (`Editieren`/`Info`/`Datenbankverbindung`) sowie Footer-Credit und zugehoerige ARIA-Labels werden ebenfalls ueber Wording-Handles lokalisiert.
@@ -241,6 +242,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Im Online-Modus zeigt der Listenkopf fuer authentifizierte Nutzer einen Button `Neues Item` / `New item` (optimistisch sichtbar, Backend-Fehler werden im Save-Feedback angezeigt).
 - Klick legt einen lokalen Entwurf an (`appendOnlineDraftItem` in `useViewerData`): gleiche Feld-Schluessel wie die geladenen Items, initialisiert mit Registry-Defaults je konfiguriertem Feldtyp (`''`, `null`, `false`, `[]`), optional `scan: ''`, plus `__onlineMeta: { isDraft: true, draftId, itemsPath }`.
 - Der Entwurf wird sofort selektiert, zaehlt ab Anlage im Unsaved-Counter mit und nutzt die allgemeine Listen-Sortierlogik; ohne eigenen Titel erscheint das Fallback-Label `Neues Objekt` / `New item`.
+- Der Entwurf unterstuetzt `suspendEditing` wie regulaere Items; die bestehende Listen-Sortierung/Anzeige fuer suspendierte Eintraege bleibt konsistent.
 - Feldaenderungen am Entwurf werden in `pendingCreatesById` (`useOnlineUpdatesStore`) getrackt; `showOnlyNonEmptyFields` blendet leere Entwurfs-Felder nicht aus.
 - Beim Speichern laufen Creates sequenziell vor den Updates: `POST <itemsPath>` mit `{ data: <nur nicht-leere Felder> }` (`createCollectionItemInStrapi`, Nicht-leer-Regel wie `hasNonEmptyValue`; `false` gilt als Wert).
 - Bei Erfolg erhaelt das Item die vom Server gelieferte `documentId` (Fallback `id`) in `__onlineMeta`; nachfolgende Edits laufen als reguläres PUT-Delta. Bei Vollerfolg uebernimmt `markAsSaved` den Baseline-Sync, bei Teilfehlern synchronisiert `syncSnapshotItemAtIndex` gezielt die bereits erstellten Items.

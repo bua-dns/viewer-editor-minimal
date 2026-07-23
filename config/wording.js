@@ -245,7 +245,7 @@ const wording = {
     en: "Could not load online items.",
   },
   onlineSaveButton: {
-    de: "Aenderungen speichern",
+    de: "Änderungen speichern",
     en: "Save changes",
   },
   onlineSavePending: {
@@ -257,11 +257,11 @@ const wording = {
     en: "Saved",
   },
   onlineSaveSuccessMessage: {
-    de: "Online-Aenderungen gespeichert.",
+    de: "Online-Änderungen gespeichert.",
     en: "Online changes saved.",
   },
   onlineSaveFailed: {
-    de: "Online-Aenderungen konnten nicht gespeichert werden.",
+    de: "Online-Änderungen konnten nicht gespeichert werden.",
     en: "Could not save online changes.",
   },
   onlineSaveRetry: {
@@ -269,7 +269,7 @@ const wording = {
     en: "Retry save",
   },
   onlineUnsavedChangesCount: {
-    de: "Ungespeicherte Online-Aenderungen in Items:",
+    de: "Ungespeicherte Online-Änderungen in Items:",
     en: "Unsaved online changes in items:",
   },
   onlineCreateItem: {
@@ -585,7 +585,7 @@ const wording = {
     en: "Result limit",
   },
   autosuggestAlsoGetDataFrom: {
-    de: "Statement-Daten zusaetzlich laden aus",
+    de: "Statement-Daten zusätzlich laden aus",
     en: "Also get statement data from",
   },
   autosuggestAlsoGetDataFromPlaceholder: {
@@ -617,7 +617,7 @@ const wording = {
     en: "Include metadata in emitted selection",
   },
   autosuggestShowInSuggestion: {
-    de: "Metadaten in Vorschlaegen anzeigen",
+    de: "Metadaten in Vorschlägen anzeigen",
     en: "Show metadata in suggestions",
   },
   autosuggestProperty: {
