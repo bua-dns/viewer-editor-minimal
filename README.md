@@ -12,6 +12,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Volltextsuche über alle Felder
 - Kartenansicht mit Bildvorschau (`scan`-URL)
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
+- Optionaler Dev-Inspektionsmodus (`dataInspectionMode`): im Edit-Panel zusaetzliche Buttons `show/hide raw data` und `Copy raw data` mit `<pre>`-Preview des aktuell selektierten Items
 - Neuer Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell (`[{ id, label, ... }]`)
 - `wikidata-autosuggest` unterstuetzt konfigurierbare Priorisierung (`claimPresence`, `claimValueMatch`) inkl. optionaler Emit-Metadaten
 - Wikidata-Multilanguage-Suche ist fehlertolerant: Teilausfaelle einzelner Sprachen werden abgefangen, verbleibende Treffer bleiben erhalten
@@ -161,13 +162,13 @@ Hinweise:
 - `src/composables/useModalKeyboard.js` - gemeinsames Keyboard-Handling fuer Escape-basiertes Modal-Schliessen
 - `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
 - `src/composables/userConfigValidation.test.js` – Unit-Tests für die JSON-Config-Validierung
-- `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe)
+- `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe/`dataInspectionMode`)
 - `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
 - `src/stores/useDataTransferStore.js` - Datenmodus-UI-State und Dateinamenlogik (inkl. Session)
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer eingebettete JSON-Config
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
-- `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC
+- `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC inkl. optionaler Raw-Data-Dev-Preview
 - `src/components/ViewerWikidataField.vue` - Wrapper fuer `wikidata-autosuggest` (Selection/Chips/Remove)
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe, erhaelt `autosuggest`-Config als pass-through
 - `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer `autosuggest` Feldkonfiguration in der Konfigurationsansicht
@@ -188,7 +189,7 @@ Hinweise:
 - `src/assets/styles/layout/_index.scss` - Layout-Layer (App-Shell, Grid, responsive Struktur)
 - `src/assets/styles/legacy.scss` - temporaerer Migrations-Layer fuer bestehende globale Styles
 - `src/assets/styles/components/_index.scss` - optionaler Ausnahme-Layer fuer globale Sonderfaelle
-- `config/app.config.js` - App-Konfiguration (Wording-Handles, Primärfarbe, Default-Sprache)
+- `config/app.config.js` - App-Konfiguration (Wording-Handles, Primaerfarbe, Default-Sprache, `connectionMode`, `dataInspectionMode`)
 - `config/wording.js` - Sprachvarianten je Wording-Handle
 
 ## Styling-Architektur

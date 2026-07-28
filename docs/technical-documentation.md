@@ -40,6 +40,7 @@ Kernfunktionen:
 - Online-Speicher-UX mit Status `idle | saving | success | error`, Unsaved-Counter und Retry bei Teilfehlern
 - Interne Strapi-Metadaten (`__onlineMeta`) bleiben aus Editor-, Mapping- und Config-Oberflaechen ausgeblendet
 - Desktop-Sticky-Layout: Tabs + Edit-Header bleiben beim Scrollen sichtbar; Sidebar bleibt separat sticky
+- Optionaler Dev-Inspektionsmodus ueber `config/app.config.js:dataInspectionMode` zeigt im Sidebar-Editor eine Raw-Data-Preview (`<pre>`) mit `show/hide raw data` und `Copy raw data`
 
 ## Tech Stack
 
@@ -60,7 +61,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/components/footer/Identity.vue` - Footer-Identity; Text und ARIA-Labels aus dem zentralen Wording
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
-- `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche
+- `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche inkl. optionaler Raw-Data-Dev-Preview (Toggle + Copy)
 - `src/components/ViewerWikidataField.vue` - Viewer-spezifischer Wrapper fuer den Feldtyp `wikidata-autosuggest`
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (erhaelt Konfiguration als pass-through)
 - `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer autosuggest-spezifische Feldoptionen in der Konfigurationsansicht
@@ -78,7 +79,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/composables/useModalKeyboard.js` - gemeinsames Escape-Keyboard-Handling fuer Modals
 - `src/composables/useViewerData.test.js` - Unit-Tests fuer Helpers und Kern-Flow
 - `src/composables/userConfigValidation.test.js` - Unit-Tests fuer JSON-Config-Validierung
-- `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color)
+- `src/stores/useAppConfigStore.js` - globaler App-Config-Store (Sprache, Wording-Aufloesung, Primary Color, `dataInspectionMode`)
 - `src/stores/useUserConfigStore.js` - User-Config-Store (State, Session, Add/Remove, Reorder, Apply)
 - `src/stores/useDataTransferStore.js` - Data-Transfer-Store (Modus, Session, Dateinamenlogik)
 - `src/stores/useConnectionProfileStore.js` - Store fuer persistentes Connection-Profil (`localStorage`) inkl. Import/Export und Endpoint-Tests
@@ -104,6 +105,9 @@ Abhaengigkeiten stehen in `package.json`.
   - `switchable`: UI zeigt den Umschalter `Offline | Online`.
   - `offline`: kein Umschalter, App-Modus fest auf `offline`.
   - `online`: kein Umschalter, App-Modus fest auf `online`.
+- `config/app.config.js` steuert zusaetzlich den optionalen Dev-Inspektionsmodus ueber `dataInspectionMode` (`true | false`).
+  - `true`: Im Edit-Sidebar-Panel werden unterhalb der Feldliste die Buttons `show/hide raw data` und `Copy raw data` angezeigt.
+  - `false`: Keine zusaetzlichen Raw-Data-Controls in der Sidebar.
 - `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - Online-Create-Texte sind ebenfalls ueber Handles abgedeckt (u. a. `onlineCreateItem`, `onlineNewItemFallback`) und werden in Listenkopf/Fallback-Label verwendet.
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
@@ -329,6 +333,7 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 
 - `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
 - `suspendEditing` wird in der Sidebar nicht als normales Datenfeld gerendert, sondern als separate Checkbox oberhalb der Feldliste.
+- Optional (nur bei `dataInspectionMode=true`) rendert `ItemFieldEditor.vue` am Ende der Feldliste eine JSON-Preview des aktuell selektierten Rohobjekts sowie einen Copy-Button fuer die Zwischenablage.
 - `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`).
 - Jeder Feldtyp implementiert denselben Contract:
   - `createEditorBinding(...)` fuer UI-Bindings (`component`, Props, Event, Event-Value-Mapping)
