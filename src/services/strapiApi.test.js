@@ -1,6 +1,11 @@
 import { describe, expect, test, vi } from 'vitest'
 import {
+  buildItemsPathWithPopulate,
   buildStrapiUpdatePayload,
+  checkDataModelImplementationInStrapi,
+  fetchAllCollectionItemsFromStrapi,
+  getWikidataAutosuggestFieldKeysFromSettings,
+  normalizeOnlineChangedFieldsForStrapi,
   normalizeStrapiItem,
   updateViewerSettingsInStrapi,
   updateCollectionItemInStrapi,
@@ -104,6 +109,88 @@ describe('strapiApi helpers', () => {
     })
   })
 
+  test('builds items path with populate[n] for complex fields', () => {
+    const path = buildItemsPathWithPopulate('/api/index-cards?sort=label:asc', {
+      page: 2,
+      pageSize: 25,
+      populateFields: ['locations', 'collectors'],
+    })
+
+    expect(path).toContain('sort=label%3Aasc')
+    expect(path).toContain('pagination%5Bpage%5D=2')
+    expect(path).toContain('pagination%5BpageSize%5D=25')
+    expect(path).toContain('populate%5B0%5D=locations')
+    expect(path).toContain('populate%5B1%5D=collectors')
+  })
+
+  test('extracts wikidata autosuggest field keys from settings', () => {
+    const keys = getWikidataAutosuggestFieldKeysFromSettings({
+      fields: {
+        label: { type: 'normal' },
+        location: { type: 'wikidata-autosuggest' },
+        collector: { type: 'wikidata_autosuggest' },
+      },
+    })
+
+    expect(keys).toEqual(['location', 'collector'])
+  })
+
+  test('normalizes Strapi wikidata component into viewer shape on load', () => {
+    const item = normalizeStrapiItem(
+      {
+        documentId: 'doc-1',
+        locations: [
+          {
+            wikidata_id: 'Q146351',
+            label: 'Liberec',
+            description: 'city',
+            additional_data: {
+              geoNames: ['3071961'],
+            },
+          },
+        ],
+      },
+      {
+        locations: { type: 'wikidata-autosuggest' },
+      },
+      '/api/index-cards',
+    )
+
+    expect(item.locations[0]).toEqual({
+      id: 'Q146351',
+      label: 'Liberec',
+      description: 'city',
+      geoNames: ['3071961'],
+    })
+  })
+
+  test('normalizes viewer wikidata entities into Strapi component shape on save', () => {
+    const changedFields = normalizeOnlineChangedFieldsForStrapi(
+      {
+        locations: [
+          {
+            id: 'Q146351',
+            label: 'Liberec',
+            description: 'city',
+            geoNames: ['3071961'],
+          },
+        ],
+      },
+      {
+        locations: { type: 'wikidata-autosuggest' },
+      },
+    )
+
+    expect(changedFields.locations[0]).toEqual({
+      wikidata_id: 'Q146351',
+      label: 'Liberec',
+      description: 'city',
+      additional_data: {
+        geoNames: ['3071961'],
+      },
+    })
+  })
+
   test('updates viewer settings via configPath', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -152,5 +239,151 @@ describe('strapiApi helpers', () => {
         },
       }),
     })
+  })
+
+  test('checks data model and reports wikidata_id mismatch', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            settings: {
+              itemsPath: '/api/index-cards',
+              fields: {
+                label: { type: 'normal' },
+                locations: { type: 'wikidata-autosuggest' },
+              },
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              documentId: 'doc-1',
+              locations: [
+                {
+                  wikidata_id: 'Q146351',
+                  label: 'Liberec',
+                },
+              ],
+            },
+          ],
+          meta: {
+            pagination: {
+              pageCount: 1,
+            },
+          },
+        }),
+      })
+
+    const result = await checkDataModelImplementationInStrapi({
+      profile: {
+        baseUrl: 'https://cms.example.org/project',
+        configPath: '/api/viewer-setting',
+      },
+      token: 'jwt-1',
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.probePath).toContain('populate%5B0%5D=locations')
+    expect(result.checks[0].message).toContain('wikidata_id')
+  })
+
+  test('checkDataModel retries when Strapi rejects populate key', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            settings: {
+              itemsPath: '/api/index-cards',
+              fields: {
+                location: { type: 'wikidata-autosuggest' },
+              },
+            },
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: {
+            message: 'Invalid key location',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              documentId: 'doc-1',
+              location: [],
+            },
+          ],
+          meta: {
+            pagination: {
+              pageCount: 1,
+            },
+          },
+        }),
+      })
+
+    const result = await checkDataModelImplementationInStrapi({
+      profile: {
+        baseUrl: 'https://cms.example.org/project',
+        configPath: '/api/viewer-setting',
+      },
+      token: 'jwt-1',
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.status).toBe('warning')
+    expect(result.droppedPopulateKeys).toEqual(['location'])
+    expect(result.probePath).not.toContain('populate%5B0%5D=location')
+  })
+
+  test('retries item fetch without invalid populate key', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: {
+            message: 'Invalid key location',
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: [{ id: 1, documentId: 'doc-1', label: 'Card 1' }],
+          meta: {
+            pagination: {
+              pageCount: 1,
+            },
+          },
+        }),
+      })
+
+    const rows = await fetchAllCollectionItemsFromStrapi({
+      profile: {
+        baseUrl: 'https://cms.example.org/project',
+      },
+      itemsPath: '/api/index-cards',
+      token: 'jwt-1',
+      populateFields: ['location'],
+    })
+
+    expect(rows).toHaveLength(1)
+    const secondCallUrl = globalThis.fetch.mock.calls[1][0]
+    expect(secondCallUrl).not.toContain('populate%5B0%5D=location')
   })
 })

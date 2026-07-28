@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import {
   fetchAllCollectionItemsFromStrapi,
+  getWikidataAutosuggestFieldKeysFromSettings,
   normalizeStrapiItem,
   resolveItemsPathFromSettings,
 } from '../services/strapiApi'
@@ -36,7 +37,8 @@ async function fetchOnlineItems({ settings }) {
     return { ok: false, error: lastItemsError.value }
   }
 
-  const settingsFieldKeys = Object.keys(settings?.fields || {})
+  const settingsFields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
+  const populateFields = getWikidataAutosuggestFieldKeysFromSettings(settings)
 
   itemsStatus.value = 'loading'
   lastItemsError.value = ''
@@ -47,9 +49,10 @@ async function fetchOnlineItems({ settings }) {
       profile: connectionProfile.value,
       itemsPath,
       token: token.value || '',
+      populateFields,
     })
 
-    items.value = fetchedRows.map((rawRow) => normalizeStrapiItem(rawRow, settingsFieldKeys, itemsPath))
+    items.value = fetchedRows.map((rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath))
     itemsStatus.value = 'ready'
     return {
       ok: true,

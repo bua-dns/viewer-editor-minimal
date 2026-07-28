@@ -138,21 +138,218 @@ export function resolveItemsPathFromSettings(settings = {}) {
   return ''
 }
 
-export async function fetchAllCollectionItemsFromStrapi({ profile, itemsPath, token = '', pageSize = 100 }) {
+function buildPathWithAdditionalQueryParams(path, entries = []) {
+  const normalizedPath = String(path || '').split('#')[0]
+  const [basePath, existingQuery = ''] = normalizedPath.split('?')
+  const query = new URLSearchParams(existingQuery)
+
+  for (const [key, rawValue] of entries) {
+    const normalizedKey = String(key || '').trim()
+    if (!normalizedKey) continue
+    query.append(normalizedKey, String(rawValue ?? ''))
+  }
+
+  const queryString = query.toString()
+  return queryString ? `${basePath}?${queryString}` : basePath
+}
+
+function isWikidataAutosuggestType(type) {
+  const normalized = String(type || '').trim().toLowerCase()
+  return normalized === 'wikidata-autosuggest' || normalized === 'wikidata_autosuggest'
+}
+
+function normalizeWikidataEntityFromStrapi(entity) {
+  if (!isPlainObject(entity)) return entity
+
+  const wikidataId =
+    typeof entity.wikidata_id === 'string' && entity.wikidata_id.trim().length
+      ? entity.wikidata_id.trim()
+      : typeof entity.id === 'string' && entity.id.trim().length
+        ? entity.id.trim()
+        : ''
+
+  if (!wikidataId) {
+    return entity
+  }
+
+  const additionalData = isPlainObject(entity.additional_data) ? entity.additional_data : {}
+  const mergedEntity = {
+    ...additionalData,
+    ...entity,
+    id: wikidataId,
+  }
+
+  delete mergedEntity.wikidata_id
+  delete mergedEntity.additional_data
+  return mergedEntity
+}
+
+function normalizeWikidataEntityForStrapi(entity) {
+  if (!isPlainObject(entity)) return entity
+
+  const viewerId = typeof entity.id === 'string' ? entity.id.trim() : ''
+  const wikidataId =
+    typeof entity.wikidata_id === 'string' && entity.wikidata_id.trim().length
+      ? entity.wikidata_id.trim()
+      : viewerId
+
+  if (!wikidataId) {
+    return entity
+  }
+
+  const nextEntity = {
+    wikidata_id: wikidataId,
+    label: entity.label,
+    description: entity.description,
+  }
+
+  const additionalData = isPlainObject(entity.additional_data) ? { ...entity.additional_data } : {}
+  Object.entries(entity).forEach(([key, value]) => {
+    if (key === 'id' || key === 'wikidata_id' || key === 'label' || key === 'description') {
+      return
+    }
+    additionalData[key] = value
+  })
+
+  if (Object.keys(additionalData).length) {
+    nextEntity.additional_data = additionalData
+  }
+
+  return nextEntity
+}
+
+function normalizeOnlineFieldValueFromStrapi(value, fieldConfig) {
+  if (!isWikidataAutosuggestType(fieldConfig?.type)) {
+    return value
+  }
+
+  if (!Array.isArray(value)) {
+    return value
+  }
+
+  return value.map((entity) => normalizeWikidataEntityFromStrapi(entity))
+}
+
+function normalizeOnlineFieldValueForStrapi(value, fieldConfig) {
+  if (!isWikidataAutosuggestType(fieldConfig?.type)) {
+    return value
+  }
+
+  if (!Array.isArray(value)) {
+    return value
+  }
+
+  return value.map((entity) => normalizeWikidataEntityForStrapi(entity))
+}
+
+function parseInvalidStrapiQueryKey(error) {
+  const message = String(error?.message || '').trim()
+  const match = message.match(/invalid key\s+([A-Za-z0-9_\-]+)/i)
+  if (!match) return ''
+  return String(match[1] || '').trim()
+}
+
+export function getWikidataAutosuggestFieldKeysFromSettings(settings = {}) {
+  const fields = settings?.fields
+  if (!isPlainObject(fields)) {
+    return []
+  }
+
+  return Object.entries(fields)
+    .filter(([, fieldConfig]) => isWikidataAutosuggestType(fieldConfig?.type))
+    .map(([fieldKey]) => String(fieldKey || '').trim())
+    .filter(Boolean)
+}
+
+export function normalizeOnlineChangedFieldsForStrapi(changedFields = {}, fieldConfigs = {}) {
+  if (!isPlainObject(changedFields)) {
+    return {}
+  }
+
+  const normalizedFieldConfigs = isPlainObject(fieldConfigs) ? fieldConfigs : {}
+  const nextFields = {}
+
+  Object.entries(changedFields).forEach(([fieldKey, value]) => {
+    const fieldConfig = normalizedFieldConfigs[fieldKey]
+    nextFields[fieldKey] = normalizeOnlineFieldValueForStrapi(value, fieldConfig)
+  })
+
+  return nextFields
+}
+
+export function buildItemsPathWithPopulate(
+  itemsPath,
+  { page = 1, pageSize = 100, populateFields = [] } = {},
+) {
+  const queryEntries = [
+    ['pagination[page]', page],
+    ['pagination[pageSize]', pageSize],
+  ]
+
+  const normalizedPopulateFields = Array.from(
+    new Set(
+      (Array.isArray(populateFields) ? populateFields : [])
+        .map((fieldName) => String(fieldName || '').trim())
+        .filter(Boolean),
+    ),
+  )
+
+  normalizedPopulateFields.forEach((fieldName, index) => {
+    queryEntries.push([`populate[${index}]`, fieldName])
+  })
+
+  return buildPathWithAdditionalQueryParams(itemsPath, queryEntries)
+}
+
+export async function fetchAllCollectionItemsFromStrapi({
+  profile,
+  itemsPath,
+  token = '',
+  pageSize = 100,
+  populateFields = [],
+}) {
   const collected = []
+  let effectivePopulateFields = Array.from(
+    new Set(
+      (Array.isArray(populateFields) ? populateFields : [])
+        .map((fieldName) => String(fieldName || '').trim())
+        .filter(Boolean),
+    ),
+  )
   let page = 1
   let pageCount = 1
 
   while (page <= pageCount) {
-    const separator = itemsPath.includes('?') ? '&' : '?'
-    const pagedPath = `${itemsPath}${separator}pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+    let payload = null
 
-    const payload = await strapiFetchJson({
-      profile,
-      path: pagedPath,
-      method: 'GET',
-      token,
-    })
+    while (!payload) {
+      const pagedPath = buildItemsPathWithPopulate(itemsPath, {
+        page,
+        pageSize,
+        populateFields: effectivePopulateFields,
+      })
+
+      try {
+        payload = await strapiFetchJson({
+          profile,
+          path: pagedPath,
+          method: 'GET',
+          token,
+        })
+      } catch (error) {
+        const invalidKey = parseInvalidStrapiQueryKey(error)
+        if (!invalidKey) {
+          throw error
+        }
+
+        const hasPopulateKey = effectivePopulateFields.some((fieldName) => fieldName === invalidKey)
+        if (!hasPopulateKey) {
+          throw error
+        }
+
+        effectivePopulateFields = effectivePopulateFields.filter((fieldName) => fieldName !== invalidKey)
+      }
+    }
 
     const rows = Array.isArray(payload?.data) ? payload.data : null
     if (!rows) {
@@ -167,6 +364,142 @@ export async function fetchAllCollectionItemsFromStrapi({ profile, itemsPath, to
   }
 
   return collected
+}
+
+export async function checkDataModelImplementationInStrapi({ profile, token = '' }) {
+  const settingsResult = await fetchViewerSettingsFromStrapi({ profile, token })
+  const settings = settingsResult.settings
+  const itemsPath = resolveItemsPathFromSettings(settings)
+
+  if (!itemsPath) {
+    throw createHttpError('Online settings must provide itemsPath.', 500, settingsResult.payload)
+  }
+
+  const wikidataFieldKeys = getWikidataAutosuggestFieldKeysFromSettings(settings)
+  let effectivePopulateFields = [...wikidataFieldKeys]
+  const droppedPopulateKeys = []
+  let payload = null
+
+  while (!payload) {
+    const probePathAttempt = buildItemsPathWithPopulate(itemsPath, {
+      page: 1,
+      pageSize: 1,
+      populateFields: effectivePopulateFields,
+    })
+
+    try {
+      payload = await strapiFetchJson({
+        profile,
+        path: probePathAttempt,
+        method: 'GET',
+        token,
+      })
+    } catch (error) {
+      const invalidKey = parseInvalidStrapiQueryKey(error)
+      if (!invalidKey) {
+        throw error
+      }
+
+      const hasPopulateKey = effectivePopulateFields.some((fieldName) => fieldName === invalidKey)
+      if (!hasPopulateKey) {
+        throw error
+      }
+
+      droppedPopulateKeys.push(invalidKey)
+      effectivePopulateFields = effectivePopulateFields.filter((fieldName) => fieldName !== invalidKey)
+    }
+  }
+
+  const probePath = buildItemsPathWithPopulate(itemsPath, {
+    page: 1,
+    pageSize: 1,
+    populateFields: effectivePopulateFields,
+  })
+
+  const rows = Array.isArray(payload?.data) ? payload.data : null
+  if (!rows) {
+    throw createHttpError('Items response must contain an array at data.', 500, payload)
+  }
+
+  const firstRow = rows[0] || null
+  const valueSource = isPlainObject(firstRow?.attributes) ? firstRow.attributes : firstRow
+  const checks = wikidataFieldKeys.map((fieldKey) => {
+    if (!isPlainObject(valueSource) || !Object.prototype.hasOwnProperty.call(valueSource, fieldKey)) {
+      return {
+        fieldKey,
+        status: 'error',
+        message: `Missing field \"${fieldKey}\" in items payload.`,
+      }
+    }
+
+    const fieldValue = valueSource[fieldKey]
+    if (!Array.isArray(fieldValue)) {
+      return {
+        fieldKey,
+        status: 'error',
+        message: `Field \"${fieldKey}\" must be an array.`,
+      }
+    }
+
+    if (!fieldValue.length) {
+      return {
+        fieldKey,
+        status: 'warning',
+        message: `Field \"${fieldKey}\" is an empty array, no entity shape could be verified.`,
+      }
+    }
+
+    const firstEntity = fieldValue.find((entry) => isPlainObject(entry))
+    if (!firstEntity) {
+      return {
+        fieldKey,
+        status: 'error',
+        message: `Field \"${fieldKey}\" entries must be objects.`,
+      }
+    }
+
+    const hasViewerId = typeof firstEntity.id === 'string' && firstEntity.id.trim().length > 0
+    const hasViewerLabel = typeof firstEntity.label === 'string' && firstEntity.label.trim().length > 0
+    const hasStrapiWikidataId =
+      typeof firstEntity.wikidata_id === 'string' && firstEntity.wikidata_id.trim().length > 0
+
+    if (hasViewerId && hasViewerLabel) {
+      return {
+        fieldKey,
+        status: 'ok',
+        message: `Field \"${fieldKey}\" matches viewer shape (id + label).`,
+      }
+    }
+
+    if (hasStrapiWikidataId) {
+      return {
+        fieldKey,
+        status: 'error',
+        message: `Field \"${fieldKey}\" uses \"wikidata_id\". Viewer expects \"id\" + \"label\" in each entity.`,
+      }
+    }
+
+    return {
+      fieldKey,
+      status: 'error',
+      message: `Field \"${fieldKey}\" entities must contain \"id\" and \"label\".`,
+    }
+  })
+
+  const hasError = checks.some((entry) => entry.status === 'error')
+  const hasWarning = checks.some((entry) => entry.status === 'warning') || droppedPopulateKeys.length > 0
+
+  return {
+    ok: !hasError,
+    status: hasError ? 'error' : hasWarning ? 'warning' : 'ok',
+    itemsPath,
+    probePath,
+    droppedPopulateKeys,
+    wikidataFieldKeys,
+    checks,
+    rowCount: rows.length,
+    payload,
+  }
 }
 
 function stripQueryAndHash(path) {
@@ -199,7 +532,7 @@ function resolveStableIdentifier(source) {
   return null
 }
 
-export function normalizeStrapiItem(row, settingsFieldKeys = [], itemsPath = '') {
+export function normalizeStrapiItem(row, settingsFields = {}, itemsPath = '') {
   const source = isPlainObject(row) ? row : {}
   const attributes = isPlainObject(source.attributes) ? source.attributes : null
   const valueSource = attributes || source
@@ -211,9 +544,19 @@ export function normalizeStrapiItem(row, settingsFieldKeys = [], itemsPath = '')
 
   const nextItem = {}
 
-  settingsFieldKeys.forEach((fieldKey) => {
+  const normalizedSettingsFields = isPlainObject(settingsFields)
+    ? settingsFields
+    : Array.isArray(settingsFields)
+      ? Object.fromEntries(settingsFields.map((fieldKey) => [String(fieldKey || '').trim(), {}]))
+      : {}
+
+  Object.keys(normalizedSettingsFields).forEach((fieldKey) => {
+    if (!fieldKey) return
     if (Object.prototype.hasOwnProperty.call(valueSource, fieldKey)) {
-      nextItem[fieldKey] = valueSource[fieldKey]
+      nextItem[fieldKey] = normalizeOnlineFieldValueFromStrapi(
+        valueSource[fieldKey],
+        normalizedSettingsFields[fieldKey],
+      )
     }
   })
 

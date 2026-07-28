@@ -1,10 +1,12 @@
 import { computed, ref } from 'vue'
 import {
   createCollectionItemInStrapi,
+  normalizeOnlineChangedFieldsForStrapi,
   pickNonEmptyOnlineFields,
   resolveStableIdentifierFromRow,
   updateCollectionItemInStrapi,
 } from '../services/strapiApi'
+import { useOnlineSettingsStore } from './useOnlineSettingsStore'
 
 const ONLINE_META_KEY = '__onlineMeta'
 
@@ -155,6 +157,11 @@ function normalizeSaveErrorMessage(error, fallback) {
 }
 
 async function saveOnlineUpdates({ profile, token = '' }) {
+  const { settings } = useOnlineSettingsStore()
+  const fieldConfigs = settings.value?.fields && typeof settings.value.fields === 'object'
+    ? settings.value.fields
+    : {}
+
   const updateEntries = Object.entries(pendingUpdatesById.value)
   const createEntries = Object.entries(pendingCreatesById.value)
   if (!updateEntries.length && !createEntries.length) {
@@ -172,7 +179,9 @@ async function saveOnlineUpdates({ profile, token = '' }) {
 
   for (const [entryKey, entry] of createEntries) {
     try {
-      const createFields = pickNonEmptyOnlineFields(entry.changedFields)
+      const createFields = pickNonEmptyOnlineFields(
+        normalizeOnlineChangedFieldsForStrapi(entry.changedFields, fieldConfigs),
+      )
       const payload = await createCollectionItemInStrapi({
         profile,
         itemsPath: entry.itemsPath,
@@ -210,12 +219,13 @@ async function saveOnlineUpdates({ profile, token = '' }) {
 
   for (const [entryKey, entry] of updateEntries) {
     try {
+      const changedFields = normalizeOnlineChangedFieldsForStrapi(entry.changedFields, fieldConfigs)
       await updateCollectionItemInStrapi({
         profile,
         itemsPath: entry.itemsPath,
         id: entry.id,
         token,
-        changedFields: entry.changedFields,
+        changedFields,
       })
       removePendingUpdate(entryKey)
       savedCount += 1

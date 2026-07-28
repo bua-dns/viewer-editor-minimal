@@ -171,6 +171,9 @@ function collectPropertyIdsByFlag(flagName) {
 
 const suggestionPropertyIds = computed(() => collectPropertyIdsByFlag('showInSuggestion'))
 const emitPropertyIds = computed(() => collectPropertyIdsByFlag('includeInEmitData'))
+const persistedClaimPropertyIds = computed(() =>
+  Array.from(new Set([...emitPropertyIds.value, ...suggestionPropertyIds.value])),
+)
 const showSuggestionMetadata = computed(() => suggestionPropertyIds.value.length > 0)
 function normalizeAlsoGetDataFromPropertyDefs(value) {
   if (typeof value === 'string') {
@@ -323,6 +326,21 @@ function filterPrioritizationValues(prioritizationValues, propertyIds) {
   return filteredValues
 }
 
+function deriveGeoNamesValues(prioritizationValues) {
+  const values = prioritizationValues?.P1566
+  if (!Array.isArray(values) || !values.length) {
+    return []
+  }
+
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    ),
+  )
+}
+
 function getSuggestionPrioritizationValuesText(item) {
   const filteredValues = filterPrioritizationValues(
     item?.prioritizationValues,
@@ -342,7 +360,7 @@ function getSuggestionPrioritizationValuesText(item) {
 
 async function getEmitItem(item) {
   const nextItem = { ...item }
-  const shouldIncludeClaimData = emitPropertyIds.value.length > 0
+  const shouldIncludeClaimData = persistedClaimPropertyIds.value.length > 0
   const fallbackLanguage = String(mergedConfig.value.resultLanguage || '').trim().toLowerCase()
   const labelFallback = readLocalizedTextValue(nextItem.label)
   const descriptionFallback = readLocalizedTextValue(nextItem.description)
@@ -353,12 +371,19 @@ async function getEmitItem(item) {
   } else {
     nextItem.prioritizationValues = filterPrioritizationValues(
       item?.prioritizationValues,
-      emitPropertyIds.value,
+      persistedClaimPropertyIds.value,
     )
 
     if (!Object.keys(nextItem.prioritizationValues).length) {
       delete nextItem.prioritizationValues
     }
+  }
+
+  const geoNamesValues = deriveGeoNamesValues(nextItem.prioritizationValues)
+  if (geoNamesValues.length) {
+    nextItem.geoNames = geoNamesValues
+  } else {
+    delete nextItem.geoNames
   }
 
   if (

@@ -362,6 +362,8 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 - `showInSuggestion`: zeigt priorisierungsbezogene Metadaten in der Trefferliste.
 - Bei gesetzten Def-Labels werden Metadaten als `Label (PropertyId): ...` angezeigt (statt nur `PropertyId: ...`) in Trefferliste und selektierten Ergebnissen.
 - `includeInEmitData`: behaelt priorisierungsbezogene Metadaten (`ranking`, `prioritizationValues`) im selektierten Entity-Payload.
+- `showInSuggestion`: wenn aktiviert, bleiben die dazugehoerigen priorisierungsbezogenen Werte ebenfalls im selektierten Entity-Payload erhalten (damit angezeigte Metadaten wie GeoNames auch im Raw-Data-Export sichtbar bleiben).
+- Wenn `prioritizationValues.P1566` vorhanden ist, wird zusaetzlich `geoNames` als String-Array in die selektierte Entity geschrieben (lesbarer Shortcut fuer GeoNames-IDs im Raw-Data-Payload).
 - Selektierte Entities enthalten zusaetzlich lokalisierte Begriffe unter `labels` und `descriptions` als Sprachmaps (mindestens `de` und `en`), z. B. `labels.de`, `labels.en`, `descriptions.de`, `descriptions.en`.
 - Datenquelle fuer lokalisierte Begriffe: sprachspezifischer Merge aus `wbsearchentities`; beim Auswaehlen wird zusaetzlich `wbgetentities` mit `props=labels|descriptions` und `languages=de|en` verwendet, damit die Werte stabil im Export-Payload landen.
 - `prefillWith`: wenn konfiguriert, wird beim Wechsel auf ein Item der Wert des referenzierten `normal`-Felds automatisch in die Autosuggest-Eingabe uebernommen; die Suche startet dabei nur automatisch, wenn noch keine Entity im Feld selektiert ist.

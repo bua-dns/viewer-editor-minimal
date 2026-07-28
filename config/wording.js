@@ -372,6 +372,22 @@ const wording = {
     de: "Prüfe...",
     en: "Testing...",
   },
+  dbConnectionCheckModel: {
+    de: "Datenmodell-Implementierung prüfen",
+    en: "Check data model implementation",
+  },
+  dbConnectionCheckingModel: {
+    de: "Prüfe Datenmodell...",
+    en: "Checking model...",
+  },
+  dbConnectionCheckModelSuccess: {
+    de: "Datenmodell-Prüfung abgeschlossen.",
+    en: "Data model check finished.",
+  },
+  dbConnectionCheckModelFailed: {
+    de: "Datenmodell-Prüfung fehlgeschlagen.",
+    en: "Data model check failed.",
+  },
   dbConnectionDownload: {
     de: "Profil als JSON herunterladen",
     en: "Download profile JSON",

@@ -5,6 +5,7 @@ import {
   parseConnectionProfileJsonText,
   validateConnectionProfile,
 } from '../composables/connectionProfile'
+import { checkDataModelImplementationInStrapi } from '../services/strapiApi'
 
 const CONNECTION_PROFILE_STORAGE_KEY = 'viewerEditor.connectionProfile.v1'
 
@@ -185,6 +186,40 @@ async function testConnection(input = {}) {
   }
 }
 
+async function checkDataModelImplementation(input = {}, options = {}) {
+  const profile = Object.keys(input || {}).length ? createSavedConnectionProfile(input) : connectionProfile.value
+  if (!profile) {
+    return { ok: false, error: 'No connection profile available.', errors: { profile: 'missing' } }
+  }
+
+  const validation = validateConnectionProfile(profile)
+  if (!validation.ok) {
+    return { ok: false, error: 'Validation failed.', errors: validation.errors }
+  }
+
+  try {
+    const result = await checkDataModelImplementationInStrapi({
+      profile: validation.profile,
+      token: String(options?.token || ''),
+    })
+
+    return {
+      ok: result.ok,
+      status: result.status,
+      details: result,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      status: 'error',
+      error:
+        typeof error?.message === 'string' && error.message.trim()
+          ? error.message.trim()
+          : 'Data model check failed.',
+    }
+  }
+}
+
 const hasConnectionProfile = computed(() => Boolean(connectionProfile.value))
 
 export function useConnectionProfileStore() {
@@ -198,5 +233,6 @@ export function useConnectionProfileStore() {
     exportConnectionProfileAsJson,
     buildDraftProfile,
     testConnection,
+    checkDataModelImplementation,
   }
 }

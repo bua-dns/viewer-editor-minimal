@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
+import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 
 const fileInput = ref(null)
@@ -13,8 +14,10 @@ const fieldErrors = ref({})
 const statusMessage = ref('')
 const statusType = ref('neutral')
 const isTesting = ref(false)
+const isCheckingDataModel = ref(false)
 
 const { t } = useAppConfigStore()
+const { token } = useAuthStore()
 const {
   connectionProfile,
   hasConnectionProfile,
@@ -24,6 +27,7 @@ const {
   exportConnectionProfileAsJson,
   buildDraftProfile,
   testConnection,
+  checkDataModelImplementation,
 } = useConnectionProfileStore()
 
 hydrateFormFromStore()
@@ -128,6 +132,46 @@ async function onTestConnection() {
     : ''
   setStatus('success', `${successLabel}${details}`)
 }
+
+function formatDataModelCheckStatus(result) {
+  const details = result?.details
+  if (!details) {
+    return t('dbConnectionCheckModelFailed', 'Data model check failed.')
+  }
+
+  const fieldKeys = Array.isArray(details.wikidataFieldKeys) ? details.wikidataFieldKeys : []
+  if (!fieldKeys.length) {
+    return `${t('dbConnectionCheckModelSuccess', 'Data model check finished.')}`
+  }
+
+  const checkMessages = Array.isArray(details.checks)
+    ? details.checks.map((entry) => entry?.message).filter(Boolean)
+    : []
+  const summary = checkMessages.length ? checkMessages.join(' | ') : ''
+  const probePath = details.probePath ? ` probe=${details.probePath}` : ''
+  return `${t('dbConnectionCheckModelSuccess', 'Data model check finished.')}${probePath}${
+    summary ? ` ${summary}` : ''
+  }`
+}
+
+async function onCheckDataModel() {
+  isCheckingDataModel.value = true
+  fieldErrors.value = {}
+
+  const result = await checkDataModelImplementation(form.value, {
+    token: token.value || '',
+  })
+  isCheckingDataModel.value = false
+
+  if (!result.ok) {
+    fieldErrors.value = result.errors || {}
+    setStatus('error', result.error || t('dbConnectionCheckModelFailed', 'Data model check failed.'))
+    return
+  }
+
+  const statusTypeByResult = result.status === 'warning' ? 'neutral' : 'success'
+  setStatus(statusTypeByResult, formatDataModelCheckStatus(result))
+}
 </script>
 
 <template>
@@ -163,6 +207,13 @@ async function onTestConnection() {
       </button>
       <button type="button" class="transfer-btn transfer-btn-mode" :disabled="isTesting" @click="onTestConnection">
         {{ isTesting ? t('dbConnectionTesting', 'Testing...') : t('dbConnectionTest', 'Test connection') }}
+      </button>
+      <button type="button" class="transfer-btn transfer-btn-mode" :disabled="isCheckingDataModel" @click="onCheckDataModel">
+        {{
+          isCheckingDataModel
+            ? t('dbConnectionCheckingModel', 'Checking model...')
+            : t('dbConnectionCheckModel', 'Check data model implementation')
+        }}
       </button>
       <button type="button" class="transfer-btn transfer-btn-mode" :disabled="!hasConnectionProfile" @click="onDownloadProfile">
         {{ t('dbConnectionDownload', 'Download profile JSON') }}
