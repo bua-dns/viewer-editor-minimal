@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { fetchViewerSettingsFromStrapi } from '../services/strapiApi'
+import { fetchViewerSettingsFromStrapi, updateViewerSettingsInStrapi } from '../services/strapiApi'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 
@@ -50,6 +50,38 @@ async function fetchOnlineSettings() {
   }
 }
 
+async function persistOnlineSettings(nextSettings) {
+  const { connectionProfile } = useConnectionProfileStore()
+  const { token } = useAuthStore()
+
+  if (!connectionProfile.value) {
+    settingsStatus.value = 'error'
+    lastSettingsError.value = 'No saved connection profile found.'
+    return { ok: false, error: lastSettingsError.value }
+  }
+
+  settingsStatus.value = 'loading'
+  lastSettingsError.value = ''
+
+  try {
+    const result = await updateViewerSettingsInStrapi({
+      profile: connectionProfile.value,
+      token: token.value || '',
+      settings: nextSettings,
+    })
+    settings.value = result.settings
+    settingsStatus.value = 'ready'
+    return { ok: true, settings: result.settings, payload: result.payload }
+  } catch (error) {
+    settingsStatus.value = 'error'
+    lastSettingsError.value =
+      typeof error?.message === 'string' && error.message.trim()
+        ? error.message.trim()
+        : 'Could not save online settings.'
+    return { ok: false, error: lastSettingsError.value }
+  }
+}
+
 export function useOnlineSettingsStore() {
   return {
     settings,
@@ -58,5 +90,6 @@ export function useOnlineSettingsStore() {
     clearOnlineSettings,
     markOnlineSettingsInvalid,
     fetchOnlineSettings,
+    persistOnlineSettings,
   }
 }

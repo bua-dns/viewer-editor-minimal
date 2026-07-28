@@ -98,6 +98,34 @@ export async function fetchViewerSettingsFromStrapi({ profile, token = '' }) {
   }
 }
 
+export async function updateViewerSettingsInStrapi({ profile, token = '', settings }) {
+  if (!isPlainObject(settings)) {
+    throw createHttpError('Updated viewer settings must be an object.', 400, settings)
+  }
+
+  const payload = await strapiFetchJson({
+    profile,
+    path: profile.configPath,
+    method: 'PUT',
+    token,
+    body: {
+      data: {
+        settings,
+      },
+    },
+  })
+
+  const updatedSettings = payload?.data?.settings
+  if (!isPlainObject(updatedSettings)) {
+    throw createHttpError('Config update response must contain an object at data.settings.', 500, payload)
+  }
+
+  return {
+    payload,
+    settings: updatedSettings,
+  }
+}
+
 export function resolveItemsPathFromSettings(settings = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return ''
 

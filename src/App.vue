@@ -50,7 +50,13 @@ const { primaryColor, language, setLanguage, t } = useAppConfigStore()
 const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
 const { appMode, loadAppModeFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
-const { fetchOnlineSettings, clearOnlineSettings, markOnlineSettingsInvalid } = useOnlineSettingsStore()
+const {
+  settings: onlineSettings,
+  fetchOnlineSettings,
+  persistOnlineSettings,
+  clearOnlineSettings,
+  markOnlineSettingsInvalid,
+} = useOnlineSettingsStore()
 const { fetchOnlineItems, clearOnlineItems, activeItemsPath } = useOnlineItemsStore()
 const {
   pendingUpdateCount,
@@ -260,12 +266,27 @@ function onSuspendEditingToggle({ uid, checked }) {
   }
 }
 
-function onApplyUserConfig() {
+async function onApplyUserConfig() {
   applyUserConfigToRawItems(rawItems.value)
   if (dataMode.value === 'csv') {
     setDataMode('json')
   }
   isDirty.value = true
+
+  if (appMode.value !== 'online' || !isAuthenticated.value || !connectionProfile.value) {
+    return
+  }
+
+  const baseSettings =
+    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
+  const userConfigPayload = createUserConfigPayload()
+  const mergedSettings = {
+    ...baseSettings,
+    ...userConfigPayload,
+    fields: userConfigPayload.fields,
+  }
+
+  await persistOnlineSettings(mergedSettings)
 }
 
 function openLightbox(url) {

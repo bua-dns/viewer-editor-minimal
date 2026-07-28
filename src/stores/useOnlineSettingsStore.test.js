@@ -58,4 +58,81 @@ describe('useOnlineSettingsStore', () => {
     expect(settingsStore.settingsStatus.value).toBe('ready')
     expect(settingsStore.settings.value.version).toBe(1)
   })
+
+  test('persists updated settings to singleton endpoint', async () => {
+    const authStore = useAuthStore()
+    authStore.token.value = 'token-1'
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          settings: {
+            version: 1,
+            fields: {
+              label: { type: 'normal', label: 'Label', order: 0 },
+            },
+          },
+        },
+      }),
+    })
+
+    const settingsStore = useOnlineSettingsStore()
+    const result = await settingsStore.persistOnlineSettings({
+      version: 1,
+      fields: {
+        label: { type: 'normal', label: 'Label', order: 0 },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(settingsStore.settingsStatus.value).toBe('ready')
+    expect(settingsStore.settings.value.fields.label.label).toBe('Label')
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://cms.example.org/project/api/viewer-setting', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer token-1',
+      },
+      body: JSON.stringify({
+        data: {
+          settings: {
+            version: 1,
+            fields: {
+              label: { type: 'normal', label: 'Label', order: 0 },
+            },
+          },
+        },
+      }),
+    })
+  })
+
+  test('keeps local state when persist fails', async () => {
+    const settingsStore = useOnlineSettingsStore()
+    settingsStore.settings.value = {
+      version: 1,
+      fields: {
+        existing: { type: 'normal', label: 'Existing', order: 0 },
+      },
+    }
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: { message: 'Server exploded' } }),
+    })
+
+    const result = await settingsStore.persistOnlineSettings({
+      version: 1,
+      fields: {
+        changed: { type: 'normal', label: 'Changed', order: 0 },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(settingsStore.settingsStatus.value).toBe('error')
+    expect(settingsStore.lastSettingsError.value).toBe('Server exploded')
+    expect(settingsStore.settings.value.fields.existing.label).toBe('Existing')
+  })
 })

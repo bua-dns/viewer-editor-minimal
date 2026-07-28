@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import {
   buildStrapiUpdatePayload,
   normalizeStrapiItem,
+  updateViewerSettingsInStrapi,
   updateCollectionItemInStrapi,
 } from './strapiApi'
 
@@ -98,6 +99,56 @@ describe('strapiApi helpers', () => {
       body: JSON.stringify({
         data: {
           label: 'Changed',
+        },
+      }),
+    })
+  })
+
+  test('updates viewer settings via configPath', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          settings: {
+            version: 1,
+            fields: {
+              label: { type: 'normal', label: 'Label', order: 0 },
+            },
+          },
+        },
+      }),
+    })
+
+    const result = await updateViewerSettingsInStrapi({
+      profile: {
+        baseUrl: 'https://cms.example.org/project',
+        configPath: '/api/viewer-setting',
+      },
+      token: 'jwt-1',
+      settings: {
+        version: 1,
+        fields: {
+          label: { type: 'normal', label: 'Label', order: 0 },
+        },
+      },
+    })
+
+    expect(result.settings.version).toBe(1)
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://cms.example.org/project/api/viewer-setting', {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer jwt-1',
+      },
+      body: JSON.stringify({
+        data: {
+          settings: {
+            version: 1,
+            fields: {
+              label: { type: 'normal', label: 'Label', order: 0 },
+            },
+          },
         },
       }),
     })
