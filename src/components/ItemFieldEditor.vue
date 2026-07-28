@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useFieldMapping } from '../composables/useFieldMapping'
 import ViewerWikidataField from './ViewerWikidataField.vue'
 
@@ -8,6 +8,10 @@ const props = defineProps({
   selectedViewItem: { type: Object, default: null },
   suspendedItemIndices: { type: Array, default: () => [] },
   suspendEditingLabel: { type: String, default: 'Suspend editing' },
+  showRawDataDevPreview: { type: Boolean, default: false },
+  rawDataToggleLabel: { type: String, default: 'show raw data' },
+  rawDataHideLabel: { type: String, default: 'hide raw data' },
+  copyRawDataLabel: { type: String, default: 'Copy raw data' },
   isEditableSimpleValue: { type: Function, required: true },
 })
 
@@ -56,6 +60,43 @@ function onSuspendEditingChange(event) {
   if (!uid) return
   emit('toggle-suspend-editing', { uid, checked: event.target.checked })
 }
+
+const isRawDataPreviewVisible = ref(false)
+
+const selectedItemUid = computed(() => props.selectedViewItem?._uid || null)
+
+watch(
+  () => selectedItemUid.value,
+  () => {
+    isRawDataPreviewVisible.value = false
+  },
+)
+
+const rawDataPreviewText = computed(() => JSON.stringify(props.selectedRawItem || {}, null, 2))
+
+function onRawDataToggle() {
+  isRawDataPreviewVisible.value = !isRawDataPreviewVisible.value
+}
+
+async function onCopyRawData() {
+  const text = rawDataPreviewText.value
+  if (!text) return
+
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
+}
 </script>
 
 <template>
@@ -88,6 +129,15 @@ function onSuspendEditingChange(event) {
         <p v-if="row.hint" class="field-hint">{{ row.hint }}</p>
       </div>
     </template>
+    <div v-if="props.showRawDataDevPreview" class="field-row raw-data-row">
+      <div class="raw-data-actions">
+        <button type="button" class="raw-data-toggle" @click="onRawDataToggle">
+          {{ isRawDataPreviewVisible ? props.rawDataHideLabel : props.rawDataToggleLabel }}
+        </button>
+        <button type="button" class="raw-data-toggle" @click="onCopyRawData">{{ props.copyRawDataLabel }}</button>
+      </div>
+      <pre v-if="isRawDataPreviewVisible" class="raw-data-preview">{{ rawDataPreviewText }}</pre>
+    </div>
   </div>
 </template>
 
@@ -142,5 +192,32 @@ function onSuspendEditingChange(event) {
 
 .suspend-editing-label {
   justify-content: space-between;
+}
+
+.raw-data-row {
+  gap: 0.5rem;
+}
+
+.raw-data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.raw-data-toggle {
+  justify-self: start;
+  font: inherit;
+}
+
+.raw-data-preview {
+  margin: 0;
+  padding: 0.65rem;
+  max-height: 18rem;
+  overflow: auto;
+  border: 1px solid var(--ve-color-border-soft);
+  border-radius: 0.35rem;
+  background: hsl(0, 0%, 10%);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 </style>

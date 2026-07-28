@@ -46,7 +46,7 @@ const {
   createEditedFileName,
 } = useDataTransferStore()
 
-const { primaryColor, language, setLanguage, t } = useAppConfigStore()
+const { primaryColor, dataInspectionMode, language, setLanguage, t } = useAppConfigStore()
 const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
 const { appMode, loadAppModeFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
@@ -745,6 +745,10 @@ watch(
 
                 <ItemFieldEditor :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
                   :suspended-item-indices="suspendedItemIndices"
+                  :show-raw-data-dev-preview="dataInspectionMode"
+                  :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
+                  :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
+                  :copy-raw-data-label="t('copyRawDataLabel', 'Copy raw data')"
                   :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
                   :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
                   @toggle-suspend-editing="onSuspendEditingToggle" />

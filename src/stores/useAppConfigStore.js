@@ -27,6 +27,7 @@ function t(key, fallback = '') {
 export function useAppConfigStore() {
   return {
     primaryColor: appConfig.primaryColor,
+    dataInspectionMode: Boolean(appConfig.dataInspectionMode),
     language,
     supportedLanguages,
     setLanguage,

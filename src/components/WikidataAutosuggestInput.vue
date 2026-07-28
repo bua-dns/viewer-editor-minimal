@@ -572,10 +572,6 @@ onBeforeUnmount(() => {
       @keydown.enter.prevent="onEnterKey"
     />
 
-    <button type="button" :disabled="!parsedManualEntity" @click="selectEntity(parsedManualEntity)">
-      Add
-    </button>
-
     <p v-if="isLoading" class="wikidata-status-text">Searching Wikidata...</p>
     <p v-else-if="requestError" class="wikidata-status-text">{{ requestError }}</p>
 
