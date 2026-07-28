@@ -100,6 +100,10 @@ Abhaengigkeiten stehen in `package.json`.
 ## App-Konfiguration und Wording
 
 - `config/app.config.js` definiert die app-weiten Handles (z. B. `title`, `itemLabel`) und Basiswerte wie `language` und `primaryColor`.
+- `config/app.config.js` steuert zusaetzlich den Online/Offline-Zugriff ueber `connectionMode` mit den Werten `switchable | offline | online`.
+  - `switchable`: UI zeigt den Umschalter `Offline | Online`.
+  - `offline`: kein Umschalter, App-Modus fest auf `offline`.
+  - `online`: kein Umschalter, App-Modus fest auf `online`.
 - `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - Online-Create-Texte sind ebenfalls ueber Handles abgedeckt (u. a. `onlineCreateItem`, `onlineNewItemFallback`) und werden in Listenkopf/Fallback-Label verwendet.
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
@@ -207,6 +211,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 ## Online-Modus und Strapi-Integration
 
 - Der App-Modus wird in `src/stores/useOnlineModeStore.js` verwaltet (`offline`/`online`) und in `localStorage` persistiert.
+- `connectionMode` aus `config/app.config.js` kann diesen App-Modus fixieren (`offline` oder `online`); in diesem Fall wird kein Moduswechsel in der UI angeboten.
 - Login/Logout fuer Strapi FE-Users laeuft ueber `src/stores/useAuthStore.js` + `src/services/strapiApi.js` (JWT + Session-Restore beim App-Start).
 - Das Verbindungsprofil (Base URL, Auth-/Settings-Endpoint) kommt aus `src/stores/useConnectionProfileStore.js`; die GUI liegt in `src/components/DatabaseConnectionPanel.vue`.
 - Der Online-Initialisierungsfluss in `App.vue` ist strikt sequenziell:

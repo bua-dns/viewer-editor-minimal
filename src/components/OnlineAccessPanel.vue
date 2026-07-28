@@ -24,7 +24,7 @@ const isLoginModalOpen = ref(false)
 let saveStatusTimeoutId = null
 
 const { t } = useAppConfigStore()
-const { appMode, setAppMode } = useOnlineModeStore()
+const { appMode, isConnectionModeSwitchable, setAppMode } = useOnlineModeStore()
 const { hasConnectionProfile } = useConnectionProfileStore()
 const { authStatus, isAuthenticated, lastAuthError, login, logout } = useAuthStore()
 const { settingsStatus, lastSettingsError } = useOnlineSettingsStore()
@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="online-access-panel">
-    <div class="mode-switch" :aria-label="t('appModeAria', 'Application mode')">
+    <div v-if="isConnectionModeSwitchable" class="mode-switch" :aria-label="t('appModeAria', 'Application mode')">
       <button type="button" class="mode-btn" :class="{ active: appMode === 'offline' }" @click="onModeChange('offline')">
         {{ t('appModeOffline', 'Offline') }}
       </button>

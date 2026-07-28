@@ -1,8 +1,20 @@
 import { ref } from 'vue'
+import appConfig from '../../config/app.config'
 
 const APP_MODE_STORAGE_KEY = 'viewerEditor.appMode.v1'
+const APP_MODES = new Set(['offline', 'online'])
 
-const appMode = ref('offline')
+function normalizeConnectionMode(value) {
+  if (value === 'offline' || value === 'online' || value === 'switchable') {
+    return value
+  }
+  return 'switchable'
+}
+
+const connectionMode = normalizeConnectionMode(appConfig.connectionMode)
+const fixedAppMode = connectionMode === 'switchable' ? '' : connectionMode
+
+const appMode = ref(fixedAppMode || 'offline')
 
 function getLocalStorageSafe() {
   try {
@@ -13,17 +25,26 @@ function getLocalStorageSafe() {
 }
 
 function loadAppModeFromStorage() {
+  if (fixedAppMode) {
+    appMode.value = fixedAppMode
+    return
+  }
+
   const storage = getLocalStorageSafe()
   if (!storage) return
 
   const stored = storage.getItem(APP_MODE_STORAGE_KEY)
-  if (stored === 'offline' || stored === 'online') {
+  if (APP_MODES.has(stored)) {
     appMode.value = stored
   }
 }
 
 function setAppMode(nextMode) {
-  if (nextMode !== 'offline' && nextMode !== 'online') return false
+  if (!APP_MODES.has(nextMode)) return false
+  if (fixedAppMode) {
+    appMode.value = fixedAppMode
+    return false
+  }
   if (appMode.value === nextMode) return false
 
   appMode.value = nextMode
@@ -37,6 +58,8 @@ function setAppMode(nextMode) {
 export function useOnlineModeStore() {
   return {
     appMode,
+    connectionMode,
+    isConnectionModeSwitchable: connectionMode === 'switchable',
     loadAppModeFromStorage,
     setAppMode,
   }
