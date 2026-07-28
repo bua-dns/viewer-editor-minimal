@@ -1,67 +1,50 @@
-# Wie Sie dieses Tool verwenden
+# So verwenden Sie das Tool
 
-Diese Anwendung dient zur Transkription von Daten mit Scan-URLs (zum Beispiel gescannte Karteikarten). Sie läuft komplett im Browser.
+Diese Anwendung hilft beim Sichten und Bearbeiten von Item-Daten (JSON/CSV), inklusive Scan-Vorschau und konfigurierbarer Felder.
 
 ---
 
-## 1) Daten laden oder neu anlegen
+## 1) Modus wählen und Daten laden
 
-- Wählen Sie oben über den Modus-Schalter **JSON** oder **CSV**.
-- Der Dateityp beim Upload muss zum ausgewählten Modus passen.
-- Solange noch kein Datensatz geladen ist, können Sie **Mit Beispieldaten arbeiten** nutzen.
-- Im **JSON**-Modus (und nur vor dem Laden von Daten) steht **Neu beginnen** zur Verfügung. Damit können Sie einen neün Datensatz anlegen aus:
-  - einer einzelnen Scan-URL oder
-  - einer CSV-Liste mit Scan-URLs.
-
-Beispiel für eine CSV mit Scan-URLs:
-
-```csv
-scan
-https://files.berlin-university-collections.de/dummy-files/sample-card-1.jpg
-https://files.berlin-university-collections.de/dummy-files/sample-card-2.jpg
-https://files.berlin-university-collections.de/dummy-files/sample-card-3.jpg
-```
+- Die App kann im **Offline**- oder **Online**-Modus laufen (je nach Konfiguration).
+- Im **Offline**-Modus wählen Sie **JSON** oder **CSV** und laden eine passende Datei hoch.
+- Solange keine Daten geladen sind, können Sie **Mit Beispieldaten arbeiten** nutzen.
+- Im **JSON**-Modus (vor dem Laden von Daten) können Sie mit **Neu beginnen** Datensätze aus Scan-URLs anlegen.
 
 ---
 
 ## 2) Einträge bearbeiten
 
-- Im Tab **Edit** filtern Sie über die Suche gleichzeitig über alle Felder.
-- Mit Klick auf einen Eintrag öffnet sich rechts der Editor.
-- Wenn die Scan-URL auf ein Bild zeigt, sehen Sie eine Vorschau und können es in einer Lightbox vergrössern.
-- Mit den Vor-/Zurück-Buttons wechseln Sie durch die gefilterten Einträge.
+- Im Tab **Editieren** suchen Sie über alle Felder.
+- Wählen Sie einen Eintrag aus, um ihn rechts zu bearbeiten.
+- Zeigt `scan` auf ein Bild, sehen Sie Vorschau und Lightbox.
+- Mit Vor/Zurück wechseln Sie durch die gefilterte Liste.
+- Mit **Bearbeitung aussetzen** können Sie Einträge vorerst zurückstellen.
 
 ---
 
-## 3) Felder konfigurieren
+## 3) Felder konfigurieren und Ersetzungen pflegen
 
-Im Tab **Configuration** können Sie:
-
-- Felder hinzufügen, entfernen und per Drag-and-Drop umsortieren,
-- Feld-Labels und Platzhaltertexte pflegen,
-- Feldtypen wählen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
-
-Mit **Konfiguration anwenden** wird die bearbeitbare Struktur der geladenen Daten aktualisiert.
+- Im Tab **Konfiguration** fügen Sie Felder hinzu, entfernen sie, sortieren um und passen Labels/Platzhalter an.
+- Unterstützte Typen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+- Mit **Konfiguration anwenden** wird die Struktur auf alle geladenen Daten angewendet.
+- Im Tab **Ersetzungen** definieren Sie Ersetzungsregeln global oder feldspezifisch.
 
 ---
 
-## 4) Ersetzungen verwalten
+## 4) Optional: Datenbank verbinden (Online)
 
-- Im Tab **Replacements** legen Sie Ersetzungsregeln an - für alle Felder oder gezielt für ein Feld.
-- Ersetzungen werden im JSON-Export gespeichert.
+- Im Tab **Datenbankverbindung** pflegen und testen Sie Ihr Strapi-Verbindungsprofil.
+- Im **Online**-Modus melden Sie sich an und laden Settings/Items aus Strapi.
+- Lokaler Upload/Download ist im Online-Modus ausgeblendet.
+- Mit **Änderungen speichern** senden Sie Bearbeitungen (inklusive neuer Entwürfe) an Strapi.
 
 ---
 
-## 5) Speichern und später weiterarbeiten
+## 5) Sicher speichern
 
-- Speichern Sie den aktüllen Stand über **CSV herunterladen** oder **JSON herunterladen**.
-- Der Download ist aktiv, sobald ungespeicherte Änderungen vorhanden sind.
-- Falls noch nicht angewendete Konfigurationsaenderungen existieren, werden diese beim Download automatisch angewendet.
-- Standardmässig wird ein Timestamp an den Dateinamen angehängt (Versionierung).
-- **Reset** setzt auf den importierten Stand zurück und verwirft ungespeicherte Änderungen.
-
-Wichtig:
-
-- **JSON-Export** enthält Daten, Konfiguration und Ersetzungen.
+- Im Offline-Modus speichern Sie über **JSON herunterladen** oder **CSV herunterladen**.
+- **JSON-Export** enthält Daten, Konfiguration, Ersetzungen und ausgesetzte Einträge.
 - **CSV-Export** enthält nur Daten.
-- Wenn Sie das Tool schliessen oder die Seite neu laden, gehen nicht gespeicherte Änderungen verloren.
+- **Reset** stellt den letzten Importstand wieder her und verwirft ungespeicherte Änderungen.
+- Beim Schließen oder Neuladen ohne Speichern gehen ungespeicherte Änderungen verloren.

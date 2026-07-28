@@ -1,67 +1,50 @@
 # How to Use This Tool
 
-This app is for transcribing data linked to scan URLs (for example, scanned index cards). It runs entirely in the browser.
+This app helps you review and edit item data (JSON/CSV), including scan previews and configurable fields.
 
 ---
 
-## 1) Load or create data
+## 1) Choose mode and load data
 
-- Use the mode switch at the top to choose **JSON** or **CSV**.
-- The uploaded file type must match the selected mode.
-- With no dataset loaded, you can use **Use sample data**.
-- In **JSON** mode (and only before loading data), you can use **Start from scratch** to create a new dataset from:
-  - one scan URL, or
-  - a CSV list of scan URLs.
-
-Example CSV for scan URLs:
-
-```csv
-scan
-https://files.berlin-university-collections.de/dummy-files/sample-card-1.jpg
-https://files.berlin-university-collections.de/dummy-files/sample-card-2.jpg
-https://files.berlin-university-collections.de/dummy-files/sample-card-3.jpg
-```
+- The app can run in **Offline** or **Online** mode (if enabled in your setup).
+- In **Offline**, choose **JSON** or **CSV**, then upload a matching file.
+- With no data loaded, you can use **Use sample data**.
+- In **JSON** mode (before loading data), **Start from scratch** can create records from scan URLs.
 
 ---
 
-## 2) Edit entries
+## 2) Edit items
 
-- In the **Edit** tab, use the search field to filter across all item fields.
-- Click an item to open the editor in the right panel.
-- If the scan URL points to an image, you get a preview and a lightbox view.
-- Use previous/next controls to move through filtered items.
-
----
-
-## 3) Configure fields
-
-In the **Configuration** tab you can:
-
-- add, remove, and reorder fields,
-- define field labels and placeholders,
-- choose field types: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
-
-Use **Apply configuration** to update the editable structure of the loaded data.
+- In **Edit**, search across all fields.
+- Select an item to edit it in the right panel.
+- If a `scan` URL points to an image, you get preview + lightbox.
+- Use previous/next to move through the filtered list.
+- You can mark items with **Suspend editing** to postpone them.
 
 ---
 
-## 4) Manage replacements
+## 3) Configure and replace values
 
-- In the **Replacements** tab, add replacement rules for all fields or for a specific field.
-- Replacement rules are stored in JSON exports.
+- In **Configuration**, add/remove/reorder fields and set labels, placeholders, and field types.
+- Supported types: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+- Click **Apply configuration** to update all loaded items.
+- In **Replacements**, define text replacements globally or per field.
 
 ---
 
-## 5) Save and continue later
+## 4) Optional: connect to database (Online)
 
-- Use **Download CSV** or **Download JSON** to save your current state.
-- Download is enabled when there are unsaved changes.
-- If there are pending configuration changes, they are auto-applied when you download.
-- Timestamped filenames are enabled by default and help keep versions.
-- **Reset** restores the imported snapshot and discards unsaved changes.
+- In **Database connection**, set your Strapi connection profile and test it.
+- In **Online** mode, log in and load settings/items from Strapi.
+- Local upload/download controls are hidden in Online mode.
+- Use **Save changes** to send edits (and new draft items) to Strapi.
 
-Important:
+---
 
-- **JSON export** contains data, configuration, and replacements.
-- **CSV export** contains data only.
-- If you close or reload the page before downloading, unsaved changes are lost.
+## 5) Save safely
+
+- In Offline mode, use **Download JSON** or **Download CSV**.
+- **JSON export** includes data, config, replacements, and suspended items.
+- **CSV export** includes data only.
+- **Reset** restores the last imported state and discards unsaved changes.
+- If you close or reload before saving, unsaved changes are lost.
