@@ -5,7 +5,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 ## Features
 
 - Datenmodus-Umschalter in der Topbar (`JSON | CSV`)
-- Tab-Navigation mit Bereichen `Editieren` und `Info`
+- Tab-Navigation mit Bereichen `Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info`
 - JSON-Datei lokal hochladen (Top-Level-Array oder Objekt mit `data`-Array)
 - CSV-Datei lokal hochladen (erste Zeile = Header, danach Datensaetze)
 - Beispieldaten laden (`sample-data.json` / `sample-data.csv`) passend zum aktiven Datenmodus
@@ -22,6 +22,11 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Wikidata-Suche bricht veraltete In-Flight-Requests beim Tippen/Unmount per `AbortController` ab (keine stale Treffer, keine Abort-Fehleranzeige)
 - App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
 - Sprachumschalter (DE/EN) in der Topbar
+- Offline/Online-App-Modus mit Strapi-Login (FE-Users) und Session-Restore
+- Online-Modus mit gezieltem Delta-Speichern, Retry bei Teilfehlern und Unsaved-Counter
+- Hierarchische Navigation ueber `hierarchyFields` (inkl. Legacy-Fallbacks)
+- Optionales `firstLevelStaticList` fuer feste Level-1-Boxen (ohne Initial-Ladevorgang von Items)
+- Optionaler Header-Toggle `Configuration only` fuer settings-only Start im Online-Modus (Settings werden trotzdem aus `response.data.settings` geladen und in der Konfigurations-UI angezeigt)
 - Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
 - Dirty-State mit Reset auf den importierten Stand
 - Export als neue `*-edited.json` (Format: `{ data, config, replacements? }`)
@@ -187,7 +192,7 @@ Hinweise:
 ## Projektstruktur
 
 - `src/App.vue` – UI-Composition-Root (Orchestrierung von Komponenten, Stores und Composables)
-- `src/components/InfoPanel.vue` - rendert den Info-Tab aus `src/assets/texts/info.md`
+- `src/components/InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen (`src/assets/texts/info-de.md`, `src/assets/texts/info-en.md`)
 - `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Sidebar-Feldrendering
 - `src/composables/useDataImportExport.js` - Import/Export-Orchestrierung inkl. Dateimodus-Pruefung und Download-Flow
@@ -198,9 +203,17 @@ Hinweise:
 - `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe/`dataInspectionMode`)
 - `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
 - `src/stores/useDataTransferStore.js` - Datenmodus-UI-State und Dateinamenlogik (inkl. Session)
+- `src/stores/useConnectionProfileStore.js` - persistentes Verbindungsprofil (Base URL, Endpoints, Import/Export)
+- `src/stores/useOnlineModeStore.js` - App-Modus (`offline`/`online`) inkl. Persistenz
+- `src/stores/useAuthStore.js` - Auth-Session fuer Strapi FE-Users
+- `src/stores/useOnlineSettingsStore.js` - Laden der Online-Settings aus `response.data.settings`
+- `src/stores/useOnlineItemsStore.js` - Laden/Hierarchie-Handling fuer Online-Items inkl. Level-1-Buckets
+- `src/stores/useOnlineUpdatesStore.js` - Delta-Tracking und Save-Orchestrierung fuer Online-Edits/Creates
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer eingebettete JSON-Config
 - `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
 - `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
+- `src/components/DatabaseConnectionPanel.vue` - GUI fuer Connection-Profile (inkl. Test und JSON Import/Export)
+- `src/components/OnlineAccessPanel.vue` - Online-Status, Login/Logout, Save-Status und `Configuration only` Toggle
 - `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC inkl. optionaler Raw-Data-Dev-Preview
 - `src/components/ViewerWikidataField.vue` - Wrapper fuer `wikidata-autosuggest` (Selection/Chips/Remove)
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe, erhaelt `autosuggest`-Config als pass-through
@@ -214,7 +227,7 @@ Hinweise:
 - `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
 - `src/components/ListPanel.vue` - Kartenliste mit trennbarem Kopf-/Body-Rendering (`renderHeader`/`renderBody`) fuer sticky Header-Komposition
 - `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
-- `src/assets/texts/info.md` - Markdown-Quelle fuer den Info-Tab
+- `src/assets/texts/info-de.md` / `src/assets/texts/info-en.md` - Markdown-Quellen fuer den Info-Tab
 - `src/assets/icons/` - SVG-Icons fuer Expand/Collapse-Steuerungen im Edit-Bereich
 - `src/assets/styles/index.scss` - zentraler Styling-Einstieg
 - `src/assets/styles/tokens/_index.scss` - globale Design-Tokens als CSS-Variablen (`--ve-*`)

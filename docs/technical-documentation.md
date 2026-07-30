@@ -93,7 +93,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/services/strapiApi.js` - zentraler Strapi-HTTP-Zugriff fuer Login, `/users/me`, Settings-Fetch, paginiertes Item-Fetching sowie feldbasierte Item-Creates/Updates inkl. Payload-Filter fuer nicht-leere Werte
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
-- `src/assets/texts/info.md` - editierbare Markdown-Inhalte fuer den Info-Tab
+- `src/assets/texts/info-de.md` / `src/assets/texts/info-en.md` - editierbare Markdown-Inhalte fuer den Info-Tab
 - `src/components/footer/Identity.vue` - Footer-Identity mit externen Projektlinks
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
 - `config/wording.js` - uebersetzte Textvarianten je Handle
@@ -135,6 +135,9 @@ Pro erkanntem Feld (ohne reservierte Felder wie `scan` und `suspendEditing`) kan
 - Reihenfolge via Drag-and-Drop
 - globales `itemLabelField`: Feldschluessel fuer Item-Label in Liste/Karten (optional, sonst Fallback)
 - globale Checkbox `showOnlyNonEmptyFields`: blendet in der Sidebar pro Item alle leeren Felder aus (`''`, `null`, `undefined`, `[]`, `{}`)
+- globale Hierarchie-Konfiguration direkt in der GUI:
+  - `hierarchyFields`: frei editierbare Liste von Feldschluesseln fuer die Hierarchie
+  - `firstLevelStaticList`: Preset-Liste fuer Level-1-Werte (newline/komma-getrennte Eingabe)
 
 Fuer `wikidata-autosuggest` zusaetzlich:
 
@@ -232,11 +235,20 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Der Online-Initialisierungsfluss in `App.vue` ist strikt sequenziell:
   1. Settings laden (`response.data.settings`)
   2. `itemsPath` aus Settings lesen (Legacy-Fallback: `item_path`)
-  3. Items paginiert aus Strapi laden (`pagination[page]`, `pagination[pageSize]`)
-  4. Items fuer das Editor-Modell sanitizen und als Viewer-Daten initialisieren
+  3. Hierarchie-Strategie bestimmen:
+     - Mit Hierarchie (`hierarchyFields`/Legacy-Fallbacks) und **ohne** `firstLevelStaticList`: Level-1-Werte aus Strapi laden (keine Voll-Item-Ladung beim Start)
+     - Mit Hierarchie und **mit** `firstLevelStaticList`: Level-1-Boxen direkt aus Settings rendern (ohne Strapi-Item- oder Bucket-Fetch beim Start)
+     - Ohne Hierarchie: Items paginiert aus Strapi laden (`pagination[page]`, `pagination[pageSize]`)
+  4. Falls Items geladen wurden: Items fuer das Editor-Modell sanitizen und als Viewer-Daten initialisieren
   5. geladene Settings-Config auf den Datenbestand anwenden
+- `firstLevelStaticList` akzeptiert ein Array fuer feste Level-1-Kategorien; Werte werden getrimmt, leere Eintraege entfernt und dedupliziert (Reihenfolge bleibt erhalten).
+- In Hierarchie + `firstLevelStaticList` werden Items erst beim Klick auf eine Level-1-Box geladen.
+- Hierarchie-Parsing ist robust gegen mehrere Settings-Formen (u. a. `hierarchyFields`, `hierarchy_fields`, nested Varianten); wenn keine explizite Hierarchie konfiguriert ist, greift ein Fallback auf Auto-Erkennung (`level_1`, `level_2`) im Datenmodell.
+- Die Level-1-Boxen werden im Hierarchie-Modus sofort gerendert (auch dann, wenn noch keine Item-Karten geladen sind).
 - Wenn `response.data.settings` nicht als gueltige Config interpretierbar ist, wechselt die UI in einen expliziten Fehlerzustand (kein stilles Weiterlaufen mit inkonsistentem Stand).
 - `src/components/OnlineAccessPanel.vue` zeigt Auth-, Settings- und Item-Status inkl. Save-Controls (`Save changes`), Unsaved-Counter, Save-Feedback und Retry-Aktion.
+- Optionaler Header-Toggle `Configuration only` (Store: `useOnlineModeStore`) laedt beim Online-Start nur `response.data.settings`; Item-Requests werden dabei vollstaendig uebersprungen.
+- In `Configuration only` bleibt die Settings-Initialisierung verbindlich: Die aus Strapi geladenen Settings werden trotz leerer Item-Liste in den User-Config-State uebernommen und im Konfigurations-Tab angezeigt.
 - Erfolgs-Feedback des Speicherns wird nach kurzem Timeout automatisch ausgeblendet; alle Texte der Save-UX (Button-States, Fehler/Retry) sind als Wording-Handles in `config/wording.js` hinterlegt.
 - Authentifiziert zeigt der Header im Online-Modus nur den Button `Abmelden` (kein zusaetzliches User-Label); nicht notwendige Erfolgsmeldungen/Transfer-Hinweise wurden entfernt.
 
@@ -546,7 +558,7 @@ Weitere Skripte:
 
 - Import akzeptiert Top-Level-Array oder `data`-Array; `data` als Objekt ist ungueltig.
 - CSV-Parser ist bewusst minimal (Komplexitaet fuer exotische CSV-Formate wird noch nicht vollstaendig abgedeckt).
-- Editierbar sind nur primitive/simple Felder (`string`, `number`, `boolean`, `null`).
+- Editierbar sind Registry-unterstuetzte Feldtypen; unbekannte komplexe Strukturen bleiben als Rohdaten sichtbar und werden nicht automatisch semantisch aufbereitet.
 - Deep Clone via JSON-Serialize unterstuetzt keine Spezialtypen.
 - Bildvorschau basiert auf URL-Pattern und prueft keine Erreichbarkeit vor dem Laden.
 

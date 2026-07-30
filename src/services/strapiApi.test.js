@@ -114,6 +114,8 @@ describe('strapiApi helpers', () => {
       page: 2,
       pageSize: 25,
       populateFields: ['locations', 'collectors'],
+      fieldKeys: ['level_1'],
+      filtersEq: { level_1: 'A' },
     })
 
     expect(path).toContain('sort=label%3Aasc')
@@ -121,6 +123,8 @@ describe('strapiApi helpers', () => {
     expect(path).toContain('pagination%5BpageSize%5D=25')
     expect(path).toContain('populate%5B0%5D=locations')
     expect(path).toContain('populate%5B1%5D=collectors')
+    expect(path).toContain('fields%5B0%5D=level_1')
+    expect(path).toContain('filters%5Blevel_1%5D%5B%24eq%5D=A')
   })
 
   test('extracts wikidata autosuggest field keys from settings', () => {

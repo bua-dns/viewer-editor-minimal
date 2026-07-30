@@ -7,6 +7,7 @@ import AutosuggestFieldConfig from './config/AutosuggestFieldConfig.vue'
 
 const props = defineProps({
   hasData: { type: Boolean, required: true },
+  allowWithoutData: { type: Boolean, default: false },
   forceOpen: { type: Boolean, default: false },
 })
 
@@ -18,6 +19,8 @@ const {
   itemLabelField,
   markAsEditedBasis,
   showOnlyNonEmptyFields,
+  hierarchyFields,
+  firstLevelStaticList,
   hasUnappliedUserConfigChanges,
   draggedFieldKey,
   isUserConfigOpen,
@@ -30,6 +33,10 @@ const {
   setItemLabelField,
   setMarkAsEditedBasis,
   setShowOnlyNonEmptyFields,
+  addHierarchyField,
+  updateHierarchyFieldAt,
+  removeHierarchyFieldAt,
+  setFirstLevelStaticListFromText,
   removeUserConfigField,
   startDrag,
   dropAt,
@@ -37,6 +44,7 @@ const {
 } = useUserConfigStore()
 
 const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
+const canRenderConfig = computed(() => props.hasData || props.allowWithoutData)
 const fieldTypeOptions = getRegisteredFieldTypeOptions()
 const itemLabelFieldOptions = computed(() => sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
 const prefillFieldOptionsByFieldKey = computed(() => {
@@ -79,6 +87,11 @@ const candidateValidationError = computed(() => {
   }
 
   return ''
+})
+
+const firstLevelStaticListText = computed({
+  get: () => firstLevelStaticList.value.join('\n'),
+  set: (nextValue) => setFirstLevelStaticListFromText(nextValue),
 })
 
 function onTogglePanel() {
@@ -140,10 +153,22 @@ function onMarkAsEditedBasisChange(event) {
 function onShowOnlyNonEmptyFieldsChange(event) {
   setShowOnlyNonEmptyFields(event.target.checked)
 }
+
+function onAddHierarchyField() {
+  addHierarchyField()
+}
+
+function onHierarchyFieldInput(index, event) {
+  updateHierarchyFieldAt(index, event.target.value)
+}
+
+function onRemoveHierarchyField(index) {
+  removeHierarchyFieldAt(index)
+}
 </script>
 
 <template>
-  <section class="user-config-panel" v-if="props.hasData">
+  <section class="user-config-panel" v-if="canRenderConfig">
     <div
       class="user-config-head"
       :class="{ 'is-static': props.forceOpen }"
@@ -203,6 +228,39 @@ function onShowOnlyNonEmptyFieldsChange(event) {
           />
           <span>{{ t('showOnlyNonEmptyFieldsToggle', 'Aktivieren') }}</span>
         </label>
+      </div>
+
+      <div class="user-config-label-row user-config-hierarchy-row">
+        <strong>{{ t('hierarchyFieldsLabel', 'Hierarchie-Felder') }}</strong>
+        <div class="hierarchy-fields-editor">
+          <div
+            v-for="(fieldKey, index) in hierarchyFields"
+            :key="`hierarchy-field-${index}`"
+            class="hierarchy-fields-editor-row"
+          >
+            <input
+              type="text"
+              :value="fieldKey"
+              :placeholder="t('hierarchyFieldPlaceholder', 'z. B. level_1')"
+              @input="onHierarchyFieldInput(index, $event)"
+            />
+            <button type="button" class="remove-field-btn" @click.stop="onRemoveHierarchyField(index)">
+              {{ t('removeFieldButton', 'Feld entfernen') }}
+            </button>
+          </div>
+          <button type="button" @click.stop="onAddHierarchyField">
+            {{ t('hierarchyAddField', 'Hierarchie-Feld hinzufuegen') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="user-config-label-row user-config-hierarchy-row">
+        <strong>{{ t('hierarchyFirstLevelStaticListLabel', 'Hierarchie: Preset-Liste Ebene 1') }}</strong>
+        <textarea
+          v-model="firstLevelStaticListText"
+          rows="5"
+          :placeholder="t('hierarchyFirstLevelStaticListPlaceholder', '001\n002\n003')"
+        />
       </div>
 
       <p v-if="addFieldError" class="error user-config-error">{{ addFieldError }}</p>
@@ -369,6 +427,21 @@ function onShowOnlyNonEmptyFieldsChange(event) {
   gap: var(--ve-space-2);
   align-items: center;
   margin-bottom: 0.35rem;
+}
+
+.user-config-hierarchy-row {
+  align-items: flex-start;
+}
+
+.hierarchy-fields-editor {
+  display: grid;
+  gap: var(--ve-space-2);
+}
+
+.hierarchy-fields-editor-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: var(--ve-space-2);
 }
 
 .general-config-checkbox {

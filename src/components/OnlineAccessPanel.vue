@@ -24,7 +24,7 @@ const isLoginModalOpen = ref(false)
 let saveStatusTimeoutId = null
 
 const { t } = useAppConfigStore()
-const { appMode, isConnectionModeSwitchable, setAppMode } = useOnlineModeStore()
+const { appMode, onlineConfigOnly, isConnectionModeSwitchable, setAppMode, setOnlineConfigOnly } = useOnlineModeStore()
 const { hasConnectionProfile } = useConnectionProfileStore()
 const { authStatus, isAuthenticated, lastAuthError, login, logout } = useAuthStore()
 const { settingsStatus, lastSettingsError } = useOnlineSettingsStore()
@@ -32,6 +32,10 @@ const { itemsStatus, lastItemsError } = useOnlineItemsStore()
 
 function onModeChange(nextMode) {
   setAppMode(nextMode)
+}
+
+function onOnlineConfigOnlyChange(event) {
+  setOnlineConfigOnly(event.target.checked)
 }
 
 async function onLogin() {
@@ -116,6 +120,15 @@ onBeforeUnmount(() => {
     </p>
 
     <template v-if="appMode === 'online'">
+      <label class="online-config-only-toggle">
+        <input
+          type="checkbox"
+          :checked="onlineConfigOnly"
+          @change="onOnlineConfigOnlyChange"
+        />
+        <span>{{ t('onlineConfigOnlyToggle', 'Configuration only (do not load items)') }}</span>
+      </label>
+
       <p v-if="!hasConnectionProfile" class="auth-note status-error">
         {{ t('dbConnectionRequired', 'Configure a saved connection profile before using online mode.') }}
         <button type="button" class="inline-link" @click="emit('open-connection-tab')">
@@ -334,6 +347,14 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.online-config-only-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ve-color-text-muted);
+  font-size: 0.9rem;
 }
 
 .auth-note {

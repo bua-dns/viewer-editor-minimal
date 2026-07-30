@@ -25,6 +25,7 @@
 ## Konfiguration (JSON)
 
 - Beim JSON-Export wird immer das kanonische Format `{ data, config, replacements, suspendedItems }` geschrieben.
+- Optional kann `suspendedItems` bereits beim JSON-Import mitgegeben werden (Array von Item-Indizes).
 - `config.fields` muss ein Objekt sein, dessen Schluessel den Feldnamen entsprechen.
 - Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`, `hint`.
 - Fuer Nicht-`wikidata-autosuggest`-Felder ist zusaetzlich `readOnly` (Boolean) erlaubt.
@@ -36,6 +37,8 @@
   - der Candidate-Wert selbst bleibt ein String-Feld und wird beim Uebernehmen in den Zieltyp normalisiert.
   - bei Zieltyp `wikidata-autosuggest` wird der Wert als Such-Query vorbefuellt und die Suche sofort gestartet (ohne Auto-Selektion).
 - Optional kann `config.itemLabelField` gesetzt werden (String, muss ein vorhandener Schluessel in `config.fields` sein).
+- Optional kann `config.hierarchyFields` gesetzt werden (Liste von Feldschluesseln fuer hierarchische Navigation, Legacy-Formen bleiben kompatibel).
+- Optional kann `config.firstLevelStaticList` gesetzt werden (Liste fixer Level-1-Werte, nur relevant zusammen mit `hierarchyFields`).
 - Fuer `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
   - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeintraege bleiben kompatibel)
   - `claimValueMatch.defs`: Liste aus Objekten `{ property, value, label }` (`label` dient der Anzeige)
@@ -68,7 +71,9 @@
 
 ## Bedienung
 
-- Die App ist in vier Tabs gegliedert: `Editieren`, `Konfiguration`, `Ersetzungen`, `Info`.
+- Die App ist in fuenf Tabs gegliedert: `Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info`.
 - Die Volltextsuche befindet sich im Bereich `Digitalisate` oberhalb der Karten- bzw. Listenansicht.
 - `Escape` schliesst die Start-From-Scratch-Modal und die Lightbox.
 - `Escape` hebt ausserdem eine aktive Sidebar-Auswahl auf.
+- Im Online-Modus kann optional `Configuration only` aktiviert werden, um beim Start nur Settings (ohne Item-Requests) zu laden.
+- Auch bei aktiviertem `Configuration only` wird die Settings-Config aus Strapi in die Konfigurations-Ansicht uebernommen; nur Item-Requests bleiben aus.

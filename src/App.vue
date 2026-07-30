@@ -28,6 +28,7 @@ import { useAuthStore } from './stores/useAuthStore'
 import { useOnlineSettingsStore } from './stores/useOnlineSettingsStore'
 import { useOnlineItemsStore } from './stores/useOnlineItemsStore'
 import { useOnlineUpdatesStore } from './stores/useOnlineUpdatesStore'
+import { resolveItemsPathFromSettings } from './services/strapiApi'
 
 const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
@@ -48,7 +49,7 @@ const {
 
 const { primaryColor, dataInspectionMode, language, setLanguage, t } = useAppConfigStore()
 const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
-const { appMode, loadAppModeFromStorage } = useOnlineModeStore()
+const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
 const {
   settings: onlineSettings,
@@ -57,7 +58,15 @@ const {
   clearOnlineSettings,
   markOnlineSettingsInvalid,
 } = useOnlineSettingsStore()
-const { fetchOnlineItems, clearOnlineItems, activeItemsPath } = useOnlineItemsStore()
+const {
+  fetchOnlineItems,
+  fetchOnlineItemsForHierarchyLevel1,
+  clearOnlineItems,
+  activeItemsPath,
+  hierarchyFields: onlineHierarchyFields,
+  hierarchyLevel1Options: onlineHierarchyLevel1Options,
+  selectedHierarchyLevel1Value,
+} = useOnlineItemsStore()
 const {
   pendingUpdateCount,
   hasPendingUpdates,
@@ -137,8 +146,186 @@ const resultCountLabel = computed(() => {
   return `${filteredViewItems.value.length} / ${rawItems.value.length}`
 })
 
+const offlineSelectedHierarchyLevel1Value = ref('')
+const hasSelectedHierarchyLevel1 = ref(false)
+const expandedHierarchyLevel2Values = ref([])
+
+function normalizeHierarchyValue(value) {
+  if (value == null) return ''
+  return String(value).trim()
+}
+
+function normalizeHierarchyFields(rawFields) {
+  if (Array.isArray(rawFields)) {
+    return Array.from(new Set(rawFields.map((entry) => String(entry || '').trim()).filter(Boolean)))
+  }
+
+  if (typeof rawFields === 'string' && rawFields.trim()) {
+    return Array.from(
+      new Set(
+        rawFields
+          .split(',')
+          .map((entry) => String(entry || '').trim())
+          .filter(Boolean),
+      ),
+    )
+  }
+
+  return []
+}
+
+function buildHierarchyLevel1OptionsFromRawItems(items, level1FieldKey) {
+  const countsByValue = new Map()
+  ;(Array.isArray(items) ? items : []).forEach((item) => {
+    const normalized = normalizeHierarchyValue(item?.[level1FieldKey])
+    countsByValue.set(normalized, (countsByValue.get(normalized) || 0) + 1)
+  })
+
+  const assigned = []
+  let unassignedCount = 0
+  countsByValue.forEach((count, value) => {
+    if (!value) {
+      unassignedCount += count
+      return
+    }
+    assigned.push({ value, count, isUnassigned: false })
+  })
+
+  assigned.sort((left, right) => left.value.localeCompare(right.value))
+  if (unassignedCount > 0) {
+    assigned.push({ value: '', count: unassignedCount, isUnassigned: true })
+  }
+
+  return assigned
+}
+
+function buildHierarchyLevel2OptionsFromRawItems(items, level1FieldKey, level2FieldKey, selectedLevel1Value) {
+  const normalizedSelectedLevel1 = normalizeHierarchyValue(selectedLevel1Value)
+  const countsByValue = new Map()
+
+  ;(Array.isArray(items) ? items : []).forEach((item) => {
+    const level1Value = normalizeHierarchyValue(item?.[level1FieldKey])
+    if (level1Value !== normalizedSelectedLevel1) return
+    const level2Value = normalizeHierarchyValue(item?.[level2FieldKey])
+    countsByValue.set(level2Value, (countsByValue.get(level2Value) || 0) + 1)
+  })
+
+  const assigned = []
+  let unassignedCount = 0
+  countsByValue.forEach((count, value) => {
+    if (!value) {
+      unassignedCount += count
+      return
+    }
+    assigned.push({ value, count, isUnassigned: false })
+  })
+
+  assigned.sort((left, right) => left.value.localeCompare(right.value))
+  if (unassignedCount > 0) {
+    assigned.push({ value: '', count: unassignedCount, isUnassigned: true })
+  }
+
+  return assigned
+}
+
+const hierarchicalFields = computed(() => {
+  const settings = onlineSettings.value
+  const direct = normalizeHierarchyFields(
+    settings?.hierarchyFields || settings?.hierarchy_fields || settings?.hierarchicalFields,
+  )
+  if (direct.length >= 2) return direct
+
+  const nested = normalizeHierarchyFields(settings?.hierarchy?.fields || settings?.config?.hierarchyFields)
+  if (nested.length >= 2) return nested
+
+  const hierarchyObject = settings?.hierarchy
+  if (hierarchyObject && typeof hierarchyObject === 'object' && !Array.isArray(hierarchyObject)) {
+    const level1 = String(hierarchyObject.level1 || hierarchyObject.level_1 || '').trim()
+    const level2 = String(hierarchyObject.level2 || hierarchyObject.level_2 || '').trim()
+    if (level1 && level2) return [level1, level2]
+  }
+
+  const fields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
+  if (Object.prototype.hasOwnProperty.call(fields, 'level_1') && Object.prototype.hasOwnProperty.call(fields, 'level_2')) {
+    return ['level_1', 'level_2']
+  }
+  if (Object.prototype.hasOwnProperty.call(fields, 'level1') && Object.prototype.hasOwnProperty.call(fields, 'level2')) {
+    return ['level1', 'level2']
+  }
+
+  return []
+})
+const hierarchyLevel1FieldKey = computed(() => hierarchicalFields.value[0] || '')
+const hierarchyLevel2FieldKey = computed(() => hierarchicalFields.value[1] || '')
+const hierarchyEnabled = computed(() => Boolean(hierarchyLevel1FieldKey.value && hierarchyLevel2FieldKey.value))
+
+const hierarchyLevel1Options = computed(() => {
+  if (!hierarchyEnabled.value) return []
+  if (appMode.value === 'online' && isAuthenticated.value) {
+    return onlineHierarchyLevel1Options.value
+  }
+  return buildHierarchyLevel1OptionsFromRawItems(rawItems.value, hierarchyLevel1FieldKey.value)
+})
+
+const selectedHierarchyLevel1 = computed({
+  get() {
+    if (appMode.value === 'online' && isAuthenticated.value) {
+      return selectedHierarchyLevel1Value.value
+    }
+    return offlineSelectedHierarchyLevel1Value.value
+  },
+  set(nextValue) {
+    const normalized = normalizeHierarchyValue(nextValue)
+    if (appMode.value === 'online' && isAuthenticated.value) {
+      selectedHierarchyLevel1Value.value = normalized
+      return
+    }
+    offlineSelectedHierarchyLevel1Value.value = normalized
+  },
+})
+
+function initializeExpandedHierarchyLevel2(nextSelectedLevel1 = selectedHierarchyLevel1.value) {
+  if (!hierarchyEnabled.value) {
+    expandedHierarchyLevel2Values.value = []
+    return
+  }
+
+  if (!hasSelectedHierarchyLevel1.value) {
+    expandedHierarchyLevel2Values.value = []
+    return
+  }
+
+  const normalizedSelectedLevel1 = normalizeHierarchyValue(nextSelectedLevel1)
+  if (!normalizedSelectedLevel1 && normalizedSelectedLevel1 !== '') {
+    expandedHierarchyLevel2Values.value = []
+    return
+  }
+
+  if (normalizedSelectedLevel1 === '' && selectedHierarchyLevel1.value === '' && !hasData.value) {
+    expandedHierarchyLevel2Values.value = []
+    return
+  }
+
+  const level2Options = buildHierarchyLevel2OptionsFromRawItems(
+    rawItems.value,
+    hierarchyLevel1FieldKey.value,
+    hierarchyLevel2FieldKey.value,
+    normalizedSelectedLevel1,
+  )
+
+  if (!level2Options.length) {
+    expandedHierarchyLevel2Values.value = []
+    return
+  }
+
+  expandedHierarchyLevel2Values.value = [level2Options[0].value]
+}
+
 const showSampleDataButton = computed(() => !hasData.value)
 const showStartFromScratchButton = computed(() => dataMode.value === 'json' && !hasData.value)
+const canConfigureWithoutData = computed(
+  () => appMode.value === 'online' && isAuthenticated.value && Boolean(onlineSettings.value),
+)
 
 const hasPendingChanges = computed(() => {
   if (dataMode.value === 'csv') {
@@ -224,6 +411,59 @@ function onCreateOnlineItem() {
   selectItem(nextUid)
 }
 
+function onToggleHierarchyLevel2(value) {
+  const normalized = normalizeHierarchyValue(value)
+  const nextSet = new Set(expandedHierarchyLevel2Values.value.map((entry) => normalizeHierarchyValue(entry)))
+  if (nextSet.has(normalized)) {
+    nextSet.delete(normalized)
+  } else {
+    nextSet.add(normalized)
+  }
+  expandedHierarchyLevel2Values.value = Array.from(nextSet)
+}
+
+function onCollapseAllHierarchyLevel2() {
+  expandedHierarchyLevel2Values.value = []
+}
+
+async function onSelectHierarchyLevel1(value) {
+  if (!hierarchyEnabled.value) return
+
+  const normalizedLevel1Value = normalizeHierarchyValue(value)
+  clearSelection()
+
+  if (appMode.value === 'online' && isAuthenticated.value) {
+    if (!connectionProfile.value) return
+    if (!onlineSettings.value || typeof onlineSettings.value !== 'object') return
+
+    const result = await fetchOnlineItemsForHierarchyLevel1({
+      settings: onlineSettings.value,
+      level1Value: normalizedLevel1Value,
+    })
+    if (!result.ok) return
+
+    initializeFromJsonArray(result.items, `online:${result.itemsPath}`)
+    clearOnlineUpdates()
+    resetReplacements()
+
+    const applyResult = applyImportedConfigPayload(onlineSettings.value)
+    if (!applyResult.ok) {
+      markOnlineSettingsInvalid(applyResult.error)
+      return
+    }
+
+    applyUserConfigToRawItems(rawItems.value)
+    hasSelectedHierarchyLevel1.value = true
+    selectedHierarchyLevel1.value = normalizedLevel1Value
+    initializeExpandedHierarchyLevel2(normalizedLevel1Value)
+    return
+  }
+
+  hasSelectedHierarchyLevel1.value = true
+  selectedHierarchyLevel1.value = normalizedLevel1Value
+  initializeExpandedHierarchyLevel2(normalizedLevel1Value)
+}
+
 async function onSaveOnlineChanges() {
   if (appMode.value !== 'online') return
   if (!isAuthenticated.value) return
@@ -273,7 +513,7 @@ async function onApplyUserConfig() {
   if (dataMode.value === 'csv') {
     setDataMode('json')
   }
-  isDirty.value = true
+  isDirty.value = rawItems.value.length > 0
 
   if (appMode.value !== 'online' || !isAuthenticated.value || !connectionProfile.value) {
     return
@@ -482,6 +722,7 @@ onMounted(() => {
   document.documentElement.style.setProperty('--color-primary', primaryColor)
   loadDataModeFromSession()
   loadAppModeFromStorage()
+  loadOnlineConfigOnlyFromStorage()
   loadConnectionProfileFromStorage()
   restoreSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
@@ -513,6 +754,12 @@ watch(
     failedListImages.value = new Set()
     sidebarImageLoadFailed.value = false
     lightboxImageLoadFailed.value = false
+    hasSelectedHierarchyLevel1.value = false
+    selectedHierarchyLevel1.value = ''
+    expandedHierarchyLevel2Values.value = []
+    if (appMode.value === 'online' && isAuthenticated.value && onlineSettings.value) {
+      return
+    }
     initializeUserConfigForCurrentData()
   },
 )
@@ -557,6 +804,86 @@ watch(
 )
 
 watch(
+  [
+    () => appMode.value,
+    () => isAuthenticated.value,
+    () => hierarchyLevel1Options.value.map((entry) => `${entry.value}:${entry.count}`).join('|'),
+  ],
+  ([nextMode, nextAuthenticated]) => {
+    if (!hierarchyEnabled.value) {
+      hasSelectedHierarchyLevel1.value = false
+      selectedHierarchyLevel1.value = ''
+      expandedHierarchyLevel2Values.value = []
+      return
+    }
+
+    if (nextMode === 'online' && nextAuthenticated) {
+      return
+    }
+
+    const options = hierarchyLevel1Options.value
+    if (!options.length) {
+      hasSelectedHierarchyLevel1.value = false
+      selectedHierarchyLevel1.value = ''
+      expandedHierarchyLevel2Values.value = []
+      return
+    }
+
+    if (!hasSelectedHierarchyLevel1.value) {
+      expandedHierarchyLevel2Values.value = []
+      return
+    }
+
+    const hasCurrentSelection = options.some((entry) => entry.value === selectedHierarchyLevel1.value)
+    if (hasCurrentSelection) return
+
+    hasSelectedHierarchyLevel1.value = false
+    selectedHierarchyLevel1.value = ''
+    expandedHierarchyLevel2Values.value = []
+  },
+)
+
+watch(
+  [
+    () => selectedHierarchyLevel1.value,
+    () => rawItems.value.length,
+    () => hierarchyLevel2FieldKey.value,
+    () => hierarchyLevel1FieldKey.value,
+  ],
+  () => {
+    if (!hierarchyEnabled.value) return
+    if (!hasSelectedHierarchyLevel1.value) {
+      expandedHierarchyLevel2Values.value = []
+      return
+    }
+    if (!selectedHierarchyLevel1.value && selectedHierarchyLevel1.value !== '') return
+
+    const availableLevel2Values = buildHierarchyLevel2OptionsFromRawItems(
+      rawItems.value,
+      hierarchyLevel1FieldKey.value,
+      hierarchyLevel2FieldKey.value,
+      selectedHierarchyLevel1.value,
+    ).map((entry) => entry.value)
+
+    if (!availableLevel2Values.length) {
+      expandedHierarchyLevel2Values.value = []
+      return
+    }
+
+    const currentExpanded = expandedHierarchyLevel2Values.value
+      .map((entry) => normalizeHierarchyValue(entry))
+      .filter((entry) => availableLevel2Values.includes(entry))
+
+    if (!currentExpanded.length) {
+      expandedHierarchyLevel2Values.value = [availableLevel2Values[0]]
+      return
+    }
+
+    expandedHierarchyLevel2Values.value = currentExpanded
+  },
+)
+
+watch(
   () => activeTab.value,
   () => {
     requestAnimationFrame(() => {
@@ -571,26 +898,33 @@ watch(
   [
     () => appMode.value,
     () => isAuthenticated.value,
+    () => onlineConfigOnly.value,
     () => connectionProfile.value?.baseUrl || '',
     () => connectionProfile.value?.configPath || '',
   ],
-  async ([nextMode, nextAuthenticated]) => {
+  async ([nextMode, nextAuthenticated, nextOnlineConfigOnly]) => {
     if (nextMode !== 'online' || !nextAuthenticated) {
       clearOnlineSettings()
       clearOnlineItems()
       clearOnlineUpdates()
+      hasSelectedHierarchyLevel1.value = false
+      selectedHierarchyLevel1.value = ''
+      expandedHierarchyLevel2Values.value = []
       return
     }
 
     const result = await fetchOnlineSettings()
     if (!result.ok) return
 
-    const itemsResult = await fetchOnlineItems({ settings: result.settings })
-    if (!itemsResult.ok) return
+    const itemsPathFromSettings = resolveItemsPathFromSettings(result.settings)
 
-    initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
+    initializeFromJsonArray([], itemsPathFromSettings ? `online:${itemsPathFromSettings}` : 'online:settings')
+    clearOnlineItems()
     clearOnlineUpdates()
     resetReplacements()
+    hasSelectedHierarchyLevel1.value = false
+    selectedHierarchyLevel1.value = ''
+    expandedHierarchyLevel2Values.value = []
 
     const applyResult = applyImportedConfigPayload(result.settings)
     if (!applyResult.ok) {
@@ -599,6 +933,25 @@ watch(
     }
 
     applyUserConfigToRawItems(rawItems.value)
+
+    if (nextOnlineConfigOnly) {
+      return
+    }
+
+    const itemsResult = await fetchOnlineItems({ settings: result.settings })
+    if (!itemsResult.ok) return
+
+    initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
+    applyUserConfigToRawItems(rawItems.value)
+    clearOnlineUpdates()
+    resetReplacements()
+    hasSelectedHierarchyLevel1.value = false
+    selectedHierarchyLevel1.value = ''
+    expandedHierarchyLevel2Values.value = []
+
+    if (itemsResult.hierarchyEnabled) {
+      return
+    }
   },
 )
 
@@ -694,6 +1047,14 @@ watch(
           :show-edited-sort-toggle="showEditedSortToggle" :edited-items-first="editedItemsFirst"
           :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
+          :hierarchy-fields="hierarchicalFields"
+          :hierarchy-level1-options="hierarchyLevel1Options"
+          :selected-hierarchy-level1="selectedHierarchyLevel1"
+          :has-selected-hierarchy-level1="hasSelectedHierarchyLevel1"
+          :expanded-hierarchy-level2-values="expandedHierarchyLevel2Values"
+          :hierarchy-unassigned-label="t('hierarchyUnassignedLabel', 'Ohne Zuordnung')"
+          :hierarchy-select-level1-label="t('hierarchySelectLevel1Label', 'Bitte waehlen Sie zuerst eine Kategorie.')"
+          :hierarchy-collapse-all-label="t('hierarchyCollapseAllLabel', 'Alle Unterkategorien einklappen')"
           :render-body="false" :show-create-item-button="canCreateOnlineItem"
           :create-item-label="t('onlineCreateItem', 'New item')"
           :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateOnlineItem"
@@ -715,14 +1076,23 @@ watch(
             :edited-item-icon-label="t('editedItemIconLabel', 'Als bearbeitet markiert')" :has-scan-field="hasScanField"
             :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
             :scan-preview-alt="t('scanPreviewAlt', 'Scan Vorschau')"
-            :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
-            :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
-            :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
-            :new-item-fallback-label="t('onlineNewItemFallback', 'New item')"
-            :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="false"
-            :render-body="true" @clear-selection="clearSelection" @select-item="selectItem"
-            @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed"
-            @toggle-suspend-editing="onSuspendEditingToggle" />
+             :scan-unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')"
+             :list-empty-after-upload-label="t('listEmptyAfterUpload', 'Nach dem Upload erscheinen hier die Eintraege.')"
+             :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
+             :new-item-fallback-label="t('onlineNewItemFallback', 'New item')"
+             :hierarchy-fields="hierarchicalFields"
+             :hierarchy-level1-options="hierarchyLevel1Options"
+             :selected-hierarchy-level1="selectedHierarchyLevel1"
+             :has-selected-hierarchy-level1="hasSelectedHierarchyLevel1"
+             :expanded-hierarchy-level2-values="expandedHierarchyLevel2Values"
+             :hierarchy-unassigned-label="t('hierarchyUnassignedLabel', 'Ohne Zuordnung')"
+             :hierarchy-select-level1-label="t('hierarchySelectLevel1Label', 'Bitte waehlen Sie zuerst eine Kategorie.')"
+             :hierarchy-collapse-all-label="t('hierarchyCollapseAllLabel', 'Alle Unterkategorien einklappen')"
+             :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="false"
+             :render-body="true" @clear-selection="clearSelection" @select-item="selectItem"
+             @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed"
+             @toggle-suspend-editing="onSuspendEditingToggle" @hierarchy-select-level1="onSelectHierarchyLevel1"
+             @hierarchy-toggle-level2="onToggleHierarchyLevel2" @hierarchy-collapse-all="onCollapseAllHierarchyLevel2" />
 
           <aside v-if="selectedRawItem" class="sidebar-panel">
             <div class="sidebar-head">
@@ -794,7 +1164,7 @@ watch(
 
         <section v-if="activeTab === 'configuration'" id="panel-configuration"
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
-          <ConfigurationPanel :has-data="hasData" @apply="onApplyUserConfig" />
+          <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData" @apply="onApplyUserConfig" />
         </section>
 
         <section v-if="activeTab === 'replacements'" id="panel-replacements"

@@ -17,6 +17,10 @@ const markAsEditedBasis = ref('')
 const appliedMarkAsEditedBasis = ref('')
 const showOnlyNonEmptyFields = ref(false)
 const appliedShowOnlyNonEmptyFields = ref(false)
+const hierarchyFields = ref([])
+const appliedHierarchyFields = ref([])
+const firstLevelStaticList = ref([])
+const appliedFirstLevelStaticList = ref([])
 const appliedUserConfigSnapshot = ref('')
 const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
@@ -81,6 +85,69 @@ function normalizeCandidateTargets(fields) {
   })
 }
 
+function normalizeStringArray(values) {
+  return (Array.isArray(values) ? values : [])
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean)
+}
+
+function normalizeStringArrayUnique(values) {
+  const normalized = normalizeStringArray(values)
+  return normalized.filter((value, index, list) => list.indexOf(value) === index)
+}
+
+function resolveHierarchyFieldsFromConfig(configPayload) {
+  const candidateArrays = [
+    configPayload?.hierarchyFields,
+    configPayload?.hierarchy_fields,
+    configPayload?.hierarchicalFields,
+    configPayload?.hierarchy?.fields,
+  ]
+
+  let source = candidateArrays.find((entry) => Array.isArray(entry)) || []
+
+  if (!source.length) {
+    const stringCandidate = [
+      configPayload?.hierarchyFields,
+      configPayload?.hierarchy_fields,
+      configPayload?.hierarchicalFields,
+    ].find((entry) => typeof entry === 'string' && entry.trim())
+
+    if (stringCandidate) {
+      source = stringCandidate.split(',')
+    }
+  }
+
+  if (!source.length) {
+    const hierarchyObject =
+      configPayload?.hierarchy &&
+      typeof configPayload.hierarchy === 'object' &&
+      !Array.isArray(configPayload.hierarchy)
+        ? configPayload.hierarchy
+        : null
+
+    if (hierarchyObject) {
+      const level1 = String(hierarchyObject.level1 || hierarchyObject.level_1 || '').trim()
+      const level2 = String(hierarchyObject.level2 || hierarchyObject.level_2 || '').trim()
+      if (level1 && level2) {
+        source = [level1, level2]
+      }
+    }
+  }
+
+  return normalizeStringArrayUnique(source)
+}
+
+function resolveFirstLevelStaticListFromConfig(configPayload) {
+  const candidateArrays = [
+    configPayload?.firstLevelStaticList,
+    configPayload?.first_level_static_list,
+    configPayload?.hierarchy?.firstLevelStaticList,
+  ]
+  const source = candidateArrays.find((entry) => Array.isArray(entry)) || []
+  return normalizeStringArrayUnique(source)
+}
+
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
   const type = source.type || 'normal'
   const readOnly = type !== 'wikidata-autosuggest' ? Boolean(source.readOnly) : undefined
@@ -142,12 +209,16 @@ function serializeUserConfigState(
   nextItemLabelField,
   nextMarkAsEditedBasis,
   nextShowOnlyNonEmptyFields,
+  nextHierarchyFields,
+  nextFirstLevelStaticList,
 ) {
   return JSON.stringify({
     fields: JSON.parse(serializeUserConfigFields(fields)),
     itemLabelField: String(nextItemLabelField || ''),
     markAsEditedBasis: String(nextMarkAsEditedBasis || ''),
     showOnlyNonEmptyFields: Boolean(nextShowOnlyNonEmptyFields),
+    hierarchyFields: normalizeStringArrayUnique(nextHierarchyFields),
+    firstLevelStaticList: normalizeStringArrayUnique(nextFirstLevelStaticList),
   })
 }
 
@@ -162,6 +233,8 @@ const hasUnappliedUserConfigChanges = computed(
       itemLabelField.value,
       markAsEditedBasis.value,
       showOnlyNonEmptyFields.value,
+      hierarchyFields.value,
+      firstLevelStaticList.value,
     ) !== appliedUserConfigSnapshot.value,
 )
 
@@ -178,6 +251,10 @@ function loadUserConfigFromSession() {
         appliedMarkAsEditedBasis: '',
         showOnlyNonEmptyFields: false,
         appliedShowOnlyNonEmptyFields: false,
+        hierarchyFields: [],
+        appliedHierarchyFields: [],
+        firstLevelStaticList: [],
+        appliedFirstLevelStaticList: [],
       }
     }
     const parsed = JSON.parse(raw)
@@ -204,6 +281,16 @@ function loadUserConfigFromSession() {
         typeof parsed?.appliedShowOnlyNonEmptyFields === 'boolean'
           ? parsed.appliedShowOnlyNonEmptyFields
           : Boolean(parsed?.showOnlyNonEmptyFields),
+      hierarchyFields: normalizeStringArrayUnique(parsed?.hierarchyFields),
+      appliedHierarchyFields: normalizeStringArrayUnique(
+        Array.isArray(parsed?.appliedHierarchyFields) ? parsed.appliedHierarchyFields : parsed?.hierarchyFields,
+      ),
+      firstLevelStaticList: normalizeStringArrayUnique(parsed?.firstLevelStaticList),
+      appliedFirstLevelStaticList: normalizeStringArrayUnique(
+        Array.isArray(parsed?.appliedFirstLevelStaticList)
+          ? parsed.appliedFirstLevelStaticList
+          : parsed?.firstLevelStaticList,
+      ),
     }
   } catch {
     return {
@@ -215,6 +302,10 @@ function loadUserConfigFromSession() {
       appliedMarkAsEditedBasis: '',
       showOnlyNonEmptyFields: false,
       appliedShowOnlyNonEmptyFields: false,
+      hierarchyFields: [],
+      appliedHierarchyFields: [],
+      firstLevelStaticList: [],
+      appliedFirstLevelStaticList: [],
     }
   }
 }
@@ -229,6 +320,10 @@ function persistUserConfigToSession() {
     appliedMarkAsEditedBasis: appliedMarkAsEditedBasis.value,
     showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
     appliedShowOnlyNonEmptyFields: appliedShowOnlyNonEmptyFields.value,
+    hierarchyFields: hierarchyFields.value,
+    appliedHierarchyFields: appliedHierarchyFields.value,
+    firstLevelStaticList: firstLevelStaticList.value,
+    appliedFirstLevelStaticList: appliedFirstLevelStaticList.value,
   }
   sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
 }
@@ -247,6 +342,10 @@ function initializeUserConfig(availableFieldKeys, hasData) {
     appliedMarkAsEditedBasis.value = ''
     showOnlyNonEmptyFields.value = false
     appliedShowOnlyNonEmptyFields.value = false
+    hierarchyFields.value = []
+    appliedHierarchyFields.value = []
+    firstLevelStaticList.value = []
+    appliedFirstLevelStaticList.value = []
     appliedUserConfigSnapshot.value = ''
     return
   }
@@ -298,11 +397,17 @@ function initializeUserConfig(availableFieldKeys, hasData) {
     : markAsEditedBasis.value
   showOnlyNonEmptyFields.value = persisted.showOnlyNonEmptyFields
   appliedShowOnlyNonEmptyFields.value = persisted.appliedShowOnlyNonEmptyFields
+  hierarchyFields.value = normalizeStringArrayUnique(persisted.hierarchyFields)
+  appliedHierarchyFields.value = normalizeStringArrayUnique(persisted.appliedHierarchyFields)
+  firstLevelStaticList.value = normalizeStringArrayUnique(persisted.firstLevelStaticList)
+  appliedFirstLevelStaticList.value = normalizeStringArrayUnique(persisted.appliedFirstLevelStaticList)
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     nextAppliedFields,
     appliedItemLabelField.value,
     appliedMarkAsEditedBasis.value,
     appliedShowOnlyNonEmptyFields.value,
+    appliedHierarchyFields.value,
+    appliedFirstLevelStaticList.value,
   )
 }
 
@@ -348,17 +453,51 @@ function applyUserConfigToRawItems(rawItems) {
   appliedItemLabelField.value = itemLabelField.value
   appliedMarkAsEditedBasis.value = markAsEditedBasis.value
   appliedShowOnlyNonEmptyFields.value = showOnlyNonEmptyFields.value
+  appliedHierarchyFields.value = normalizeStringArrayUnique(hierarchyFields.value)
+  appliedFirstLevelStaticList.value = normalizeStringArrayUnique(firstLevelStaticList.value)
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     appliedUserConfigFields.value,
     appliedItemLabelField.value,
     appliedMarkAsEditedBasis.value,
     appliedShowOnlyNonEmptyFields.value,
+    appliedHierarchyFields.value,
+    appliedFirstLevelStaticList.value,
   )
   persistUserConfigToSession()
 }
 
 function setShowOnlyNonEmptyFields(nextValue) {
   showOnlyNonEmptyFields.value = Boolean(nextValue)
+  persistUserConfigToSession()
+}
+
+function addHierarchyField() {
+  hierarchyFields.value = [...hierarchyFields.value, '']
+  persistUserConfigToSession()
+}
+
+function updateHierarchyFieldAt(index, nextValue) {
+  if (!Number.isInteger(index) || index < 0 || index >= hierarchyFields.value.length) return false
+  const nextHierarchyFields = [...hierarchyFields.value]
+  nextHierarchyFields[index] = String(nextValue || '').trim()
+  hierarchyFields.value = nextHierarchyFields
+  persistUserConfigToSession()
+  return true
+}
+
+function removeHierarchyFieldAt(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= hierarchyFields.value.length) return false
+  hierarchyFields.value = hierarchyFields.value.filter((_, currentIndex) => currentIndex !== index)
+  persistUserConfigToSession()
+  return true
+}
+
+function setFirstLevelStaticListFromText(nextValue) {
+  const tokens = String(nextValue || '')
+    .split(/[\n,]/)
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean)
+  firstLevelStaticList.value = normalizeStringArrayUnique(tokens)
   persistUserConfigToSession()
 }
 
@@ -475,6 +614,8 @@ function createUserConfigPayload() {
     itemLabelField: itemLabelField.value,
     markAsEditedBasis: markAsEditedBasis.value,
     showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
+    hierarchyFields: normalizeStringArrayUnique(hierarchyFields.value),
+    firstLevelStaticList: normalizeStringArrayUnique(firstLevelStaticList.value),
   }
 }
 
@@ -576,6 +717,8 @@ function applyImportedConfigPayload(configPayload) {
       ? requestedMarkAsEditedBasis
       : ''
   const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
+  const normalizedHierarchyFields = resolveHierarchyFieldsFromConfig(configPayload)
+  const normalizedFirstLevelStaticList = resolveFirstLevelStaticListFromConfig(configPayload)
 
   normalizeCandidateTargets(nextFields)
 
@@ -588,11 +731,17 @@ function applyImportedConfigPayload(configPayload) {
   appliedMarkAsEditedBasis.value = normalizedMarkAsEditedBasis
   showOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
   appliedShowOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
+  hierarchyFields.value = normalizedHierarchyFields
+  appliedHierarchyFields.value = normalizedHierarchyFields
+  firstLevelStaticList.value = normalizedFirstLevelStaticList
+  appliedFirstLevelStaticList.value = normalizedFirstLevelStaticList
   appliedUserConfigSnapshot.value = serializeUserConfigState(
     appliedUserConfigFields.value,
     appliedItemLabelField.value,
     appliedMarkAsEditedBasis.value,
     appliedShowOnlyNonEmptyFields.value,
+    appliedHierarchyFields.value,
+    appliedFirstLevelStaticList.value,
   )
   persistUserConfigToSession()
 
@@ -610,6 +759,10 @@ export function useUserConfigStore() {
     appliedMarkAsEditedBasis,
     showOnlyNonEmptyFields,
     appliedShowOnlyNonEmptyFields,
+    hierarchyFields,
+    appliedHierarchyFields,
+    firstLevelStaticList,
+    appliedFirstLevelStaticList,
     hasUnappliedUserConfigChanges,
     draggedFieldKey,
     isUserConfigOpen,
@@ -625,6 +778,10 @@ export function useUserConfigStore() {
     setItemLabelField,
     setMarkAsEditedBasis,
     setShowOnlyNonEmptyFields,
+    addHierarchyField,
+    updateHierarchyFieldAt,
+    removeHierarchyFieldAt,
+    setFirstLevelStaticListFromText,
     removeUserConfigField,
     startDrag,
     dropAt,

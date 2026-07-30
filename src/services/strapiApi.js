@@ -279,7 +279,7 @@ export function normalizeOnlineChangedFieldsForStrapi(changedFields = {}, fieldC
 
 export function buildItemsPathWithPopulate(
   itemsPath,
-  { page = 1, pageSize = 100, populateFields = [] } = {},
+  { page = 1, pageSize = 100, populateFields = [], fieldKeys = [], filtersEq = {} } = {},
 ) {
   const queryEntries = [
     ['pagination[page]', page],
@@ -298,6 +298,26 @@ export function buildItemsPathWithPopulate(
     queryEntries.push([`populate[${index}]`, fieldName])
   })
 
+  const normalizedFieldKeys = Array.from(
+    new Set(
+      (Array.isArray(fieldKeys) ? fieldKeys : [])
+        .map((fieldName) => String(fieldName || '').trim())
+        .filter(Boolean),
+    ),
+  )
+
+  normalizedFieldKeys.forEach((fieldName, index) => {
+    queryEntries.push([`fields[${index}]`, fieldName])
+  })
+
+  if (filtersEq && typeof filtersEq === 'object' && !Array.isArray(filtersEq)) {
+    Object.entries(filtersEq).forEach(([fieldKey, fieldValue]) => {
+      const normalizedFieldKey = String(fieldKey || '').trim()
+      if (!normalizedFieldKey) return
+      queryEntries.push([`filters[${normalizedFieldKey}][$eq]`, fieldValue ?? ''])
+    })
+  }
+
   return buildPathWithAdditionalQueryParams(itemsPath, queryEntries)
 }
 
@@ -307,6 +327,8 @@ export async function fetchAllCollectionItemsFromStrapi({
   token = '',
   pageSize = 100,
   populateFields = [],
+  fieldKeys = [],
+  filtersEq = {},
 }) {
   const collected = []
   let effectivePopulateFields = Array.from(
@@ -327,6 +349,8 @@ export async function fetchAllCollectionItemsFromStrapi({
         page,
         pageSize,
         populateFields: effectivePopulateFields,
+        fieldKeys,
+        filtersEq,
       })
 
       try {
@@ -364,6 +388,37 @@ export async function fetchAllCollectionItemsFromStrapi({
   }
 
   return collected
+}
+
+function getStrapiFieldValue(row, fieldKey) {
+  if (!isPlainObject(row)) return undefined
+  const valueSource = isPlainObject(row.attributes) ? row.attributes : row
+  return valueSource?.[fieldKey]
+}
+
+export async function fetchCollectionFieldValuesFromStrapi({
+  profile,
+  itemsPath,
+  token = '',
+  fieldKey,
+  filtersEq = {},
+  pageSize = 250,
+}) {
+  const normalizedFieldKey = String(fieldKey || '').trim()
+  if (!normalizedFieldKey) {
+    throw createHttpError('Field key is required for collection field value fetch.', 400, { fieldKey })
+  }
+
+  const rows = await fetchAllCollectionItemsFromStrapi({
+    profile,
+    itemsPath,
+    token,
+    pageSize,
+    fieldKeys: [normalizedFieldKey],
+    filtersEq,
+  })
+
+  return rows.map((row) => getStrapiFieldValue(row, normalizedFieldKey))
 }
 
 export async function checkDataModelImplementationInStrapi({ profile, token = '' }) {

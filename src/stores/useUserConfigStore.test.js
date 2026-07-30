@@ -206,6 +206,38 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(payload.showOnlyNonEmptyFields).toBe(true)
   })
 
+  test('persists hierarchy fields and first level static list in payload', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['inventory_number'], true)
+
+    store.addHierarchyField()
+    store.updateHierarchyFieldAt(0, ' level_1 ')
+    store.addHierarchyField()
+    store.updateHierarchyFieldAt(1, 'level_2')
+    store.setFirstLevelStaticListFromText('001\n002\n001\n')
+
+    const payload = store.createUserConfigPayload()
+    expect(payload.hierarchyFields).toEqual(['level_1', 'level_2'])
+    expect(payload.firstLevelStaticList).toEqual(['001', '002'])
+  })
+
+  test('imports hierarchy fields and first level static list from config payload', () => {
+    const store = useUserConfigStore()
+    const imported = {
+      fields: {
+        label: { type: 'normal' },
+      },
+      hierarchyFields: [' level_1 ', 'level_2'],
+      firstLevelStaticList: ['001', '002', '001', ''],
+    }
+
+    const result = store.applyImportedConfigPayload(imported)
+
+    expect(result.ok).toBe(true)
+    expect(store.hierarchyFields.value).toEqual(['level_1', 'level_2'])
+    expect(store.firstLevelStaticList.value).toEqual(['001', '002'])
+  })
+
   test('keeps hint in payload for normal fields', () => {
     const store = useUserConfigStore()
     store.initializeUserConfig(['species'], true)

@@ -244,6 +244,10 @@ const wording = {
     de: "Online-Items konnten nicht geladen werden.",
     en: "Could not load online items.",
   },
+  onlineConfigOnlyToggle: {
+    de: "Nur Konfiguration laden (keine Items)",
+    en: "Configuration only (do not load items)",
+  },
   onlineSaveButton: {
     de: "Änderungen speichern",
     en: "Save changes",
@@ -731,6 +735,38 @@ const wording = {
   noSearchResults: {
     de: "Keine Treffer zur Suchanfrage.",
     en: "No matches for this search.",
+  },
+  hierarchyUnassignedLabel: {
+    de: "Ohne Zuordnung",
+    en: "Unassigned",
+  },
+  hierarchySelectLevel1Label: {
+    de: "Bitte zuerst eine Kategorie der ersten Ebene auswaehlen.",
+    en: "Please select a first-level category first.",
+  },
+  hierarchyCollapseAllLabel: {
+    de: "Alle Unterkategorien einklappen",
+    en: "Collapse all subcategories",
+  },
+  hierarchyFieldsLabel: {
+    de: "Hierarchie-Felder",
+    en: "Hierarchy fields",
+  },
+  hierarchyFieldPlaceholder: {
+    de: "z. B. level_1",
+    en: "e.g. level_1",
+  },
+  hierarchyAddField: {
+    de: "Hierarchie-Feld hinzufügen",
+    en: "Add hierarchy field",
+  },
+  hierarchyFirstLevelStaticListLabel: {
+    de: "Hierarchie: Preset-Liste Ebene 1",
+    en: "Hierarchy: level-1 preset list",
+  },
+  hierarchyFirstLevelStaticListPlaceholder: {
+    de: "001\n002\n003",
+    en: "001\n002\n003",
   },
   scanPreviewAlt: {
     de: "Scan-Vorschau",
