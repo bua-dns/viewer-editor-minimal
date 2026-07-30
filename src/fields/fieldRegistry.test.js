@@ -15,6 +15,7 @@ describe('fieldRegistry', () => {
       'text',
       'integer',
       'checkbox',
+      'candidate',
       'wikidata-autosuggest',
     ])
   })
@@ -56,6 +57,7 @@ describe('fieldRegistry', () => {
 
   test('uses expected defaults per field type', () => {
     expect(createDefaultValueForFieldType('checkbox')).toBe(false)
+    expect(createDefaultValueForFieldType('candidate')).toBe('')
     expect(createDefaultValueForFieldType('wikidata-autosuggest')).toEqual([])
     expect(createDefaultValueForFieldType('text')).toBe('')
     expect(createDefaultValueForFieldType('integer')).toBe(null)
@@ -66,6 +68,28 @@ describe('fieldRegistry', () => {
     expect(normalizeValueForConfiguredType('checkbox', 'true')).toBe(true)
     expect(normalizeValueForConfiguredType('checkbox', 'false')).toBe(false)
     expect(normalizeValueForConfiguredType('normal', true)).toBe('true')
+    expect(normalizeValueForConfiguredType('candidate', false)).toBe('false')
+  })
+
+  test('creates candidate editor binding with configurable input mode', () => {
+    const singleLine = createFieldEditorBinding({
+      fieldId: 'field-candidate-one',
+      configuredType: 'candidate',
+      value: 'Oak',
+      candidateConfig: { targetField: 'title', inputType: 'normal' },
+    })
+
+    expect(singleLine.component).toBe('input')
+    expect(singleLine.componentProps.type).toBe('text')
+
+    const multiline = createFieldEditorBinding({
+      fieldId: 'field-candidate-two',
+      configuredType: 'candidate',
+      value: 'Oak\nBerlin',
+      candidateConfig: { targetField: 'note', inputType: 'text' },
+    })
+
+    expect(multiline.component).toBe('textarea')
   })
 
   test('coerces integer values on config apply (best-effort, truncates floats, blanks -> null)', () => {

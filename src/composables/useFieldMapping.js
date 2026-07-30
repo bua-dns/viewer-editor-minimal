@@ -4,6 +4,11 @@ import { createFieldEditorBinding } from '../fields/fieldRegistry'
 export function useFieldMapping() {
   const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
 
+  function getFieldConfig(key) {
+    const fieldConfig = appliedUserConfigFields.value[key]
+    return fieldConfig && typeof fieldConfig === 'object' ? fieldConfig : null
+  }
+
   function isAutosuggestFieldType(type) {
     return type === 'wikidata-autosuggest' || type === 'wikidata_autosuggest'
   }
@@ -29,7 +34,7 @@ export function useFieldMapping() {
   }
 
   function isFieldReadOnly(key) {
-    const fieldConfig = appliedUserConfigFields.value[key]
+    const fieldConfig = getFieldConfig(key)
     if (!fieldConfig || isAutosuggestFieldType(fieldConfig.type)) return false
     return Boolean(fieldConfig.readOnly)
   }
@@ -44,8 +49,14 @@ export function useFieldMapping() {
     return typeof sourceValue === 'string' ? sourceValue : ''
   }
 
-  function getFieldEditorBinding(key, value, selectedRawItem = null) {
-    const fieldConfig = appliedUserConfigFields.value[key]
+  function getFieldEditorBinding(key, value, selectedRawItem = null, candidateAutosuggestPrefills = {}) {
+    const fieldConfig = getFieldConfig(key)
+    const candidateAutosuggestPrefill =
+      candidateAutosuggestPrefills && typeof candidateAutosuggestPrefills === 'object'
+        ? candidateAutosuggestPrefills[key]
+        : null
+    const hasCandidateAutosuggestPrefill = typeof candidateAutosuggestPrefill?.value === 'string'
+
     return createFieldEditorBinding({
       fieldId: `field-${key}`,
       configuredType: fieldConfig?.type,
@@ -53,8 +64,12 @@ export function useFieldMapping() {
       placeholder: getFieldPlaceholder(key),
       readOnly: Boolean(fieldConfig?.readOnly && !isAutosuggestFieldType(fieldConfig?.type)),
       autosuggestConfig: fieldConfig?.autosuggest,
-      autosuggestPrefillValue: getAutosuggestPrefillValue(fieldConfig, selectedRawItem),
+      autosuggestPrefillValue: hasCandidateAutosuggestPrefill
+        ? candidateAutosuggestPrefill.value
+        : getAutosuggestPrefillValue(fieldConfig, selectedRawItem),
       autosuggestPrefillContext: selectedRawItem,
+      autosuggestForceSearchToken: Number(candidateAutosuggestPrefill?.token) || 0,
+      candidateConfig: fieldConfig?.candidate,
     })
   }
 
@@ -82,6 +97,7 @@ export function useFieldMapping() {
     getFieldLabel,
     getFieldPlaceholder,
     getFieldHint,
+    getFieldConfig,
     isFieldReadOnly,
     getFieldEditorBinding,
     getDisplayedFieldKeys,

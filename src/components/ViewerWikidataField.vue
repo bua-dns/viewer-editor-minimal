@@ -10,6 +10,7 @@ const props = defineProps({
   autosuggestConfig: { type: Object, default: null },
   prefillValue: { type: String, default: '' },
   prefillContext: { type: Object, default: null },
+  prefillForceSearchToken: { type: Number, default: 0 },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -177,6 +178,7 @@ function removeEntity(idToRemove) {
       :selected-entities="selectedEntities"
       :prefill-value="prefillValue"
       :prefill-context="prefillContext"
+      :prefill-force-search-token="prefillForceSearchToken"
       :placeholder="placeholder"
       @select="onSelectEntity"
     />

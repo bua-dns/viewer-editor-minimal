@@ -318,4 +318,65 @@ describe('validateImportedConfigPayload', () => {
 
     expect(result.ok).toBe(false)
   })
+
+  test('accepts candidate config with target field and input type', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        title: {
+          type: 'normal',
+        },
+        title_candidate: {
+          type: 'candidate',
+          candidate: {
+            targetField: 'title',
+            inputType: 'text',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
+  test('rejects candidate config with missing target field', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        title: {
+          type: 'normal',
+        },
+        title_candidate: {
+          type: 'candidate',
+          candidate: {
+            targetField: '',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
+  test('rejects candidate config targeting another candidate field', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        title: {
+          type: 'normal',
+        },
+        first_candidate: {
+          type: 'candidate',
+          candidate: {
+            targetField: 'title',
+          },
+        },
+        second_candidate: {
+          type: 'candidate',
+          candidate: {
+            targetField: 'first_candidate',
+          },
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
 })

@@ -44,6 +44,43 @@ function createMinimalAutosuggestConfig() {
   }
 }
 
+function createMinimalCandidateConfig() {
+  return {
+    targetField: '',
+    inputType: 'normal',
+  }
+}
+
+function normalizeCandidateInputType(value) {
+  return value === 'text' ? 'text' : 'normal'
+}
+
+function normalizeCandidateTargets(fields) {
+  if (!isPlainObject(fields)) return
+
+  Object.entries(fields).forEach(([fieldKey, fieldConfig]) => {
+    if (!isPlainObject(fieldConfig) || fieldConfig.type !== 'candidate') {
+      return
+    }
+
+    if (!isPlainObject(fieldConfig.candidate)) {
+      fieldConfig.candidate = createMinimalCandidateConfig()
+    }
+
+    const normalizedTargetField = String(fieldConfig.candidate.targetField || '').trim()
+    const targetConfig = fields[normalizedTargetField]
+    const targetType = targetConfig?.type || 'normal'
+    const hasValidTarget =
+      Boolean(normalizedTargetField) &&
+      normalizedTargetField !== fieldKey &&
+      isPlainObject(targetConfig) &&
+      targetType !== 'candidate'
+
+    fieldConfig.candidate.targetField = hasValidTarget ? normalizedTargetField : ''
+    fieldConfig.candidate.inputType = normalizeCandidateInputType(fieldConfig.candidate.inputType)
+  })
+}
+
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
   const type = source.type || 'normal'
   const readOnly = type !== 'wikidata-autosuggest' ? Boolean(source.readOnly) : undefined
@@ -53,6 +90,12 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
       : type === 'wikidata-autosuggest'
       ? createMinimalAutosuggestConfig()
       : undefined
+  const candidate =
+    type === 'candidate' && isPlainObject(source.candidate)
+      ? cloneValue(source.candidate)
+      : type === 'candidate'
+        ? createMinimalCandidateConfig()
+        : undefined
 
   if (isPlainObject(autosuggest)) {
     if (typeof autosuggest.prefillWith === 'string') {
@@ -67,6 +110,11 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
     }
   }
 
+  if (isPlainObject(candidate)) {
+    candidate.targetField = String(candidate.targetField || '').trim()
+    candidate.inputType = normalizeCandidateInputType(candidate.inputType)
+  }
+
   return {
     type,
     label: source.label || '',
@@ -75,6 +123,7 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
     hint: typeof source.hint === 'string' ? source.hint : '',
     ...(type !== 'wikidata-autosuggest' ? { readOnly } : {}),
     ...(autosuggest ? { autosuggest } : {}),
+    ...(candidate ? { candidate } : {}),
   }
 }
 
@@ -232,6 +281,8 @@ function initializeUserConfig(availableFieldKeys, hasData) {
 
   userConfigFields.value = nextFields
   appliedUserConfigFields.value = nextAppliedFields
+  normalizeCandidateTargets(userConfigFields.value)
+  normalizeCandidateTargets(appliedUserConfigFields.value)
   const hasLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.itemLabelField)
   const hasAppliedLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.appliedItemLabelField)
   const hasEditedBasisField = Object.prototype.hasOwnProperty.call(nextFields, persisted.markAsEditedBasis)
@@ -265,6 +316,7 @@ function normalizeConfigOrder() {
 }
 
 function applyUserConfigToRawItems(rawItems) {
+  normalizeCandidateTargets(userConfigFields.value)
   normalizeConfigOrder()
 
   const removedFieldKeys = Object.keys(appliedUserConfigFields.value).filter(
@@ -350,6 +402,7 @@ function removeUserConfigField(fieldKey) {
   if (appliedMarkAsEditedBasis.value === fieldKey) {
     appliedMarkAsEditedBasis.value = ''
   }
+  normalizeCandidateTargets(userConfigFields.value)
   persistUserConfigToSession()
 }
 
@@ -411,6 +464,7 @@ function endDrag() {
 }
 
 function createUserConfigPayload() {
+  normalizeCandidateTargets(userConfigFields.value)
   const normalizedFields = {}
   Object.keys(userConfigFields.value).forEach((key, index) => {
     normalizedFields[key] = normalizeUserConfigField(userConfigFields.value[key], index)
@@ -432,14 +486,53 @@ function setFieldType(fieldKey, nextType) {
 
   if (nextType === 'wikidata-autosuggest') {
     delete field.readOnly
+    delete field.candidate
     if (!isPlainObject(field.autosuggest)) {
       field.autosuggest = createMinimalAutosuggestConfig()
     }
+  } else if (nextType === 'candidate') {
+    delete field.autosuggest
+    if (typeof field.readOnly !== 'boolean') {
+      field.readOnly = false
+    }
+    if (!isPlainObject(field.candidate)) {
+      field.candidate = createMinimalCandidateConfig()
+    }
+    field.candidate.inputType = normalizeCandidateInputType(field.candidate.inputType)
+    field.candidate.targetField = String(field.candidate.targetField || '').trim()
   } else {
     if (typeof field.readOnly !== 'boolean') {
       field.readOnly = false
     }
     delete field.autosuggest
+    delete field.candidate
+  }
+
+  normalizeCandidateTargets(userConfigFields.value)
+  persistUserConfigToSession()
+  return true
+}
+
+function updateFieldCandidateConfig(fieldKey, nextCandidateConfig) {
+  const field = userConfigFields.value[fieldKey]
+  if (!field || field.type !== 'candidate') return false
+  if (!isPlainObject(nextCandidateConfig)) return false
+
+  const normalizedTargetField = String(nextCandidateConfig.targetField || '').trim()
+  const normalizedInputType = normalizeCandidateInputType(nextCandidateConfig.inputType)
+  const hasTarget = Boolean(normalizedTargetField)
+
+  if (hasTarget) {
+    if (normalizedTargetField === fieldKey) return false
+    const targetConfig = userConfigFields.value[normalizedTargetField]
+    if (!isPlainObject(targetConfig) || targetConfig.type === 'candidate') {
+      return false
+    }
+  }
+
+  field.candidate = {
+    targetField: normalizedTargetField,
+    inputType: normalizedInputType,
   }
 
   persistUserConfigToSession()
@@ -484,8 +577,11 @@ function applyImportedConfigPayload(configPayload) {
       : ''
   const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
 
+  normalizeCandidateTargets(nextFields)
+
   userConfigFields.value = nextFields
   appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
+  normalizeCandidateTargets(appliedUserConfigFields.value)
   itemLabelField.value = normalizedItemLabelField
   appliedItemLabelField.value = normalizedItemLabelField
   markAsEditedBasis.value = normalizedMarkAsEditedBasis
@@ -525,6 +621,7 @@ export function useUserConfigStore() {
     addUserConfigField,
     setFieldType,
     updateFieldAutosuggestConfig,
+    updateFieldCandidateConfig,
     setItemLabelField,
     setMarkAsEditedBasis,
     setShowOnlyNonEmptyFields,

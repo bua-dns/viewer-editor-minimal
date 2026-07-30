@@ -127,6 +127,8 @@ const failedListImages = ref(new Set())
 const isExtendedEditMode = ref(false)
 const isStartFromScratchModalOpen = ref(false)
 const startFromScratchModalError = ref('')
+const candidateAutosuggestPrefills = ref({})
+let candidateAutosuggestPrefillToken = 0
 
 const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
 
@@ -287,6 +289,28 @@ async function onApplyUserConfig() {
   }
 
   await persistOnlineSettings(mergedSettings)
+}
+
+function onAcceptCandidate({ targetField, candidateValue, targetConfiguredType }) {
+  const normalizedTargetField = String(targetField || '').trim()
+  if (!normalizedTargetField) return
+
+  const normalizedCandidateValue =
+    typeof candidateValue === 'string' ? candidateValue : String(candidateValue ?? '')
+
+  if (targetConfiguredType === 'wikidata-autosuggest') {
+    candidateAutosuggestPrefillToken += 1
+    candidateAutosuggestPrefills.value = {
+      ...candidateAutosuggestPrefills.value,
+      [normalizedTargetField]: {
+        value: normalizedCandidateValue.trim(),
+        token: candidateAutosuggestPrefillToken,
+      },
+    }
+    return
+  }
+
+  onFieldChange(normalizedTargetField, normalizedCandidateValue, targetConfiguredType)
 }
 
 function openLightbox(url) {
@@ -515,6 +539,7 @@ watch(
     () => suspendedItemIndices.value.join('|'),
   ],
   ([nextSelectedUid]) => {
+    candidateAutosuggestPrefills.value = {}
     if (!nextSelectedUid) return
     const nextSelectedIndex = selectedViewItem.value?._index
     if (!Number.isInteger(nextSelectedIndex)) return
@@ -749,9 +774,12 @@ watch(
                   :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
                   :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
                   :copy-raw-data-label="t('copyRawDataLabel', 'Copy raw data')"
+                  :candidate-apply-to-label="t('candidateApplyToLabel', 'Uebernehmen in')"
+                  :candidate-choose-target-label="t('candidateChooseTargetLabel', 'Bitte Ziel-Feld in Konfiguration waehlen')"
+                  :candidate-autosuggest-prefills="candidateAutosuggestPrefills"
                   :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
                   :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
-                  @toggle-suspend-editing="onSuspendEditingToggle" />
+                  @toggle-suspend-editing="onSuspendEditingToggle" @accept-candidate="onAcceptCandidate" />
               </div>
             </div>
           </aside>

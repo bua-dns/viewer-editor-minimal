@@ -26,6 +26,7 @@ const {
   addUserConfigField,
   setFieldType,
   updateFieldAutosuggestConfig,
+  updateFieldCandidateConfig,
   setItemLabelField,
   setMarkAsEditedBasis,
   setShowOnlyNonEmptyFields,
@@ -50,6 +51,35 @@ const prefillFieldOptionsByFieldKey = computed(() => {
   return optionsByFieldKey
 })
 const autosuggestAdvancedCollapseToken = ref(0)
+const candidateTargetFieldOptionsByFieldKey = computed(() => {
+  const optionsByFieldKey = {}
+  const entries = sortedConfigFieldEntries.value
+
+  entries.forEach(([fieldKey]) => {
+    optionsByFieldKey[fieldKey] = entries
+      .filter(([candidateKey, config]) => candidateKey !== fieldKey && config?.type !== 'candidate')
+      .map(([candidateKey]) => candidateKey)
+  })
+
+  return optionsByFieldKey
+})
+
+const candidateValidationError = computed(() => {
+  for (const [fieldKey, fieldConfig] of sortedConfigFieldEntries.value) {
+    if (fieldConfig?.type !== 'candidate') continue
+
+    const targetField = String(fieldConfig?.candidate?.targetField || '').trim()
+    const availableTargets = new Set(candidateTargetFieldOptionsByFieldKey.value[fieldKey] || [])
+    if (!targetField || !availableTargets.has(targetField)) {
+      return t(
+        'candidateTargetFieldError',
+        `Candidate field ${fieldKey} needs a valid target field (non-candidate).`,
+      )
+    }
+  }
+
+  return ''
+})
 
 function onTogglePanel() {
   if (props.forceOpen) return
@@ -66,6 +96,26 @@ function onFieldTypeChange(fieldKey, nextType) {
 
 function onAutosuggestConfigChange(fieldKey, nextAutosuggestConfig) {
   updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig)
+}
+
+function onCandidateTargetFieldChange(fieldKey, event) {
+  const nextTargetField = event.target.value
+  const current =
+    sortedConfigFieldEntries.value.find(([key]) => key === fieldKey)?.[1]?.candidate || {}
+  updateFieldCandidateConfig(fieldKey, {
+    ...current,
+    targetField: nextTargetField,
+  })
+}
+
+function onCandidateInputTypeChange(fieldKey, event) {
+  const nextInputType = event.target.value
+  const current =
+    sortedConfigFieldEntries.value.find(([key]) => key === fieldKey)?.[1]?.candidate || {}
+  updateFieldCandidateConfig(fieldKey, {
+    ...current,
+    inputType: nextInputType,
+  })
 }
 
 function onApplyConfiguration() {
@@ -101,7 +151,11 @@ function onShowOnlyNonEmptyFieldsChange(event) {
     >
       <div class="user-config-title">{{ t('configurationTitle', 'Konfiguration') }}</div>
       <div v-if="isPanelOpen" class="user-config-actions">
-        <button type="button" :disabled="!hasUnappliedUserConfigChanges" @click.stop="onApplyConfiguration">
+        <button
+          type="button"
+          :disabled="!hasUnappliedUserConfigChanges || Boolean(candidateValidationError)"
+          @click.stop="onApplyConfiguration"
+        >
           {{ t('applyConfiguration', 'Konfiguration anwenden') }}
         </button>
       </div>
@@ -152,6 +206,7 @@ function onShowOnlyNonEmptyFieldsChange(event) {
       </div>
 
       <p v-if="addFieldError" class="error user-config-error">{{ addFieldError }}</p>
+      <p v-if="candidateValidationError" class="error user-config-error">{{ candidateValidationError }}</p>
 
       <div class="user-config-row user-config-row-head">
         <strong></strong>
@@ -171,6 +226,7 @@ function onShowOnlyNonEmptyFieldsChange(event) {
         :class="{
           'is-dragging': draggedFieldKey === entry[0],
           'has-autosuggest-config': entry[1].type === 'wikidata-autosuggest',
+          'has-candidate-config': entry[1].type === 'candidate',
         }"
         draggable="true"
         @dragstart="startDrag(entry[0])"
@@ -205,6 +261,35 @@ function onShowOnlyNonEmptyFieldsChange(event) {
             :collapse-advanced-token="autosuggestAdvancedCollapseToken"
             @update:model-value="onAutosuggestConfigChange(entry[0], $event)"
           />
+        </div>
+        <div v-if="entry[1].type === 'candidate'" class="user-config-candidate-row">
+          <label class="candidate-config-field">
+            <span>{{ t('candidateTargetFieldLabel', 'Ziel-Feld') }}</span>
+            <select
+              :value="entry[1].candidate?.targetField || ''"
+              @change="onCandidateTargetFieldChange(entry[0], $event)"
+            >
+              <option value="">{{ t('candidateTargetFieldPlaceholder', 'Bitte auswaehlen') }}</option>
+              <option
+                v-for="fieldKey in candidateTargetFieldOptionsByFieldKey[entry[0]] || []"
+                :key="`candidate-target-${entry[0]}-${fieldKey}`"
+                :value="fieldKey"
+              >
+                {{ fieldKey }}
+              </option>
+            </select>
+          </label>
+
+          <label class="candidate-config-field">
+            <span>{{ t('candidateInputTypeLabel', 'Eingabe-Modus') }}</span>
+            <select
+              :value="entry[1].candidate?.inputType || 'normal'"
+              @change="onCandidateInputTypeChange(entry[0], $event)"
+            >
+              <option value="normal">{{ t('candidateInputTypeNormal', 'Einzeilig (normal)') }}</option>
+              <option value="text">{{ t('candidateInputTypeText', 'Mehrzeilig (text)') }}</option>
+            </select>
+          </label>
         </div>
       </div>
     </div>
@@ -325,6 +410,12 @@ function onShowOnlyNonEmptyFieldsChange(event) {
   padding: 0.45rem;
 }
 
+.user-config-row.has-candidate-config {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+  padding: 0.45rem;
+}
+
 .user-config-autosuggest-row {
   grid-column: 2 / -1;
   padding: 0.1rem 0 0.45rem;
@@ -332,6 +423,19 @@ function onShowOnlyNonEmptyFieldsChange(event) {
 
 .user-config-row.has-autosuggest-config .user-config-autosuggest-row {
   padding: 0.2rem 0 0;
+}
+
+.user-config-candidate-row {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 0.55rem;
+  padding: 0.2rem 0 0;
+}
+
+.candidate-config-field {
+  display: grid;
+  gap: 0.3rem;
 }
 
 .remove-field-btn {
@@ -377,6 +481,10 @@ function onShowOnlyNonEmptyFieldsChange(event) {
   }
 
   .user-config-toggle-row {
+    grid-template-columns: 1fr;
+  }
+
+  .user-config-candidate-row {
     grid-template-columns: 1fr;
   }
 }

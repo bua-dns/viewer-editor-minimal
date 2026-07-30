@@ -55,6 +55,18 @@ function createCheckboxBinding({ fieldId, value, readOnly = false }) {
   }
 }
 
+function normalizeCandidateInputType(value) {
+  return value === 'text' ? 'text' : 'normal'
+}
+
+function createCandidateBinding({ candidateConfig, ...context }) {
+  const inputType = normalizeCandidateInputType(candidateConfig?.inputType)
+  if (inputType === 'text') {
+    return createTextareaBinding(context)
+  }
+  return createTextInputBinding(context)
+}
+
 function normalizeNonCheckboxValueForConfigApply(currentValue) {
   if (typeof currentValue === 'boolean') {
     return String(currentValue)
@@ -200,6 +212,16 @@ const FIELD_REGISTRY = Object.freeze({
       return currentValue
     },
   },
+  candidate: {
+    key: 'candidate',
+    labelKey: 'configTypeCandidate',
+    labelFallback: 'Kandidat (Vorschlag)',
+    createEditorBinding: createCandidateBinding,
+    createDefaultValue() {
+      return ''
+    },
+    normalizeValueForConfigApply: normalizeNonCheckboxValueForConfigApply,
+  },
   'wikidata-autosuggest': {
     key: 'wikidata-autosuggest',
     labelKey: 'configTypeWikidataAutosuggest',
@@ -211,6 +233,7 @@ const FIELD_REGISTRY = Object.freeze({
       autosuggestConfig,
       autosuggestPrefillValue,
       autosuggestPrefillContext,
+      autosuggestForceSearchToken,
     }) {
       return {
         component: 'ViewerWikidataField',
@@ -221,6 +244,7 @@ const FIELD_REGISTRY = Object.freeze({
           autosuggestConfig,
           prefillValue: autosuggestPrefillValue,
           prefillContext: autosuggestPrefillContext,
+          prefillForceSearchToken: autosuggestForceSearchToken,
         },
         eventName: 'update:modelValue',
         readEventValue(nextValue) {
@@ -284,6 +308,8 @@ export function createFieldEditorBinding({
   autosuggestConfig = null,
   autosuggestPrefillValue = '',
   autosuggestPrefillContext = null,
+  autosuggestForceSearchToken = 0,
+  candidateConfig = null,
 }) {
   const resolvedType = resolveFieldTypeForEditor(configuredType, value)
   const definition = FIELD_REGISTRY[resolvedType]
@@ -295,6 +321,8 @@ export function createFieldEditorBinding({
     autosuggestConfig,
     autosuggestPrefillValue,
     autosuggestPrefillContext,
+    autosuggestForceSearchToken,
+    candidateConfig,
   })
   return {
     ...binding,

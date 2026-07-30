@@ -18,6 +18,14 @@ describe('useFieldMapping', () => {
         type: 'normal',
         order: 2,
       },
+      title_candidate: {
+        type: 'candidate',
+        order: 3,
+        candidate: {
+          targetField: 'title',
+          inputType: 'text',
+        },
+      },
     }
     store.appliedShowOnlyNonEmptyFields.value = false
   })
@@ -57,5 +65,24 @@ describe('useFieldMapping', () => {
     })
 
     expect(keys).toEqual(['title', 'note'])
+  })
+
+  test('passes candidate-triggered prefill to autosuggest editor binding', () => {
+    const { getFieldEditorBinding } = useFieldMapping()
+    const binding = getFieldEditorBinding(
+      'subject',
+      [],
+      { title: 'Default prefill' },
+      {
+        subject: {
+          value: 'Forced query',
+          token: 3,
+        },
+      },
+    )
+
+    expect(binding.resolvedType).toBe('wikidata-autosuggest')
+    expect(binding.componentProps.prefillValue).toBe('Forced query')
+    expect(binding.componentProps.prefillForceSearchToken).toBe(3)
   })
 })

@@ -12,25 +12,42 @@ const props = defineProps({
   rawDataToggleLabel: { type: String, default: 'show raw data' },
   rawDataHideLabel: { type: String, default: 'hide raw data' },
   copyRawDataLabel: { type: String, default: 'Copy raw data' },
+  candidateApplyToLabel: { type: String, default: 'Apply to' },
+  candidateChooseTargetLabel: { type: String, default: 'Select target in configuration' },
   isEditableSimpleValue: { type: Function, required: true },
+  candidateAutosuggestPrefills: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['field-change', 'toggle-suspend-editing'])
+const emit = defineEmits(['field-change', 'toggle-suspend-editing', 'accept-candidate'])
 
-const { getFieldLabel, getFieldHint, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
+const { getFieldLabel, getFieldHint, getFieldConfig, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
 
 const displayedFieldKeys = computed(() => getDisplayedFieldKeys(props.selectedRawItem))
 
 const fieldRows = computed(() =>
   displayedFieldKeys.value.map((key) => {
     const value = props.selectedRawItem[key]
+    const fieldConfig = getFieldConfig(key)
+    const candidateTargetField =
+      fieldConfig?.type === 'candidate' ? String(fieldConfig?.candidate?.targetField || '').trim() : ''
+    const candidateTargetConfig = candidateTargetField ? getFieldConfig(candidateTargetField) : null
+
     return {
       key,
       value,
       label: getFieldLabel(key),
       hint: getFieldHint(key),
       isReadOnly: isFieldReadOnly(key),
-      editorBinding: getFieldEditorBinding(key, value, props.selectedRawItem),
+      fieldConfig,
+      candidateTargetField,
+      candidateTargetType: candidateTargetConfig?.type || null,
+      candidateTargetLabel: candidateTargetField ? getFieldLabel(candidateTargetField) : '',
+      editorBinding: getFieldEditorBinding(
+        key,
+        value,
+        props.selectedRawItem,
+        props.candidateAutosuggestPrefills,
+      ),
     }
   }),
 )
@@ -47,6 +64,33 @@ function resolveEditorComponent(componentId) {
 function shouldRenderEditor(row) {
   if (row.editorBinding.resolvedType === 'wikidata-autosuggest') return true
   return props.isEditableSimpleValue(row.value)
+}
+
+function isCandidateRow(row) {
+  return row.editorBinding.resolvedType === 'candidate'
+}
+
+function canAcceptCandidate(row) {
+  if (!isCandidateRow(row)) return false
+  if (!row.candidateTargetField || !row.candidateTargetType) return false
+  return String(row.value || '').trim().length > 0
+}
+
+function getCandidateButtonText(row) {
+  if (!row.candidateTargetField || !row.candidateTargetLabel) {
+    return props.candidateChooseTargetLabel
+  }
+  return `${props.candidateApplyToLabel} ${row.candidateTargetLabel}`
+}
+
+function onAcceptCandidate(row) {
+  if (!canAcceptCandidate(row)) return
+  emit('accept-candidate', {
+    candidateField: row.key,
+    targetField: row.candidateTargetField,
+    candidateValue: row.value,
+    targetConfiguredType: row.candidateTargetType,
+  })
 }
 
 const isSuspendEditingChecked = computed(() => {
@@ -119,9 +163,41 @@ async function onCopyRawData() {
           <span>{{ row.label }}</span>
           <small v-if="row.isReadOnly" class="field-readonly-badge">read-only</small>
         </label>
+        <div v-if="isCandidateRow(row) && shouldRenderEditor(row)" class="candidate-editor-inline">
+          <component
+            :is="resolveEditorComponent(row.editorBinding.component)"
+            v-bind="row.editorBinding.componentProps"
+            @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
+          />
+          <button
+            type="button"
+            class="candidate-accept-btn"
+            :disabled="!canAcceptCandidate(row)"
+            :aria-label="getCandidateButtonText(row)"
+            :title="getCandidateButtonText(row)"
+            @click="onAcceptCandidate(row)"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="feather feather-arrow-down"
+              aria-hidden="true"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+          </button>
+        </div>
         <component
           :is="resolveEditorComponent(row.editorBinding.component)"
-          v-if="shouldRenderEditor(row)"
+          v-else-if="shouldRenderEditor(row)"
           v-bind="row.editorBinding.componentProps"
           @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
         />
@@ -183,6 +259,28 @@ async function onCopyRawData() {
   margin: 0;
   color: var(--ve-color-text-muted);
   font-size: 0.84rem;
+}
+
+.candidate-accept-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  padding: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.candidate-editor-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.candidate-editor-inline :deep(input),
+.candidate-editor-inline :deep(textarea) {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .suspend-editing-row {

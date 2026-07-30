@@ -7,6 +7,7 @@ const props = defineProps({
   placeholder: { type: String, default: '' },
   prefillValue: { type: String, default: '' },
   prefillContext: { type: Object, default: null },
+  prefillForceSearchToken: { type: Number, default: 0 },
   selectedEntities: { type: Array, default: () => [] },
 })
 
@@ -568,6 +569,24 @@ watch(
 
     const normalized = nextValue.trim()
     scheduleSearch(normalized)
+  },
+)
+
+watch(
+  () => props.prefillForceSearchToken,
+  (nextToken, previousToken) => {
+    if (!Number.isFinite(nextToken) || nextToken <= 0) return
+    if (nextToken === previousToken) return
+
+    const normalizedPrefill = normalizePrefillValue(props.prefillValue)
+    if (!normalizedPrefill) return
+
+    if (query.value !== normalizedPrefill) {
+      suppressNextQueryWatcher = true
+      query.value = normalizedPrefill
+    }
+    lastAppliedPrefill.value = normalizedPrefill
+    scheduleSearch(normalizedPrefill)
   },
 )
 

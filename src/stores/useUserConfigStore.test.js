@@ -101,6 +101,55 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(store.userConfigFields.value.collector.readOnly).toBeUndefined()
   })
 
+  test('initializes minimal candidate config when switching type', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['title_candidate'], true)
+
+    const updated = store.setFieldType('title_candidate', 'candidate')
+
+    expect(updated).toBe(true)
+    expect(store.userConfigFields.value.title_candidate.type).toBe('candidate')
+    expect(store.userConfigFields.value.title_candidate.candidate).toEqual({
+      targetField: '',
+      inputType: 'normal',
+    })
+  })
+
+  test('updates candidate config with valid target and input mode', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['title', 'title_candidate'], true)
+    store.setFieldType('title_candidate', 'candidate')
+
+    const updated = store.updateFieldCandidateConfig('title_candidate', {
+      targetField: 'title',
+      inputType: 'text',
+    })
+
+    expect(updated).toBe(true)
+    expect(store.userConfigFields.value.title_candidate.candidate).toEqual({
+      targetField: 'title',
+      inputType: 'text',
+    })
+  })
+
+  test('rejects candidate config when target points to candidate field', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['title', 'first_candidate', 'second_candidate'], true)
+    store.setFieldType('first_candidate', 'candidate')
+    store.setFieldType('second_candidate', 'candidate')
+    store.updateFieldCandidateConfig('first_candidate', {
+      targetField: 'title',
+      inputType: 'normal',
+    })
+
+    const updated = store.updateFieldCandidateConfig('second_candidate', {
+      targetField: 'first_candidate',
+      inputType: 'normal',
+    })
+
+    expect(updated).toBe(false)
+  })
+
   test('persists configured item label field in payload', () => {
     const store = useUserConfigStore()
     store.initializeUserConfig(['inventory_number', 'species'], true)

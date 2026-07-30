@@ -4,6 +4,14 @@ function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
+function normalizeCandidateInputType(value) {
+  return value === 'text' ? 'text' : 'normal'
+}
+
+function isAllowedCandidateTargetType(type) {
+  return type === 'normal' || type === 'text' || type === 'integer' || type === 'checkbox' || type === 'wikidata-autosuggest'
+}
+
 export function validateImportedConfigPayload(configPayload) {
   if (!isPlainObject(configPayload)) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config muss ein Objekt sein.' }
@@ -91,6 +99,13 @@ export function validateImportedConfigPayload(configPayload) {
       return {
         ok: false,
         error: `JSON-Config ist ungueltig: autosuggest bei ${key} ist nur fuer wikidata-autosuggest erlaubt.`,
+      }
+    }
+
+    if (fieldConfig.candidate != null && type !== 'candidate') {
+      return {
+        ok: false,
+        error: `JSON-Config ist ungueltig: candidate bei ${key} ist nur fuer candidate erlaubt.`,
       }
     }
 
@@ -183,6 +198,62 @@ export function validateImportedConfigPayload(configPayload) {
         return {
           ok: false,
           error: `JSON-Config ist ungueltig: autosuggest.alsoGetDataFrom bei ${key} muss ein String oder ein Array sein.`,
+        }
+      }
+    }
+
+    if (type === 'candidate' && !isPlainObject(fieldConfig.candidate)) {
+      return {
+        ok: false,
+        error: `JSON-Config ist ungueltig: candidate bei ${key} muss ein Objekt sein.`,
+      }
+    }
+
+    if (isPlainObject(fieldConfig.candidate)) {
+      if (fieldConfig.candidate.targetField == null || typeof fieldConfig.candidate.targetField !== 'string') {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: candidate.targetField bei ${key} muss ein String sein.`,
+        }
+      }
+
+      const targetField = fieldConfig.candidate.targetField.trim()
+      if (!targetField) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: candidate.targetField bei ${key} darf nicht leer sein.`,
+        }
+      }
+
+      if (targetField === key) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: candidate.targetField bei ${key} darf nicht auf sich selbst zeigen.`,
+        }
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(configPayload.fields, targetField)) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: candidate.targetField bei ${key} verweist auf ein fehlendes Feld (${targetField}).`,
+        }
+      }
+
+      const targetType = configPayload.fields[targetField]?.type ?? 'normal'
+      if (!isAllowedCandidateTargetType(targetType)) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: candidate.targetField bei ${key} muss auf normal, text, integer, checkbox oder wikidata-autosuggest zeigen.`,
+        }
+      }
+
+      if (
+        fieldConfig.candidate.inputType != null &&
+        normalizeCandidateInputType(fieldConfig.candidate.inputType) !== fieldConfig.candidate.inputType
+      ) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: candidate.inputType bei ${key} muss normal oder text sein.`,
         }
       }
     }

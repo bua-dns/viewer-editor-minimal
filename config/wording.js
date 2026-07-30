@@ -532,9 +532,45 @@ const wording = {
     de: "Ja/Nein (checkbox)",
     en: "Yes/No (checkbox)",
   },
+  configTypeCandidate: {
+    de: "Kandidat (Vorschlag)",
+    en: "Candidate (proposal)",
+  },
   configTypeWikidataAutosuggest: {
     de: "Wikidata Autosuggest",
     en: "Wikidata autosuggest",
+  },
+  candidateTargetFieldLabel: {
+    de: "Ziel-Feld",
+    en: "Target field",
+  },
+  candidateTargetFieldPlaceholder: {
+    de: "Bitte auswaehlen",
+    en: "Please select",
+  },
+  candidateInputTypeLabel: {
+    de: "Eingabe-Modus",
+    en: "Input mode",
+  },
+  candidateInputTypeNormal: {
+    de: "Einzeilig (normal)",
+    en: "Single-line (normal)",
+  },
+  candidateInputTypeText: {
+    de: "Mehrzeilig (text)",
+    en: "Multiline (text)",
+  },
+  candidateApplyToLabel: {
+    de: "Übernehmen in",
+    en: "Apply to",
+  },
+  candidateChooseTargetLabel: {
+    de: "Bitte Ziel-Feld in Konfiguration waehlen",
+    en: "Select target field in configuration",
+  },
+  candidateTargetFieldError: {
+    de: "Mindestens ein Kandidat-Feld hat kein gueltiges Ziel-Feld (kein candidate).",
+    en: "At least one candidate field has no valid target field (non-candidate).",
   },
   configLabelInputPlaceholder: {
     de: "Label",
