@@ -14,6 +14,9 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
 - Optionaler Dev-Inspektionsmodus (`dataInspectionMode`): im Edit-Panel zusaetzliche Buttons `show/hide raw data` und `Copy raw data` mit `<pre>`-Preview des aktuell selektierten Items
 - Neuer Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell (`[{ id, label, ... }]`)
+- Neuer Feldtyp `candidate` fuer Vorschlagswerte inkl. Inline-Uebernahme in ein konfiguriertes Ziel-Feld
+- `candidate` unterstuetzt Ziel-Felder vom Typ `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest` (kein self-target, kein Target auf `candidate`)
+- `candidate` unterstuetzt `inputType: normal | text` fuer ein- oder mehrzeilige Eingabe
 - `wikidata-autosuggest` unterstuetzt konfigurierbare Priorisierung (`claimPresence`, `claimValueMatch`) inkl. optionaler Emit-Metadaten
 - Wikidata-Multilanguage-Suche ist fehlertolerant: Teilausfaelle einzelner Sprachen werden abgefangen, verbleibende Treffer bleiben erhalten
 - Wikidata-Suche bricht veraltete In-Flight-Requests beim Tippen/Unmount per `AbortController` ab (keine stale Treffer, keine Abort-Fehleranzeige)
@@ -126,6 +129,36 @@ Beim Import werden zwei JSON-Formate akzeptiert:
 
 Beim JSON-Export nutzt die App immer das kanonische Format mit `data` und `config`. Falls die importierte Datei zusätzlich ein `replacements`-Objekt enthält, wird dieses unverändert mit exportiert (`{ data, config, replacements }`).
 Wenn beim Download noch nicht angewendete Konfigurationsaenderungen vorhanden sind, werden diese vor dem Export automatisch angewendet. Dadurch passen exportierte Daten und exportierte Konfiguration immer zusammen.
+
+### Feldtyp `candidate` in `config.fields`
+
+`candidate` ist ein regulaerer Feldtyp in `config.fields` und speichert den Vorschlagswert selbst als String im Item.
+
+Beispiel:
+
+```json
+{
+  "fields": {
+    "title": {
+      "type": "normal"
+    },
+    "title_candidate": {
+      "type": "candidate",
+      "candidate": {
+        "targetField": "title",
+        "inputType": "normal"
+      }
+    }
+  }
+}
+```
+
+Hinweise:
+- `candidate.targetField` ist Pflicht und muss auf ein vorhandenes, nicht-`candidate` Feld zeigen.
+- Gueltige Zieltypen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+- `candidate.inputType` ist optional und kann `normal` (Default) oder `text` sein.
+- In der Sidebar ist pro Candidate-Feld ein Inline-Button verfuegbar: Klick uebernimmt den Vorschlag in das Ziel-Feld.
+- Bei Zieltyp `wikidata-autosuggest` wird der Wert als Such-Query vorbefuellt und die Suche direkt gestartet (ohne Auto-Selektion).
 
 Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.

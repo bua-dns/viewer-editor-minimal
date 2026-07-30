@@ -19,7 +19,7 @@
 
 - Das Feld `scan` ist fuer die Bildvorschau reserviert.
 - Fuer die automatische Vorschau sollte `scan` auf eine direkt ladbare Bild-URL zeigen (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
-- Alle uebrigen Felder koennen ueber die Konfiguration als `normal`, `text`, `integer`, `checkbox` oder `wikidata-autosuggest` typisiert werden.
+- Alle uebrigen Felder koennen ueber die Konfiguration als `normal`, `text`, `integer`, `checkbox`, `candidate` oder `wikidata-autosuggest` typisiert werden.
 - Das globale Config-Feld `itemLabelField` kann auf einen vorhandenen Feldschluessel zeigen und steuert dann die Item-Beschriftung in Karten-/Listenansicht.
 
 ## Konfiguration (JSON)
@@ -29,6 +29,12 @@
 - Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`, `hint`.
 - Fuer Nicht-`wikidata-autosuggest`-Felder ist zusaetzlich `readOnly` (Boolean) erlaubt.
 - Fuer `wikidata-autosuggest` ist `readOnly` nicht erlaubt; stattdessen ist optional `autosuggest` als pass-through Objekt vorgesehen.
+- Fuer `candidate` ist zusaetzlich ein Objekt `candidate` erforderlich:
+  - `candidate.targetField` (Pflicht, String): muss auf ein vorhandenes Feld zeigen, darf nicht auf sich selbst und nicht auf ein weiteres `candidate`-Feld zeigen.
+  - erlaubte Zieltypen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+  - `candidate.inputType` (optional): `normal` (Default) oder `text`.
+  - der Candidate-Wert selbst bleibt ein String-Feld und wird beim Uebernehmen in den Zieltyp normalisiert.
+  - bei Zieltyp `wikidata-autosuggest` wird der Wert als Such-Query vorbefuellt und die Suche sofort gestartet (ohne Auto-Selektion).
 - Optional kann `config.itemLabelField` gesetzt werden (String, muss ein vorhandener Schluessel in `config.fields` sein).
 - Fuer `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
   - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeintraege bleiben kompatibel)

@@ -12,6 +12,7 @@ Kernfunktionen:
 - Volltextsuche ueber alle Feldwerte
 - Auswahl und Bearbeitung einfacher Feldtypen (`string`, `number`, `boolean`, `null`)
 - Strukturierter Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell
+- Strukturierter Feldtyp `candidate` fuer Vorschlagswerte mit konfigurierbarer Ziel-Feld-Uebernahme
 - Konfigurierbare Priorisierung fuer `wikidata-autosuggest` (`claimPresence`, `claimValueMatch`)
 - Automatischer Listenmodus ohne Bildkacheln, wenn keine `scan`-Spalte vorhanden ist
 - Konfigurierbares Label-Feld fuer Item-Titel in Karten- und Listenansicht
@@ -126,7 +127,7 @@ Im UI gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload
 
 Pro erkanntem Feld (ohne reservierte Felder wie `scan` und `suspendEditing`) kann gesetzt werden:
 
-- `type`: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`
+- `type`: `normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`
 - `label`: alternative Feldbeschriftung
 - `placeholder`: Platzhaltertext im Eingabefeld
 - `hint`: zusaetzlicher Hinweistext unter dem Eingabefeld (Ausfuellhinweis)
@@ -145,6 +146,16 @@ Fuer `wikidata-autosuggest` zusaetzlich:
   - `claimPresence.defs` als Repeater mit `{ propertyId, propertyLabel }` (Legacy-String-Defs bleiben lesbar)
   - `claimValueMatch.defs` als Repeater mit `{ property, value, label }`
 - Unknown Nested Keys bleiben erhalten, sofern sie nicht durch GUI-Control-Felder explizit geaendert werden
+
+Fuer `candidate` zusaetzlich:
+
+- `candidate.targetField` (Pflicht): Dropdown auf vorhandene Felder ausser sich selbst und ausser `candidate`
+- `candidate.inputType`: `normal` (einzeilig, Default) oder `text` (mehrzeilig)
+- Candidate-Validierung blockiert `Konfiguration anwenden`, falls mindestens ein Candidate-Feld kein gueltiges Ziel hat
+- In der Sidebar rendert `candidate` ein Inline-Editor+Button-Layout
+- Der Uebernahme-Button ist nur aktiv, wenn ein gueltiges Ziel gesetzt ist und der Candidate-Wert nicht leer/whitespace ist
+- Uebernahme behaelt den Candidate-Wert im Candidate-Feld unveraendert
+- Zieltyp `wikidata-autosuggest`: Candidate-Wert wird als Prefill gesetzt und die Suche per Force-Token unmittelbar gestartet (ohne Auto-Selektion)
 
 Zusaetzlich:
 
@@ -334,12 +345,13 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 - `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
 - `suspendEditing` wird in der Sidebar nicht als normales Datenfeld gerendert, sondern als separate Checkbox oberhalb der Feldliste.
 - Optional (nur bei `dataInspectionMode=true`) rendert `ItemFieldEditor.vue` am Ende der Feldliste eine JSON-Preview des aktuell selektierten Rohobjekts sowie einen Copy-Button fuer die Zwischenablage.
-- `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`).
+- `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`).
 - Jeder Feldtyp implementiert denselben Contract:
   - `createEditorBinding(...)` fuer UI-Bindings (`component`, Props, Event, Event-Value-Mapping)
   - `createDefaultValue()` fuer neu hinzugefuegte Felder
   - `normalizeValueForConfigApply(...)` fuer Konfigurations-Anwendung auf bestehende Daten
 - Der Feldtyp `wikidata-autosuggest` rendert ueber `ViewerWikidataField.vue` und speichert immer ein Array von Entity-Objekten mit stabiler `id`.
+- Der Feldtyp `candidate` rendert je nach `candidate.inputType` als `input` oder `textarea`; die Uebernahme ins Ziel-Feld laeuft ueber denselben `updateField(...)`-Pfad wie manuelle Edits (inkl. Zieltyp-Normalisierung).
 - Der Wrapper reicht `field.autosuggest` unveraendert an `WikidataAutosuggestInput.vue` weiter; die Viewer-Core-Logik interpretiert keine autosuggest-spezifischen Schluessel.
 - Die Priorisierung wird in `useWikidataSearch.js` ausgefuehrt: Ergebnisse werden nach `score` sortiert (Tie-Break: originale Wikidata-Reihenfolge).
 - Bei aktivierten Flags koennen selektierte Entities zusaetzlich `ranking` und gefilterte `prioritizationValues` enthalten.
@@ -486,6 +498,17 @@ Tests in `src/composables/userConfigValidation.test.js` pruefen:
 - gueltige JSON-Config-Payloads
 - fehlendes/ungueltiges `fields`-Objekt
 - nicht unterstuetzte Feldtypen
+- Candidate-Regeln (`candidate.targetField` Pflicht, keine Targets auf Candidate-Felder, `candidate.inputType` nur `normal|text`)
+
+Tests in `src/stores/useUserConfigStore.test.js` pruefen:
+
+- Initialisierung minimaler Candidate-Konfiguration beim Typwechsel
+- Validierung/Aktualisierung von Candidate-Target und `inputType`
+- Abwehr ungueltiger Targets (insb. Target auf Candidate-Feld)
+
+Tests in `src/composables/useFieldMapping.test.js` pruefen:
+
+- Candidate-gesteuertes Prefill/Force-Search fuer `wikidata-autosuggest` Bindings
 
 Tests in `src/composables/useWikidataSearch.test.js` pruefen:
 
