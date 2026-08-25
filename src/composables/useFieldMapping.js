@@ -3,6 +3,7 @@ import { createFieldEditorBinding } from '../fields/fieldRegistry'
 
 export function useFieldMapping() {
   const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
+  const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
 
   function getFieldConfig(key) {
     const fieldConfig = appliedUserConfigFields.value[key]
@@ -31,6 +32,12 @@ export function useFieldMapping() {
 
   function getFieldHint(key) {
     return appliedUserConfigFields.value[key]?.hint || ''
+  }
+
+  function getFieldWidth(key) {
+    const configured = String(appliedUserConfigFields.value[key]?.fieldWidth || '').trim()
+    if (ALLOWED_FIELD_WIDTHS.has(configured)) return configured
+    return '100%'
   }
 
   function isFieldReadOnly(key) {
@@ -97,6 +104,7 @@ export function useFieldMapping() {
     getFieldLabel,
     getFieldPlaceholder,
     getFieldHint,
+    getFieldWidth,
     getFieldConfig,
     isFieldReadOnly,
     getFieldEditorBinding,

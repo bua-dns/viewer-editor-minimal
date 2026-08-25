@@ -350,6 +350,12 @@ const hasScanField = computed(() =>
   rawItems.value.some((item) => Object.prototype.hasOwnProperty.call(item || {}, 'scan')),
 )
 
+const isSidebarSuspendEditingChecked = computed(() => {
+  const selectedIndex = selectedViewItem.value?._index
+  if (!Number.isInteger(selectedIndex)) return false
+  return suspendedItemIndices.value.includes(selectedIndex)
+})
+
 function initializeUserConfigForCurrentData() {
   if (hasData.value) {
     initializeUserConfig(availableFieldKeys.value, true)
@@ -506,6 +512,12 @@ function onSuspendEditingToggle({ uid, checked }) {
   if (nextUid) {
     selectItem(nextUid)
   }
+}
+
+function onSidebarSuspendEditingChange(event) {
+  const uid = selectedViewItem.value?._uid
+  if (!uid) return
+  onSuspendEditingToggle({ uid, checked: event.target.checked })
 }
 
 async function onApplyUserConfig() {
@@ -1120,10 +1132,22 @@ watch(
                 :title="t('sidebarCollapseLabel', 'Standardbreite')">
                 <img :src="minimizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
               </button>
-              <button type="button" class="sidebar-close" @click="onSidebarClose"
-                :aria-label="t('sidebarCloseAria', 'Sidebar schliessen')">
-                ×
-              </button>
+              <div class="sidebar-head-actions">
+                <label class="sidebar-suspend-toggle" for="sidebar-suspend-editing">
+                  <span>{{ t('suspendEditingLabel', 'Bearbeitung aussetzen') }}</span>
+                  <input
+                    :key="selectedViewItem?._uid || 'sidebar-suspend-editing'"
+                    id="sidebar-suspend-editing"
+                    type="checkbox"
+                    :checked="isSidebarSuspendEditingChecked"
+                    @change="onSidebarSuspendEditingChange"
+                  />
+                </label>
+                <button type="button" class="sidebar-close" @click="onSidebarClose"
+                  :aria-label="t('sidebarCloseAria', 'Sidebar schliessen')">
+                  ×
+                </button>
+              </div>
             </div>
             <div class="sidebar-content">
               <div class="sidebar-detail-grid" :class="{ 'sidebar-detail-grid-no-scan': !hasScanField }">
@@ -1135,11 +1159,15 @@ watch(
                     <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
                   </div>
                   <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+                  <ItemFieldEditor class="sidebar-checkbox-fields" :selected-raw-item="selectedRawItem"
+                    :selected-view-item="selectedViewItem" :include-configured-types="['checkbox']"
+                    :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
+                    @accept-candidate="onAcceptCandidate" />
                   <ReplacementsUnit/>
                 </div>
 
                 <ItemFieldEditor :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
-                  :suspended-item-indices="suspendedItemIndices"
+                  :exclude-configured-types="hasScanField ? ['checkbox'] : []"
                   :show-raw-data-dev-preview="dataInspectionMode"
                   :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
                   :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
@@ -1147,9 +1175,8 @@ watch(
                   :candidate-apply-to-label="t('candidateApplyToLabel', 'Uebernehmen in')"
                   :candidate-choose-target-label="t('candidateChooseTargetLabel', 'Bitte Ziel-Feld in Konfiguration waehlen')"
                   :candidate-autosuggest-prefills="candidateAutosuggestPrefills"
-                  :suspend-editing-label="t('suspendEditingLabel', 'Bearbeitung aussetzen')"
                   :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
-                  @toggle-suspend-editing="onSuspendEditingToggle" @accept-candidate="onAcceptCandidate" />
+                  @accept-candidate="onAcceptCandidate" />
               </div>
             </div>
           </aside>

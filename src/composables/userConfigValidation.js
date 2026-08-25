@@ -12,6 +12,10 @@ function isAllowedCandidateTargetType(type) {
   return type === 'normal' || type === 'text' || type === 'integer' || type === 'checkbox' || type === 'wikidata-autosuggest'
 }
 
+function isAllowedFieldWidth(value) {
+  return value === '33%' || value === '50%' || value === '100%'
+}
+
 export function validateImportedConfigPayload(configPayload) {
   if (!isPlainObject(configPayload)) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config muss ein Objekt sein.' }
@@ -78,6 +82,18 @@ export function validateImportedConfigPayload(configPayload) {
 
     if (fieldConfig.hint != null && typeof fieldConfig.hint !== 'string') {
       return { ok: false, error: `JSON-Config ist ungueltig: hint bei ${key} muss ein String sein.` }
+    }
+
+    if (fieldConfig.fieldWidth != null) {
+      if (typeof fieldConfig.fieldWidth !== 'string') {
+        return { ok: false, error: `JSON-Config ist ungueltig: fieldWidth bei ${key} muss ein String sein.` }
+      }
+      if (!isAllowedFieldWidth(fieldConfig.fieldWidth.trim())) {
+        return {
+          ok: false,
+          error: `JSON-Config ist ungueltig: fieldWidth bei ${key} muss 33%, 50% oder 100% sein.`,
+        }
+      }
     }
 
     if (fieldConfig.readOnly != null && typeof fieldConfig.readOnly !== 'boolean') {

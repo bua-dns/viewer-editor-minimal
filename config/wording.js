@@ -516,9 +516,25 @@ const wording = {
     de: "Beschriftung",
     en: "Label",
   },
+  configFieldWidthHeader: {
+    de: "Feldbreite",
+    en: "Field width",
+  },
   configPlaceholderHeader: {
     de: "Eingabehinweis",
     en: "Input hint",
+  },
+  configFieldWidth33: {
+    de: "33% (3 pro Zeile)",
+    en: "33% (3 per row)",
+  },
+  configFieldWidth50: {
+    de: "50% (2 pro Zeile)",
+    en: "50% (2 per row)",
+  },
+  configFieldWidth100: {
+    de: "100% (1 pro Zeile)",
+    en: "100% (1 per row)",
   },
   configTypeNormal: {
     de: "normal (string)",

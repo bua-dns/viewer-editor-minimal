@@ -8,6 +8,7 @@ import {
 
 const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
+const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
 
 const userConfigFields = ref({})
 const appliedUserConfigFields = ref({})
@@ -94,6 +95,12 @@ function normalizeStringArray(values) {
 function normalizeStringArrayUnique(values) {
   const normalized = normalizeStringArray(values)
   return normalized.filter((value, index, list) => list.indexOf(value) === index)
+}
+
+function normalizeFieldWidth(value) {
+  const normalized = String(value || '').trim()
+  if (ALLOWED_FIELD_WIDTHS.has(normalized)) return normalized
+  return '100%'
 }
 
 function resolveHierarchyFieldsFromConfig(configPayload) {
@@ -184,6 +191,7 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
 
   return {
     type,
+    fieldWidth: normalizeFieldWidth(source.fieldWidth),
     label: source.label || '',
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',

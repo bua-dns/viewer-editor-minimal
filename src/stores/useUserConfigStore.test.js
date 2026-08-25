@@ -242,10 +242,19 @@ describe('useUserConfigStore autosuggest gui config', () => {
     const store = useUserConfigStore()
     store.initializeUserConfig(['species'], true)
     store.userConfigFields.value.species.hint = 'Use latin species name'
+    store.userConfigFields.value.species.fieldWidth = '50%'
 
     const payload = store.createUserConfigPayload()
 
     expect(payload.fields.species.hint).toBe('Use latin species name')
+    expect(payload.fields.species.fieldWidth).toBe('50%')
+  })
+
+  test('initializes fieldWidth with 100% by default', () => {
+    const store = useUserConfigStore()
+    store.initializeUserConfig(['species'], true)
+
+    expect(store.userConfigFields.value.species.fieldWidth).toBe('100%')
   })
 
   test('does not include suspendEditing in config fields on initialize', () => {

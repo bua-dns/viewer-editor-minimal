@@ -1,0 +1,862 @@
+{
+  "appTitle": {
+    "de": "Viewer-Editor für Findmittel",
+    "en": "Viewer Editor for Finding Aids"
+  },
+  "itemsLabel": {
+    "de": "Items",
+    "en": "Items"
+  },
+  "downloadWithTimestamp": {
+    "de": "Dateiname mit Timestamp",
+    "en": "Filename with timestamp"
+  },
+  "uploadJson": {
+    "de": "JSON hochladen",
+    "en": "Upload JSON"
+  },
+  "uploadCsv": {
+    "de": "CSV hochladen",
+    "en": "Upload CSV"
+  },
+  "useSampleData": {
+    "de": "Mit Beispieldaten arbeiten",
+    "en": "Use sample data"
+  },
+  "downloadJson": {
+    "de": "JSON herunterladen",
+    "en": "Download JSON"
+  },
+  "startFromScratch": {
+    "de": "Neu beginnen",
+    "en": "Start from scratch"
+  },
+  "startFromScratchScanPrompt": {
+    "de": "Scan-URL für neuen Datensatz eingeben (http/https):",
+    "en": "Enter scan URL for a new dataset (http/https):"
+  },
+  "startFromScratchScanInvalid": {
+    "de": "Ungültige URL. Bitte eine absolute http/https-URL eingeben.",
+    "en": "Invalid URL. Please enter an absolute http/https URL."
+  },
+  "startFromScratchDialogTitle": {
+    "de": "Neu beginnen",
+    "en": "Start from scratch"
+  },
+  "startFromScratchSingleMode": {
+    "de": "Einzelne URL",
+    "en": "Single URL"
+  },
+  "startFromScratchCsvMode": {
+    "de": "URL-Liste (CSV)",
+    "en": "URL list (CSV)"
+  },
+  "startFromScratchSingleLabel": {
+    "de": "Scan-URL",
+    "en": "Scan URL"
+  },
+  "startFromScratchCsvLabel": {
+    "de": "CSV-Inhalt",
+    "en": "CSV content"
+  },
+  "startFromScratchCsvPlaceholder": {
+    "de": "scan\nhttps://example.org/1.jpg\nhttps://example.org/2.jpg",
+    "en": "scan\nhttps://example.org/1.jpg\nhttps://example.org/2.jpg"
+  },
+  "startFromScratchCsvHint": {
+    "de": "CSV mit Spalte 'scan' oder nur einer URL pro Zeile.",
+    "en": "CSV with 'scan' column or one URL per line."
+  },
+  "startFromScratchCsvUploadFile": {
+    "de": "CSV-Datei hochladen",
+    "en": "Upload CSV file"
+  },
+  "startFromScratchCsvFileReadError": {
+    "de": "CSV-Datei konnte nicht gelesen werden.",
+    "en": "Could not read CSV file."
+  },
+  "startFromScratchCreate": {
+    "de": "Erstellen",
+    "en": "Create"
+  },
+  "cancel": {
+    "de": "Abbrechen",
+    "en": "Cancel"
+  },
+  "startFromScratchCsvEmpty": {
+    "de": "CSV ist leer.",
+    "en": "CSV is empty."
+  },
+  "startFromScratchNoUrls": {
+    "de": "Keine URLs im CSV gefunden.",
+    "en": "No URLs found in CSV."
+  },
+  "startFromScratchScanInvalidRow": {
+    "de": "Ungültige URL in Zeile",
+    "en": "Invalid URL in row"
+  },
+  "downloadCsv": {
+    "de": "CSV herunterladen",
+    "en": "Download CSV"
+  },
+  "dataModeJson": {
+    "de": "JSON",
+    "en": "JSON"
+  },
+  "dataModeCsv": {
+    "de": "CSV",
+    "en": "CSV"
+  },
+  "dataModeAria": {
+    "de": "Datenmodus wählen",
+    "en": "Choose data mode"
+  },
+  "appModeAria": {
+    "de": "Anwendungsmodus",
+    "en": "Application mode"
+  },
+  "appModeOffline": {
+    "de": "Offline",
+    "en": "Offline"
+  },
+  "appModeOnline": {
+    "de": "Online",
+    "en": "Online"
+  },
+  "appModeOfflineNote": {
+    "de": "Offline-Modus aktiv. Lokaler JSON/CSV-Workflow ist verfügbar.",
+    "en": "Offline mode active. Local JSON/CSV workflow is enabled."
+  },
+  "transferDisabledInOnlineMode": {
+    "de": "Online-Modus aktiv: JSON/CSV Upload und Download sind deaktiviert.",
+    "en": "Online mode active: JSON/CSV upload and download are disabled."
+  },
+  "appTabsAria": {
+    "de": "App-Bereiche",
+    "en": "App sections"
+  },
+  "tabEdit": {
+    "de": "Editieren",
+    "en": "Edit"
+  },
+  "tabInfo": {
+    "de": "Info",
+    "en": "Info"
+  },
+  "tabConfig": {
+    "de": "Konfiguration",
+    "en": "Configuration"
+  },
+  "tabReplacements": {
+    "de": "Ersetzungen",
+    "en": "Replacements"
+  },
+  "tabDatabaseConnection": {
+    "de": "Datenbankverbindung",
+    "en": "Database Connection"
+  },
+  "authStateAuthenticating": {
+    "de": "Authentifizierung läuft...",
+    "en": "Authenticating..."
+  },
+  "authStateRestoring": {
+    "de": "Sitzung wird wiederhergestellt...",
+    "en": "Restoring session..."
+  },
+  "authStateAuthenticated": {
+    "de": "Authentifiziert",
+    "en": "Authenticated"
+  },
+  "authStateError": {
+    "de": "Authentifizierungsfehler",
+    "en": "Authentication error"
+  },
+  "authStateAnonymous": {
+    "de": "Nicht angemeldet",
+    "en": "Not authenticated"
+  },
+  "authUserFallback": {
+    "de": "Nutzer",
+    "en": "User"
+  },
+  "authIdentifier": {
+    "de": "Identifier (E-Mail oder Username)",
+    "en": "Identifier (email or username)"
+  },
+  "authPassword": {
+    "de": "Passwort",
+    "en": "Password"
+  },
+  "authShowPassword": {
+    "de": "Anzeigen",
+    "en": "Show"
+  },
+  "authHidePassword": {
+    "de": "Ausblenden",
+    "en": "Hide"
+  },
+  "authLogin": {
+    "de": "Anmelden",
+    "en": "Login"
+  },
+  "authLoginPending": {
+    "de": "Anmeldung läuft...",
+    "en": "Logging in..."
+  },
+  "authLoginFailed": {
+    "de": "Anmeldung fehlgeschlagen.",
+    "en": "Login failed."
+  },
+  "authLogout": {
+    "de": "Abmelden",
+    "en": "Logout"
+  },
+  "dbConnectionRequired": {
+    "de": "Für den Online-Modus wird ein gespeichertes Verbindungsprofil benötigt.",
+    "en": "A saved connection profile is required for online mode."
+  },
+  "dbConnectionOpenTab": {
+    "de": "Tab Datenbankverbindung öffnen",
+    "en": "Open Database Connection tab"
+  },
+  "onlineSettingsLoaded": {
+    "de": "Online-Konfiguration aus response.data.settings geladen.",
+    "en": "Online settings loaded from response.data.settings."
+  },
+  "onlineSettingsLoading": {
+    "de": "Online-Konfiguration wird geladen...",
+    "en": "Loading online settings..."
+  },
+  "onlineSettingsFailed": {
+    "de": "Online-Konfiguration konnte nicht geladen werden.",
+    "en": "Could not load online settings."
+  },
+  "onlineItemsLoadedPrefix": {
+    "de": "Online-Items geladen",
+    "en": "Online items loaded"
+  },
+  "onlineItemsLoading": {
+    "de": "Online-Items werden geladen...",
+    "en": "Loading online items..."
+  },
+  "onlineItemsFailed": {
+    "de": "Online-Items konnten nicht geladen werden.",
+    "en": "Could not load online items."
+  },
+  "onlineConfigOnlyToggle": {
+    "de": "Nur Konfiguration laden (keine Items)",
+    "en": "Configuration only (do not load items)"
+  },
+  "onlineSaveButton": {
+    "de": "Änderungen speichern",
+    "en": "Save changes"
+  },
+  "onlineSavePending": {
+    "de": "Speichert...",
+    "en": "Saving..."
+  },
+  "onlineSaveSuccess": {
+    "de": "Gespeichert",
+    "en": "Saved"
+  },
+  "onlineSaveSuccessMessage": {
+    "de": "Online-Änderungen gespeichert.",
+    "en": "Online changes saved."
+  },
+  "onlineSaveFailed": {
+    "de": "Online-Änderungen konnten nicht gespeichert werden.",
+    "en": "Could not save online changes."
+  },
+  "onlineSaveRetry": {
+    "de": "Speichern erneut versuchen",
+    "en": "Retry save"
+  },
+  "onlineUnsavedChangesCount": {
+    "de": "Ungespeicherte Online-Änderungen in Items:",
+    "en": "Unsaved online changes in items:"
+  },
+  "onlineCreateItem": {
+    "de": "Neues Item",
+    "en": "New item"
+  },
+  "onlineNewItemFallback": {
+    "de": "Neues Objekt",
+    "en": "New item"
+  },
+  "uploadModeMismatchError": {
+    "de": "Dateityp passt nicht zum gewählten Modus.",
+    "en": "File type does not match selected mode."
+  },
+  "sampleDataLoadError": {
+    "de": "Beispieldaten konnten nicht geladen werden.",
+    "en": "Could not load sample data."
+  },
+  "csvNotImplementedError": {
+    "de": "CSV-Import folgt im nächsten Schritt.",
+    "en": "CSV import will be implemented in the next step."
+  },
+  "reset": {
+    "de": "Reset",
+    "en": "Reset"
+  },
+  "languageSwitchAria": {
+    "de": "Sprache wählen",
+    "en": "Choose language"
+  },
+  "languageButtonDe": {
+    "de": "DE",
+    "en": "DE"
+  },
+  "languageButtonEn": {
+    "de": "EN",
+    "en": "EN"
+  },
+  "noFileLoaded": {
+    "de": "Noch keine Datei geladen",
+    "en": "No file loaded yet"
+  },
+  "noDataLoaded": {
+    "de": "Noch keine Daten geladen",
+    "en": "No data loaded yet"
+  },
+  "searchLabel": {
+    "de": "Suche",
+    "en": "Search"
+  },
+  "searchPlaceholder": {
+    "de": "Volltext über alle Felder",
+    "en": "Full text across all fields"
+  },
+  "unsavedChanges": {
+    "de": "Ungespeicherte Änderungen",
+    "en": "Unsaved changes"
+  },
+  "configurationTitle": {
+    "de": "Konfiguration",
+    "en": "Configuration"
+  },
+  "replacementsTitle": {
+    "de": "Ersetzungen",
+    "en": "Replacements"
+  },
+  "dbConnectionTitle": {
+    "de": "Datenbankverbindung",
+    "en": "Database Connection"
+  },
+  "dbConnectionDescription": {
+    "de": "Strapi-Backend-Verbindung zur Laufzeit konfigurieren, ohne feste Endpunkte im Code.",
+    "en": "Configure Strapi backend connection at runtime without hardcoded endpoints."
+  },
+  "dbConnectionLabelField": {
+    "de": "Profilname (optional)",
+    "en": "Profile label (optional)"
+  },
+  "dbConnectionLabelPlaceholder": {
+    "de": "Meine Strapi Instanz",
+    "en": "My Strapi Instance"
+  },
+  "dbConnectionBaseUrlField": {
+    "de": "Base URL (Strapi)",
+    "en": "Base URL (Strapi)"
+  },
+  "dbConnectionConfigPathField": {
+    "de": "Pfad zum Konfig-Endpunkt",
+    "en": "Config endpoint path"
+  },
+  "dbConnectionSave": {
+    "de": "Profil speichern",
+    "en": "Save profile"
+  },
+  "dbConnectionTest": {
+    "de": "Verbindung testen",
+    "en": "Test connection"
+  },
+  "dbConnectionTesting": {
+    "de": "Prüfe...",
+    "en": "Testing..."
+  },
+  "dbConnectionCheckModel": {
+    "de": "Datenmodell-Implementierung prüfen",
+    "en": "Check data model implementation"
+  },
+  "dbConnectionCheckingModel": {
+    "de": "Prüfe Datenmodell...",
+    "en": "Checking model..."
+  },
+  "dbConnectionCheckModelSuccess": {
+    "de": "Datenmodell-Prüfung abgeschlossen.",
+    "en": "Data model check finished."
+  },
+  "dbConnectionCheckModelFailed": {
+    "de": "Datenmodell-Prüfung fehlgeschlagen.",
+    "en": "Data model check failed."
+  },
+  "dbConnectionDownload": {
+    "de": "Profil als JSON herunterladen",
+    "en": "Download profile JSON"
+  },
+  "dbConnectionUpload": {
+    "de": "Profil-JSON importieren",
+    "en": "Import profile JSON"
+  },
+  "dbConnectionResetFormButton": {
+    "de": "Formular zurücksetzen",
+    "en": "Reset form"
+  },
+  "dbConnectionClearSaved": {
+    "de": "Gespeichertes Profil löschen",
+    "en": "Clear saved profile"
+  },
+  "dbConnectionSaveSuccess": {
+    "de": "Verbindungsprofil gespeichert.",
+    "en": "Connection profile saved."
+  },
+  "dbConnectionSaveFailed": {
+    "de": "Verbindungsprofil konnte nicht gespeichert werden.",
+    "en": "Connection profile could not be saved."
+  },
+  "dbConnectionResetForm": {
+    "de": "Formular auf gespeichertes Profil zurückgesetzt.",
+    "en": "Form reset to saved profile."
+  },
+  "dbConnectionCleared": {
+    "de": "Gespeichertes Verbindungsprofil entfernt.",
+    "en": "Saved connection profile removed."
+  },
+  "dbConnectionNoSavedProfile": {
+    "de": "Kein gespeichertes Profil vorhanden.",
+    "en": "No saved profile available."
+  },
+  "dbConnectionDownloadSuccess": {
+    "de": "Verbindungsprofil heruntergeladen.",
+    "en": "Connection profile downloaded."
+  },
+  "dbConnectionImportSuccess": {
+    "de": "Verbindungsprofil importiert.",
+    "en": "Connection profile imported."
+  },
+  "dbConnectionImportFailed": {
+    "de": "Import des Verbindungsprofils fehlgeschlagen.",
+    "en": "Connection profile import failed."
+  },
+  "dbConnectionTestSuccess": {
+    "de": "Verbindungstest erfolgreich.",
+    "en": "Connection test successful."
+  },
+  "dbConnectionTestFailed": {
+    "de": "Verbindungstest fehlgeschlagen.",
+    "en": "Connection test failed."
+  },
+  "dbConnectionLastSaved": {
+    "de": "Zuletzt gespeichert",
+    "en": "Last saved"
+  },
+  "field_label": {
+    "de": "Feld",
+    "en": "Field"
+  },
+  "allFields": {
+    "de": "alle Felder",
+    "en": "all fields"
+  },
+  "replace_string": {
+    "de": "Ersetze",
+    "en": "Replace"
+  },
+  "replace_with": {
+    "de": "mit",
+    "en": "with"
+  },
+  "add_to_replacements_list": {
+    "de": "zur Ersetzungsliste hinzufügen",
+    "en": "add to replacements list"
+  },
+  "applyConfiguration": {
+    "de": "Konfiguration anwenden",
+    "en": "Apply configuration"
+  },
+  "downloadConfiguration": {
+    "de": "Konfiguration herunterladen",
+    "en": "Download configuration"
+  },
+  "addConfigurationField": {
+    "de": "Feld hinzufügen",
+    "en": "Add field"
+  },
+  "addFieldNamePlaceholder": {
+    "de": "Feldname (z. B. bemerkung)",
+    "en": "Field name (e.g. note)"
+  },
+  "addFieldButton": {
+    "de": "Hinzufügen",
+    "en": "Add"
+  },
+  "removeFieldButton": {
+    "de": "Feld entfernen",
+    "en": "Remove field"
+  },
+  "addFieldDuplicateError": {
+    "de": "Feld existiert bereits.",
+    "en": "Field already exists."
+  },
+  "addFieldEmptyError": {
+    "de": "Bitte einen gültigen Feldnamen eingeben.",
+    "en": "Please enter a valid field name."
+  },
+  "configFieldHeader": {
+    "de": "Feld",
+    "en": "Field"
+  },
+  "configTypeHeader": {
+    "de": "Typ",
+    "en": "Type"
+  },
+  "configLabelHeader": {
+    "de": "Beschriftung",
+    "en": "Label"
+  },
+  "configFieldWidthHeader": {
+    "de": "Feldbreite",
+    "en": "Field width"
+  },
+  "configPlaceholderHeader": {
+    "de": "Eingabehinweis",
+    "en": "Input hint"
+  },
+  "configFieldWidth33": {
+    "de": "33% (3 pro Zeile)",
+    "en": "33% (3 per row)"
+  },
+  "configFieldWidth50": {
+    "de": "50% (2 pro Zeile)",
+    "en": "50% (2 per row)"
+  },
+  "configFieldWidth100": {
+    "de": "100% (1 pro Zeile)",
+    "en": "100% (1 per row)"
+  },
+  "configTypeNormal": {
+    "de": "normal (string)",
+    "en": "normal (string)"
+  },
+  "configTypeText": {
+    "de": "Textfeld (text)",
+    "en": "Text area (text)"
+  },
+  "configTypeInteger": {
+    "de": "Zahl (integer)",
+    "en": "Number (integer)"
+  },
+  "configTypeCheckbox": {
+    "de": "Ja/Nein (checkbox)",
+    "en": "Yes/No (checkbox)"
+  },
+  "configTypeCandidate": {
+    "de": "Kandidat (Vorschlag)",
+    "en": "Candidate (proposal)"
+  },
+  "configTypeWikidataAutosuggest": {
+    "de": "Wikidata Autosuggest",
+    "en": "Wikidata autosuggest"
+  },
+  "candidateTargetFieldLabel": {
+    "de": "Ziel-Feld",
+    "en": "Target field"
+  },
+  "candidateTargetFieldPlaceholder": {
+    "de": "Bitte auswaehlen",
+    "en": "Please select"
+  },
+  "candidateInputTypeLabel": {
+    "de": "Eingabe-Modus",
+    "en": "Input mode"
+  },
+  "candidateInputTypeNormal": {
+    "de": "Einzeilig (normal)",
+    "en": "Single-line (normal)"
+  },
+  "candidateInputTypeText": {
+    "de": "Mehrzeilig (text)",
+    "en": "Multiline (text)"
+  },
+  "candidateApplyToLabel": {
+    "de": "Übernehmen in",
+    "en": "Apply to"
+  },
+  "candidateChooseTargetLabel": {
+    "de": "Bitte Ziel-Feld in Konfiguration waehlen",
+    "en": "Select target field in configuration"
+  },
+  "candidateTargetFieldError": {
+    "de": "Mindestens ein Kandidat-Feld hat kein gueltiges Ziel-Feld (kein candidate).",
+    "en": "At least one candidate field has no valid target field (non-candidate)."
+  },
+  "configLabelInputPlaceholder": {
+    "de": "Label",
+    "en": "Label"
+  },
+  "configHintInputPlaceholder": {
+    "de": "Hinweis",
+    "en": "Hint"
+  },
+  "itemListLabelFieldLabel": {
+    "de": "Liste: Label-Feld",
+    "en": "List: label field"
+  },
+  "itemListLabelFieldDefault": {
+    "de": "Standard (Nummer / inventory_number)",
+    "en": "Default (number / inventory_number)"
+  },
+  "markAsEditedBasisLabel": {
+    "de": "Liste: Mark-as-edited Basis",
+    "en": "List: mark-as-edited basis"
+  },
+  "markAsEditedBasisDefault": {
+    "de": "Keine Sortierung nach Bearbeitungsstand",
+    "en": "No edited-state sorting"
+  },
+  "suspendEditingLabel": {
+    "de": "Bearbeitung aussetzen",
+    "en": "Suspend editing"
+  },
+  "showOnlyNonEmptyFieldsLabel": {
+    "de": "Sidebar: Nur nicht-leere Felder anzeigen",
+    "en": "Sidebar: show non-empty fields only"
+  },
+  "showOnlyNonEmptyFieldsToggle": {
+    "de": "Aktivieren",
+    "en": "Enable"
+  },
+  "autosuggestConfigTitle": {
+    "de": "Autosuggest Optionen",
+    "en": "Autosuggest options"
+  },
+  "autosuggestSearchLanguages": {
+    "de": "Suchsprachen",
+    "en": "Search languages"
+  },
+  "autosuggestSearchLanguagesPlaceholder": {
+    "de": "de, en",
+    "en": "de, en"
+  },
+  "autosuggestResultLanguage": {
+    "de": "Ergebnis-Sprache",
+    "en": "Result language"
+  },
+  "autosuggestResultLanguagePlaceholder": {
+    "de": "de",
+    "en": "de"
+  },
+  "autosuggestMinChars": {
+    "de": "Minimale Zeichen",
+    "en": "Minimum characters"
+  },
+  "autosuggestLimit": {
+    "de": "Trefferlimit",
+    "en": "Result limit"
+  },
+  "autosuggestAlsoGetDataFrom": {
+    "de": "Statement-Daten zusätzlich laden aus",
+    "en": "Also get statement data from"
+  },
+  "autosuggestAlsoGetDataFromPlaceholder": {
+    "de": "P31",
+    "en": "P31"
+  },
+  "autosuggestClaimPresenceTitle": {
+    "de": "claimPresence",
+    "en": "claimPresence"
+  },
+  "autosuggestClaimValueMatchTitle": {
+    "de": "claimValueMatch",
+    "en": "claimValueMatch"
+  },
+  "autosuggestWeight": {
+    "de": "Gewicht",
+    "en": "Weight"
+  },
+  "autosuggestDefs": {
+    "de": "Definitionen",
+    "en": "Definitions"
+  },
+  "autosuggestClaimPresenceDefsPlaceholder": {
+    "de": "P7715, P227",
+    "en": "P7715, P227"
+  },
+  "autosuggestIncludeInEmitData": {
+    "de": "Metadaten in Auswahl speichern",
+    "en": "Include metadata in emitted selection"
+  },
+  "autosuggestShowInSuggestion": {
+    "de": "Metadaten in Vorschlägen anzeigen",
+    "en": "Show metadata in suggestions"
+  },
+  "autosuggestProperty": {
+    "de": "Property",
+    "en": "Property"
+  },
+  "autosuggestValue": {
+    "de": "Value",
+    "en": "Value"
+  },
+  "autosuggestPropertyPlaceholder": {
+    "de": "P31",
+    "en": "P31"
+  },
+  "autosuggestPropertyId": {
+    "de": "Property ID",
+    "en": "Property ID"
+  },
+  "autosuggestPropertyIdPlaceholder": {
+    "de": "P713",
+    "en": "P713"
+  },
+  "autosuggestPropertyLabel": {
+    "de": "Property Label",
+    "en": "Property label"
+  },
+  "autosuggestPropertyLabelPlaceholder": {
+    "de": "Strunz 10",
+    "en": "Strunz 10"
+  },
+  "autosuggestValuePlaceholder": {
+    "de": "Q5",
+    "en": "Q5"
+  },
+  "autosuggestLabel": {
+    "de": "Label",
+    "en": "Label"
+  },
+  "autosuggestLabelPlaceholder": {
+    "de": "Mensch",
+    "en": "Human"
+  },
+  "autosuggestAddDefinition": {
+    "de": "Definition hinzufügen",
+    "en": "Add definition"
+  },
+  "autosuggestOptions": {
+    "de": "Optionen",
+    "en": "Options"
+  },
+  "autosuggestShowOptions": {
+    "de": "Optionen anzeigen",
+    "en": "Show options"
+  },
+  "listEmptyAfterUpload": {
+    "de": "Nach dem Upload erscheinen hier die Einträge.",
+    "en": "Entries appear here after upload."
+  },
+  "noSearchResults": {
+    "de": "Keine Treffer zur Suchanfrage.",
+    "en": "No matches for this search."
+  },
+  "hierarchyUnassignedLabel": {
+    "de": "Ohne Zuordnung",
+    "en": "Unassigned"
+  },
+  "hierarchySelectLevel1Label": {
+    "de": "Bitte zuerst eine Kategorie der ersten Ebene auswaehlen.",
+    "en": "Please select a first-level category first."
+  },
+  "hierarchyCollapseAllLabel": {
+    "de": "Alle Unterkategorien einklappen",
+    "en": "Collapse all subcategories"
+  },
+  "hierarchyFieldsLabel": {
+    "de": "Hierarchie-Felder",
+    "en": "Hierarchy fields"
+  },
+  "hierarchyFieldPlaceholder": {
+    "de": "z. B. level_1",
+    "en": "e.g. level_1"
+  },
+  "hierarchyAddField": {
+    "de": "Hierarchie-Feld hinzufügen",
+    "en": "Add hierarchy field"
+  },
+  "hierarchyFirstLevelStaticListLabel": {
+    "de": "Hierarchie: Preset-Liste Ebene 1",
+    "en": "Hierarchy: level-1 preset list"
+  },
+  "hierarchyFirstLevelStaticListPlaceholder": {
+    "de": "001\n002\n003",
+    "en": "001\n002\n003"
+  },
+  "scanPreviewAlt": {
+    "de": "Scan-Vorschau",
+    "en": "Scan preview"
+  },
+  "scanUnavailable": {
+    "de": "Scan nicht verfügbar",
+    "en": "Scan unavailable"
+  },
+  "sidebarPreviousItemAria": {
+    "de": "Vorheriger Eintrag",
+    "en": "Previous entry"
+  },
+  "sidebarNextItemAria": {
+    "de": "Nächster Eintrag",
+    "en": "Next entry"
+  },
+  "sidebarScanCounterPrefix": {
+    "de": "Item",
+    "en": "Item"
+  },
+  "sidebarCloseAria": {
+    "de": "Sidebar schließen",
+    "en": "Close sidebar"
+  },
+  "sidebarExtendAria": {
+    "de": "Editierbereich auf volle Breite erweitern",
+    "en": "Expand edit area to full width"
+  },
+  "sidebarCollapseAria": {
+    "de": "Editierbereich auf Standardbreite reduzieren",
+    "en": "Collapse edit area to default width"
+  },
+  "sidebarExtendLabel": {
+    "de": "Volle Breite",
+    "en": "Full width"
+  },
+  "sidebarCollapseLabel": {
+    "de": "Standardbreite",
+    "en": "Default width"
+  },
+  "statusFilePrefix": {
+    "de": "Datei",
+    "en": "File"
+  },
+  "uploadPrompt": {
+    "de": "Bitte eine JSON-Datei hochladen.",
+    "en": "Please upload a JSON file."
+  },
+  "fullscreen": {
+    "de": "Vollbild",
+    "en": "Full screen"
+  },
+  "close": {
+    "de": "Schließen",
+    "en": "Close"
+  },
+  "lightboxImageAlt": {
+    "de": "Scan groß",
+    "en": "Large scan"
+  },
+  "resetConfirm": {
+    "de": "Änderungen verwerfen und auf Import zurücksetzen?",
+    "en": "Discard changes and reset to imported data?"
+  },
+  "footerIdentityCredit": {
+    "de": "Ein Tool von Digitales Netzwerk Sammlungen<br>Berlin University Alliance",
+    "en": "A tool by the Digital Network for Collections<br>Berlin University Alliance"
+  },
+  "footerGithubAria": {
+    "de": "GitHub-Repository",
+    "en": "GitHub repository"
+  },
+  "footerBucAria": {
+    "de": "Berlin University Collections",
+    "en": "Berlin University Collections"
+  }
+}

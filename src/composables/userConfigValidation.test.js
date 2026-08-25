@@ -10,6 +10,7 @@ describe('validateImportedConfigPayload', () => {
       fields: {
         species: {
           type: 'normal',
+          fieldWidth: '50%',
           readOnly: true,
           label: '',
           order: 0,
@@ -215,6 +216,19 @@ describe('validateImportedConfigPayload', () => {
     })
 
     expect(result.ok).toBe(true)
+  })
+
+  test('rejects invalid fieldWidth value', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        species: {
+          type: 'normal',
+          fieldWidth: '25%',
+        },
+      },
+    })
+
+    expect(result.ok).toBe(false)
   })
 
   test('accepts autosuggest alsoGetDataFrom as repeater entries with labels', () => {

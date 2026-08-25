@@ -46,6 +46,11 @@ const {
 const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
 const canRenderConfig = computed(() => props.hasData || props.allowWithoutData)
 const fieldTypeOptions = getRegisteredFieldTypeOptions()
+const fieldWidthOptions = [
+  { value: '33%', labelKey: 'configFieldWidth33', labelFallback: '33% (3 per row)' },
+  { value: '50%', labelKey: 'configFieldWidth50', labelFallback: '50% (2 per row)' },
+  { value: '100%', labelKey: 'configFieldWidth100', labelFallback: '100% (1 per row)' },
+]
 const itemLabelFieldOptions = computed(() => sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
 const prefillFieldOptionsByFieldKey = computed(() => {
   const normalFieldKeys = sortedConfigFieldEntries.value
@@ -271,6 +276,7 @@ function onRemoveHierarchyField(index) {
         <strong>{{ t('configFieldHeader', 'Feld') }}</strong>
         <strong>{{ t('configTypeHeader', 'Typ') }}</strong>
         <strong>{{ t('configLabelHeader', 'Beschriftung') }}</strong>
+        <strong>{{ t('configFieldWidthHeader', 'Feldbreite') }}</strong>
         <strong>{{ t('configPlaceholderHeader', 'Platzhalter') }}</strong>
         <strong>{{ t('configHintHeader', 'Hinweis') }}</strong>
         <strong>{{ t('configReadOnlyHeader', 'Nur Anzeige') }}</strong>
@@ -300,6 +306,11 @@ function onRemoveHierarchyField(index) {
           </option>
         </select>
         <input v-model="entry[1].label" type="text" :placeholder="t('configLabelInputPlaceholder', 'Label')" />
+        <select v-model="entry[1].fieldWidth">
+          <option v-for="option in fieldWidthOptions" :key="`field-width-${option.value}`" :value="option.value">
+            {{ t(option.labelKey, option.labelFallback) }}
+          </option>
+        </select>
         <input v-model="entry[1].placeholder" type="text" :placeholder="t('configPlaceholderInputPlaceholder', 'z. B. Titel eingeben')" />
         <input v-model="entry[1].hint" type="text" :placeholder="t('configHintInputPlaceholder', 'z. B. Vollstaendigen Namen eintragen')" />
         <label v-if="entry[1].type !== 'wikidata-autosuggest'" class="readonly-toggle">
@@ -450,17 +461,18 @@ function onRemoveHierarchyField(index) {
   gap: 0.45rem;
 }
 
-.user-config-row {
-  display: grid;
-  grid-template-columns:
-    34px
-    minmax(160px, 1.05fr)
-    minmax(140px, 0.85fr)
-    minmax(140px, 0.8fr)
-    minmax(165px, 1fr)
-    minmax(185px, 1.1fr)
-    minmax(116px, 0.6fr)
-    auto;
+  .user-config-row {
+    display: grid;
+    grid-template-columns:
+      34px
+      minmax(145px, 1fr)
+      minmax(130px, 0.8fr)
+      minmax(130px, 0.8fr)
+      minmax(140px, 0.75fr)
+      minmax(150px, 0.95fr)
+      minmax(170px, 1.05fr)
+      minmax(116px, 0.6fr)
+      auto;
   gap: var(--ve-space-2);
   align-items: center;
 }

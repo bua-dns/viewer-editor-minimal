@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-08 - Sidebar suspend toggle and configurable field widths
+
+- Moved the sidebar `suspendEditing` control (`Bearbeitung aussetzen`) into the edit form header, positioned next to the close button.
+- Added new field configuration option `fieldWidth` with allowed values `33%`, `50%`, and `100%` to control how many editor fields share one row (3/2/1).
+- Updated configuration validation and normalization so unsupported or missing `fieldWidth` values safely fall back to `100%`.
+- Updated edit sidebar placement so all fields configured as `checkbox` render below the scan preview and above the `Ersetzen` block.
+
 ## 2026-07 - Online hierarchy and loading flow
 
 - Added hierarchical item navigation via optional settings keys like `hierarchyFields` / `hierarchy_fields` (level 1 = category boxes, level 2 = collapsible header bars).

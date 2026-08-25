@@ -6,8 +6,8 @@ import ViewerWikidataField from './ViewerWikidataField.vue'
 const props = defineProps({
   selectedRawItem: { type: Object, required: true },
   selectedViewItem: { type: Object, default: null },
-  suspendedItemIndices: { type: Array, default: () => [] },
-  suspendEditingLabel: { type: String, default: 'Suspend editing' },
+  includeConfiguredTypes: { type: Array, default: () => [] },
+  excludeConfiguredTypes: { type: Array, default: () => [] },
   showRawDataDevPreview: { type: Boolean, default: false },
   rawDataToggleLabel: { type: String, default: 'show raw data' },
   rawDataHideLabel: { type: String, default: 'hide raw data' },
@@ -18,9 +18,24 @@ const props = defineProps({
   candidateAutosuggestPrefills: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['field-change', 'toggle-suspend-editing', 'accept-candidate'])
+const emit = defineEmits(['field-change', 'accept-candidate'])
 
-const { getFieldLabel, getFieldHint, getFieldConfig, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
+const { getFieldLabel, getFieldHint, getFieldConfig, getFieldWidth, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
+
+const includeConfiguredTypeSet = computed(() =>
+  new Set((Array.isArray(props.includeConfiguredTypes) ? props.includeConfiguredTypes : []).map((type) => String(type || '').trim()).filter(Boolean)),
+)
+
+const excludeConfiguredTypeSet = computed(() =>
+  new Set((Array.isArray(props.excludeConfiguredTypes) ? props.excludeConfiguredTypes : []).map((type) => String(type || '').trim()).filter(Boolean)),
+)
+
+function shouldIncludeConfiguredType(configuredType) {
+  const normalizedType = String(configuredType || '').trim()
+  if (excludeConfiguredTypeSet.value.has(normalizedType)) return false
+  if (includeConfiguredTypeSet.value.size === 0) return true
+  return includeConfiguredTypeSet.value.has(normalizedType)
+}
 
 const displayedFieldKeys = computed(() => getDisplayedFieldKeys(props.selectedRawItem))
 
@@ -37,8 +52,10 @@ const fieldRows = computed(() =>
       value,
       label: getFieldLabel(key),
       hint: getFieldHint(key),
+      fieldWidth: getFieldWidth(key),
       isReadOnly: isFieldReadOnly(key),
       fieldConfig,
+      configuredType: String(fieldConfig?.type || '').trim(),
       candidateTargetField,
       candidateTargetType: candidateTargetConfig?.type || null,
       candidateTargetLabel: candidateTargetField ? getFieldLabel(candidateTargetField) : '',
@@ -49,7 +66,7 @@ const fieldRows = computed(() =>
         props.candidateAutosuggestPrefills,
       ),
     }
-  }),
+  }).filter((row) => shouldIncludeConfiguredType(row.configuredType)),
 )
 
 function onFieldDomEvent(row, event) {
@@ -93,18 +110,6 @@ function onAcceptCandidate(row) {
   })
 }
 
-const isSuspendEditingChecked = computed(() => {
-  const selectedIndex = props.selectedViewItem?._index
-  if (!Number.isInteger(selectedIndex)) return false
-  return props.suspendedItemIndices.includes(selectedIndex)
-})
-
-function onSuspendEditingChange(event) {
-  const uid = props.selectedViewItem?._uid
-  if (!uid) return
-  emit('toggle-suspend-editing', { uid, checked: event.target.checked })
-}
-
 const isRawDataPreviewVisible = ref(false)
 
 const selectedItemUid = computed(() => props.selectedViewItem?._uid || null)
@@ -145,20 +150,8 @@ async function onCopyRawData() {
 
 <template>
   <div class="field-grid">
-    <div class="field-row suspend-editing-row">
-      <label class="field-label suspend-editing-label" for="field-suspend-editing">
-        <span>{{ props.suspendEditingLabel }}</span>
-        <input
-          :key="props.selectedViewItem?._uid || 'field-suspend-editing'"
-          id="field-suspend-editing"
-          type="checkbox"
-          :checked="isSuspendEditingChecked"
-          @change="onSuspendEditingChange"
-        />
-      </label>
-    </div>
     <template v-for="row in fieldRows" :key="row.key">
-      <div class="field-row" :class="{ 'is-readonly': row.isReadOnly }">
+      <div class="field-row" :class="[`field-width-${row.fieldWidth.replace('%', '')}`, { 'is-readonly': row.isReadOnly }]">
         <label :for="`field-${row.key}`" class="field-label">
           <span>{{ row.label }}</span>
           <small v-if="row.isReadOnly" class="field-readonly-badge">read-only</small>
@@ -220,12 +213,26 @@ async function onCopyRawData() {
 <style scoped lang="scss">
 .field-grid {
   display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
 .field-row {
   display: grid;
+  grid-column: 1 / -1;
   gap: 0.35rem;
+}
+
+.field-row.field-width-33 {
+  grid-column: span 2;
+}
+
+.field-row.field-width-50 {
+  grid-column: span 3;
+}
+
+.field-row.field-width-100 {
+  grid-column: 1 / -1;
 }
 
 .field-label {
@@ -283,16 +290,8 @@ async function onCopyRawData() {
   min-width: 0;
 }
 
-.suspend-editing-row {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--ve-color-border-soft);
-}
-
-.suspend-editing-label {
-  justify-content: space-between;
-}
-
 .raw-data-row {
+  grid-column: 1 / -1;
   gap: 0.5rem;
 }
 
@@ -317,5 +316,17 @@ async function onCopyRawData() {
   background: hsl(0, 0%, 10%);
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+@media (max-width: 768px) {
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row.field-width-33,
+  .field-row.field-width-50,
+  .field-row.field-width-100 {
+    grid-column: 1;
+  }
 }
 </style>

@@ -131,6 +131,7 @@ Pro erkanntem Feld (ohne reservierte Felder wie `scan` und `suspendEditing`) kan
 - `label`: alternative Feldbeschriftung
 - `placeholder`: Platzhaltertext im Eingabefeld
 - `hint`: zusaetzlicher Hinweistext unter dem Eingabefeld (Ausfuellhinweis)
+- `fieldWidth`: Layoutbreite pro Feld im Sidebar-Editor (`33%`, `50%`, `100%` fuer 3/2/1 Felder pro Zeile)
 - `readOnly` (nicht fuer `wikidata-autosuggest`): Feld ist in der Sidebar sichtbar, aber nicht editierbar
 - Reihenfolge via Drag-and-Drop
 - globales `itemLabelField`: Feldschluessel fuer Item-Label in Liste/Karten (optional, sonst Fallback)
@@ -355,7 +356,7 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 ## Sidebar Field Editor Modularization
 
 - `ItemFieldEditor.vue` kapselt das Rendering der Datenfelder in der Sidebar.
-- `suspendEditing` wird in der Sidebar nicht als normales Datenfeld gerendert, sondern als separate Checkbox oberhalb der Feldliste.
+- `suspendEditing` wird in der Sidebar nicht als normales Datenfeld gerendert, sondern als Checkbox im Sidebar-Header (neben dem Close-Button).
 - Optional (nur bei `dataInspectionMode=true`) rendert `ItemFieldEditor.vue` am Ende der Feldliste eine JSON-Preview des aktuell selektierten Rohobjekts sowie einen Copy-Button fuer die Zwischenablage.
 - `src/fields/fieldRegistry.js` ist der einzige Registrierungsort fuer Feldtypen (`normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`).
 - Jeder Feldtyp implementiert denselben Contract:

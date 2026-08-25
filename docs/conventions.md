@@ -28,6 +28,7 @@
 - Optional kann `suspendedItems` bereits beim JSON-Import mitgegeben werden (Array von Item-Indizes).
 - `config.fields` muss ein Objekt sein, dessen Schluessel den Feldnamen entsprechen.
 - Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`, `hint`.
+- Optional pro Feld: `fieldWidth` mit `33%`, `50%` oder `100%` (Layout im Sidebar-Editor: 3/2/1 Felder pro Zeile).
 - Fuer Nicht-`wikidata-autosuggest`-Felder ist zusaetzlich `readOnly` (Boolean) erlaubt.
 - Fuer `wikidata-autosuggest` ist `readOnly` nicht erlaubt; stattdessen ist optional `autosuggest` als pass-through Objekt vorgesehen.
 - Fuer `candidate` ist zusaetzlich ein Objekt `candidate` erforderlich:
