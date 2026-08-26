@@ -47,7 +47,7 @@ const {
   createEditedFileName,
 } = useDataTransferStore()
 
-const { primaryColor, dataInspectionMode, language, setLanguage, t, setOnlineWording, clearOnlineWording } =
+const { primaryColor, dataInspectionMode, showLanguageSwitch, language, setLanguage, t, setOnlineWording, clearOnlineWording } =
   useAppConfigStore()
 const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
@@ -1040,7 +1040,7 @@ watch(
             {{ t('tabInfo', 'Info') }}
           </button>
         </nav>
-        <div class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
+        <div v-if="showLanguageSwitch" class="language-switch" :aria-label="t('languageSwitchAria', 'Sprache waehlen')">
           <button type="button" class="lang-btn" :class="{ active: language === 'de' }" @click="setLanguage('de')">
             {{ t('languageButtonDe', 'DE') }}
           </button>

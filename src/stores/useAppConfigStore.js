@@ -4,6 +4,20 @@ import appConfig from '../../config/app.config'
 const language = ref(appConfig.language || 'de')
 const onlineWording = ref({})
 
+function normalizeLanguageMode(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+  return normalized === 'single' ? 'single' : 'multi'
+}
+
+function normalizeGithubRepoUrl(value) {
+  return String(value || '').trim()
+}
+
+const languageMode = normalizeLanguageMode(appConfig.languageMode)
+const githubRepoUrl = normalizeGithubRepoUrl(appConfig.githubRepo)
+
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
@@ -85,6 +99,9 @@ export function useAppConfigStore() {
   return {
     primaryColor: appConfig.primaryColor,
     dataInspectionMode: Boolean(appConfig.dataInspectionMode),
+    languageMode,
+    showLanguageSwitch: languageMode === 'multi',
+    githubRepoUrl,
     language,
     supportedLanguages,
     setLanguage,

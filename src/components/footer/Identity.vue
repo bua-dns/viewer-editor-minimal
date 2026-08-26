@@ -3,14 +3,15 @@ import githubLogo from '../../assets/logos/Octicons-mark-github.svg'
 import buaLogo from '../../assets/logos/dns-v1.svg'
 import { useAppConfigStore } from '../../stores/useAppConfigStore'
 
-const { t } = useAppConfigStore()
+const { t, githubRepoUrl } = useAppConfigStore()
 </script>
 
 <template>
   <div class="footer-identity">
     <a
+      v-if="githubRepoUrl"
       class="identity-link"
-      href="https://github.com/bua-dns/viewer-editor-minimal/"
+      :href="githubRepoUrl"
       target="_blank"
       rel="noopener noreferrer"
       :aria-label="t('footerGithubAria', 'GitHub repository')"
