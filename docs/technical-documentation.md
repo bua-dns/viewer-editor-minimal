@@ -96,7 +96,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/assets/texts/info-de.md` / `src/assets/texts/info-en.md` - editierbare Markdown-Inhalte fuer den Info-Tab
 - `src/components/footer/Identity.vue` - Footer-Identity mit externen Projektlinks
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
-- `config/wording.js` - uebersetzte Textvarianten je Handle
+- `config/wording.json` - uebersetzte Textvarianten je Handle
 - `vite.config.js` - Vite-Konfiguration mit Vue-Plugin
 
 ## App-Konfiguration und Wording
@@ -109,7 +109,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `config/app.config.js` steuert zusaetzlich den optionalen Dev-Inspektionsmodus ueber `dataInspectionMode` (`true | false`).
   - `true`: Im Edit-Sidebar-Panel werden unterhalb der Feldliste die Buttons `show/hide raw data` und `Copy raw data` angezeigt.
   - `false`: Keine zusaetzlichen Raw-Data-Controls in der Sidebar.
-- `config/wording.js` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
+- `config/wording.json` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - Online-Create-Texte sind ebenfalls ueber Handles abgedeckt (u. a. `onlineCreateItem`, `onlineNewItemFallback`) und werden in Listenkopf/Fallback-Label verwendet.
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
 - Sprachwechsel passiert in `App.vue` per einfachem `DE | EN`-Schalter in der Topbar.
@@ -250,7 +250,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 - `src/components/OnlineAccessPanel.vue` zeigt Auth-, Settings- und Item-Status inkl. Save-Controls (`Save changes`), Unsaved-Counter, Save-Feedback und Retry-Aktion.
 - Optionaler Header-Toggle `Configuration only` (Store: `useOnlineModeStore`) laedt beim Online-Start nur `response.data.settings`; Item-Requests werden dabei vollstaendig uebersprungen.
 - In `Configuration only` bleibt die Settings-Initialisierung verbindlich: Die aus Strapi geladenen Settings werden trotz leerer Item-Liste in den User-Config-State uebernommen und im Konfigurations-Tab angezeigt.
-- Erfolgs-Feedback des Speicherns wird nach kurzem Timeout automatisch ausgeblendet; alle Texte der Save-UX (Button-States, Fehler/Retry) sind als Wording-Handles in `config/wording.js` hinterlegt.
+- Erfolgs-Feedback des Speicherns wird nach kurzem Timeout automatisch ausgeblendet; alle Texte der Save-UX (Button-States, Fehler/Retry) sind als Wording-Handles in `config/wording.json` hinterlegt.
 - Authentifiziert zeigt der Header im Online-Modus nur den Button `Abmelden` (kein zusaetzliches User-Label); nicht notwendige Erfolgsmeldungen/Transfer-Hinweise wurden entfernt.
 
 ### Online-Login-Modal

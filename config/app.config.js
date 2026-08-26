@@ -1,6 +1,6 @@
 
 //config\app.config.js
-import wording from './wording'
+import wording from './wording.json'
 
 const appConfig = {
   language: 'de',

@@ -4,11 +4,13 @@ import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 
 const settings = ref(null)
+const wording = ref({})
 const settingsStatus = ref('idle')
 const lastSettingsError = ref('')
 
 function clearOnlineSettings() {
   settings.value = null
+  wording.value = {}
   settingsStatus.value = 'idle'
   lastSettingsError.value = ''
 }
@@ -37,10 +39,12 @@ async function fetchOnlineSettings() {
       token: token.value || '',
     })
     settings.value = result.settings
+    wording.value = result.wording
     settingsStatus.value = 'ready'
-    return { ok: true, settings: result.settings, payload: result.payload }
+    return { ok: true, settings: result.settings, wording: result.wording, payload: result.payload }
   } catch (error) {
     settings.value = null
+    wording.value = {}
     settingsStatus.value = 'error'
     lastSettingsError.value =
       typeof error?.message === 'string' && error.message.trim()
@@ -70,8 +74,11 @@ async function persistOnlineSettings(nextSettings) {
       settings: nextSettings,
     })
     settings.value = result.settings
+    if (result.wording && typeof result.wording === 'object') {
+      wording.value = result.wording
+    }
     settingsStatus.value = 'ready'
-    return { ok: true, settings: result.settings, payload: result.payload }
+    return { ok: true, settings: result.settings, wording: wording.value, payload: result.payload }
   } catch (error) {
     settingsStatus.value = 'error'
     lastSettingsError.value =
@@ -85,6 +92,7 @@ async function persistOnlineSettings(nextSettings) {
 export function useOnlineSettingsStore() {
   return {
     settings,
+    wording,
     settingsStatus,
     lastSettingsError,
     clearOnlineSettings,

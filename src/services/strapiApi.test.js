@@ -3,6 +3,7 @@ import {
   buildItemsPathWithPopulate,
   buildStrapiUpdatePayload,
   checkDataModelImplementationInStrapi,
+  fetchViewerSettingsFromStrapi,
   fetchAllCollectionItemsFromStrapi,
   getWikidataAutosuggestFieldKeysFromSettings,
   normalizeOnlineChangedFieldsForStrapi,
@@ -243,6 +244,36 @@ describe('strapiApi helpers', () => {
         },
       }),
     })
+  })
+
+  test('loads viewer settings and optional wording from singleton endpoint', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          settings: {
+            version: 1,
+            fields: {},
+          },
+          wording: {
+            appTitle: {
+              de: 'Online Titel',
+            },
+          },
+        },
+      }),
+    })
+
+    const result = await fetchViewerSettingsFromStrapi({
+      profile: {
+        baseUrl: 'https://cms.example.org/project',
+        configPath: '/api/viewer-setting',
+      },
+      token: 'jwt-1',
+    })
+
+    expect(result.settings.version).toBe(1)
+    expect(result.wording.appTitle.de).toBe('Online Titel')
   })
 
   test('checks data model and reports wikidata_id mismatch', async () => {

@@ -20,7 +20,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - `wikidata-autosuggest` unterstuetzt konfigurierbare Priorisierung (`claimPresence`, `claimValueMatch`) inkl. optionaler Emit-Metadaten
 - Wikidata-Multilanguage-Suche ist fehlertolerant: Teilausfaelle einzelner Sprachen werden abgefangen, verbleibende Treffer bleiben erhalten
 - Wikidata-Suche bricht veraltete In-Flight-Requests beim Tippen/Unmount per `AbortController` ab (keine stale Treffer, keine Abort-Fehleranzeige)
-- App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.js`)
+- App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.json`)
 - Sprachumschalter (DE/EN) in der Topbar
 - Offline/Online-App-Modus mit Strapi-Login (FE-Users) und Session-Restore
 - Online-Modus mit gezieltem Delta-Speichern, Retry bei Teilfehlern und Unsaved-Counter
@@ -236,7 +236,7 @@ Hinweise:
 - `src/assets/styles/legacy.scss` - temporaerer Migrations-Layer fuer bestehende globale Styles
 - `src/assets/styles/components/_index.scss` - optionaler Ausnahme-Layer fuer globale Sonderfaelle
 - `config/app.config.js` - App-Konfiguration (Wording-Handles, Primaerfarbe, Default-Sprache, `connectionMode`, `dataInspectionMode`)
-- `config/wording.js` - Sprachvarianten je Wording-Handle
+- `config/wording.json` - Sprachvarianten je Wording-Handle
 
 ## Styling-Architektur
 

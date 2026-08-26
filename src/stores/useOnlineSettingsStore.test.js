@@ -47,6 +47,11 @@ describe('useOnlineSettingsStore', () => {
             version: 1,
             fields: {},
           },
+          wording: {
+            appTitle: {
+              de: 'Online Titel',
+            },
+          },
         },
       }),
     })
@@ -57,6 +62,7 @@ describe('useOnlineSettingsStore', () => {
     expect(result.ok).toBe(true)
     expect(settingsStore.settingsStatus.value).toBe('ready')
     expect(settingsStore.settings.value.version).toBe(1)
+    expect(settingsStore.wording.value.appTitle.de).toBe('Online Titel')
   })
 
   test('persists updated settings to singleton endpoint', async () => {

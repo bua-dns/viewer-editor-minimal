@@ -92,9 +92,12 @@ export async function fetchViewerSettingsFromStrapi({ profile, token = '' }) {
     throw createHttpError('Config response must contain an object at data.settings.', 500, payload)
   }
 
+  const wording = isPlainObject(payload?.data?.wording) ? payload.data.wording : {}
+
   return {
     payload,
     settings,
+    wording,
   }
 }
 
@@ -120,9 +123,12 @@ export async function updateViewerSettingsInStrapi({ profile, token = '', settin
     throw createHttpError('Config update response must contain an object at data.settings.', 500, payload)
   }
 
+  const wording = isPlainObject(payload?.data?.wording) ? payload.data.wording : {}
+
   return {
     payload,
     settings: updatedSettings,
+    wording,
   }
 }
 

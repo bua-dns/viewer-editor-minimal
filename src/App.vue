@@ -47,7 +47,8 @@ const {
   createEditedFileName,
 } = useDataTransferStore()
 
-const { primaryColor, dataInspectionMode, language, setLanguage, t } = useAppConfigStore()
+const { primaryColor, dataInspectionMode, language, setLanguage, t, setOnlineWording, clearOnlineWording } =
+  useAppConfigStore()
 const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
@@ -916,6 +917,7 @@ watch(
   ],
   async ([nextMode, nextAuthenticated, nextOnlineConfigOnly]) => {
     if (nextMode !== 'online' || !nextAuthenticated) {
+      clearOnlineWording()
       clearOnlineSettings()
       clearOnlineItems()
       clearOnlineUpdates()
@@ -926,7 +928,12 @@ watch(
     }
 
     const result = await fetchOnlineSettings()
-    if (!result.ok) return
+    if (!result.ok) {
+      clearOnlineWording()
+      return
+    }
+
+    setOnlineWording(result.wording)
 
     const itemsPathFromSettings = resolveItemsPathFromSettings(result.settings)
 
