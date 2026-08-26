@@ -59,17 +59,21 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/main.js` - Bootstrapping (`createApp(App).mount('#app')`)
 - `src/App.vue` - Haupt-UI und Interaktionen
 - `src/components/InfoPanel.vue` - rendert den Info-Bereich aus Markdown-Inhalt
-- `src/components/footer/Identity.vue` - Footer-Identity; Text und ARIA-Labels aus dem zentralen Wording
+- `src/components/footer/Identity.vue` - Footer-Identity mit externen Projektlinks; Text und ARIA-Labels aus dem zentralen Wording
+- `src/components/ConfigurationPanel.vue` - Wrapper fuer den Konfigurations-Tab; rendert `UserConfigPanel` fest geoeffnet
+- `src/components/ReplacementsPanel.vue` - Tab-Panel fuer Replacement-Tabellen je Feld
+- `src/components/ReplacementsUnit.vue` - Inline-Replacements-Editor in der Sidebar
 - `src/components/UserConfigPanel.vue` - ausgelagerte User-Config-Oberflaeche
 - `src/components/DataTransferControls.vue` - ausgelagerte Upload/Download-Oberflaeche
 - `src/components/ItemFieldEditor.vue` - ausgelagerte Sidebar-Feldeditor-Oberflaeche inkl. optionaler Raw-Data-Dev-Preview (Toggle + Copy)
+- `src/components/LightboxModal.vue` - Modal fuer Scan-Vollansicht inkl. Fullscreen-Unterstuetzung
 - `src/components/ViewerWikidataField.vue` - Viewer-spezifischer Wrapper fuer den Feldtyp `wikidata-autosuggest`
 - `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (erhaelt Konfiguration als pass-through)
 - `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer autosuggest-spezifische Feldoptionen in der Konfigurationsansicht
 - `src/composables/useWikidataSearch.js` - Suche ueber Wikidata API inkl. Priorisierungslogik, Claim-Metadaten und lokalisierter Labels/Descriptions (`de`/`en`)
 - `src/composables/useWikidataSearch.test.js` - Unit-Tests fuer resiliente Wikidata-Suche (Teilausfaelle/Abort)
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
-- `src/components/ListPanel.vue` - Kartenliste inkl. optional getrenntem Kopf-/Body-Rendering fuer sticky Header
+- `src/components/ListPanel.vue` - Listen-/Kartenpanel inkl. optional getrenntem Kopf-/Body-Rendering, Hierarchie-UI (Level-1-Boxen + einklappbare Level-2-Gruppen) und Create-Button im Online-Modus
 - `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow
 - `src/components/DatabaseConnectionPanel.vue` - GUI fuer Strapi-Verbindungsprofil (Base URL, Config-Pfad, Speichern, Test, JSON Import/Export)
 - `src/components/OnlineAccessPanel.vue` - Umschalter Offline/Online inkl. Login/Logout und Status fuer Auth/Online-Settings/Online-Items
@@ -94,7 +98,6 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/composables/userConfigValidation.js` - zentraler Validator fuer importierte JSON-Config
 - `src/assets/styles/index.scss` - globaler Styling-Einstieg (Tokens, Base, Layout, Komponenten-Layer)
 - `src/assets/texts/info-de.md` / `src/assets/texts/info-en.md` - editierbare Markdown-Inhalte fuer den Info-Tab
-- `src/components/footer/Identity.vue` - Footer-Identity mit externen Projektlinks
 - `config/app.config.js` - App-Konfiguration (Default-Sprache, Primary Color, Wording-Handles)
 - `config/wording.json` - uebersetzte Textvarianten je Handle
 - `vite.config.js` - Vite-Konfiguration mit Vue-Plugin
@@ -123,7 +126,8 @@ Die User-Config ist modularisiert:
 - `useUserConfigStore.js` kapselt den zugehoerigen State und die Aktionen.
 - `App.vue` orchestriert nur noch (Apply, Datenmodus-Wechsel, Datenfluss).
 
-Im UI gibt es einen einklappbaren Bereich "Konfiguration", der nach Datei-Upload verfuegbar ist.
+Die User-Config wird im eigenen Tab `Konfiguration` gerendert und dort dauerhaft geoeffnet angezeigt.
+Standardfall: Der Tab ist nach Daten-Import nutzbar. Im Online-Modus kann die Konfiguration zusaetzlich auch ohne geladene Items bearbeitet werden, sobald gueltige Online-Settings geladen sind (`Configuration only`).
 
 Pro erkanntem Feld (ohne reservierte Felder wie `scan` und `suspendEditing`) kann gesetzt werden:
 
@@ -409,10 +413,11 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 
 Die Seite ist in mehrere Bereiche gegliedert:
 
-- Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren` und `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
+- Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
 - Topbar (Titel + Transfer-Controls) steht oberhalb der Tabs und bleibt damit immer sichtbar
 - Header-Controls sind so ausgerichtet, dass sie bei ausreichend Platz in einem einzigen horizontalen Fluss stehen
-- Im Edit-Tab: sticky Header-Stack mit Konfiguration und Listenkopf (`Digitalisate` + Suche)
+- Im Edit-Tab: sticky Header-Stack mit Listenkopf (`Digitalisate` + Suche)
+- Im Edit-Tab mit konfigurierter Hierarchie: zuerst Level-1-Boxen, danach einklappbare Level-2-Gruppen mit jeweils eigener Item-Liste
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein Layout-Springen entsteht.
 - Toolbar: Dateiname-Hinweis und Dirty-Hinweis
 - Liste: Kartenansicht der gefilterten Items inkl. Scan-Vorschau; ohne `scan` automatische Umschaltung auf textbasierte Listenansicht
@@ -480,12 +485,12 @@ Layoutverhalten:
 - Desktop nutzt zusaetzlich einen sticky Header-Stack im Edit-Tab; Hoehen werden in `App.vue` per `ResizeObserver` gemessen und als CSS-Variablen fuer Sticky-Offets gesetzt
 - Responsive Umschaltung auf einspaltiges Layout bei `max-width: 768px`
 - Im erweiterten Modus wird die Sidebar nicht sticky gerendert, nutzt volle Inhaltsbreite und vergroessert den Scanbereich relativ zur Feldspalte
-- Kartenlayout fuer Item-Vorschau (`auto-fill`, `minmax(480px, 1fr)`) 
+- Kartenlayout fuer Item-Vorschau (`auto-fill`, `minmax(300px, 1fr)`) 
 - Lightbox mit dunklem Overlay
 
 Hinweis:
 
-- Sehr kleine Viewports koennen durch die grosse Karten-Mindestbreite horizontalen Druck erzeugen. Bei Bedarf kann `minmax(480px, 1fr)` reduziert werden.
+- Die Karten-Mindestbreite ist bereits auf `300px` reduziert, um horizontalen Druck in kleineren Viewports zu verringern.
 
 ## Testabdeckung
 
