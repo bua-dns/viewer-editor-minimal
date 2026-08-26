@@ -68,4 +68,39 @@ describe('useConnectionProfileStore', () => {
     expect(result.ok).toBe(true)
     expect(store.connectionProfile.value.label).toBe('Import')
   })
+
+  test('loads default profile from runtime location fallback path', async () => {
+    const store = useConnectionProfileStore()
+    Object.defineProperty(globalThis, 'location', {
+      value: { pathname: '/viewer-editor/index.html' },
+      configurable: true,
+    })
+
+    const fetchCalls = []
+    globalThis.fetch = async (url) => {
+      fetchCalls.push(url)
+      if (url === '/viewer-editor/connection-profile/viewer-editor-connection-profile.v1.json') {
+        return {
+          ok: true,
+          text: async () =>
+            JSON.stringify({
+              version: 1,
+              baseUrl: 'https://cms.example.org/base',
+              configPath: '/api/viewer-setting',
+            }),
+        }
+      }
+
+      return {
+        ok: false,
+        status: 404,
+      }
+    }
+
+    const result = await store.loadConnectionProfileFromDefault('viewer-editor-connection-profile.v1.json')
+
+    expect(result.ok).toBe(true)
+    expect(fetchCalls).toContain('/viewer-editor/connection-profile/viewer-editor-connection-profile.v1.json')
+    expect(store.connectionProfile.value.baseUrl).toBe('https://cms.example.org/base')
+  })
 })

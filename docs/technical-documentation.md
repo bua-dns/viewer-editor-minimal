@@ -112,6 +112,10 @@ Abhaengigkeiten stehen in `package.json`.
 - `config/app.config.js` steuert zusaetzlich den optionalen Dev-Inspektionsmodus ueber `dataInspectionMode` (`true | false`).
   - `true`: Im Edit-Sidebar-Panel werden unterhalb der Feldliste die Buttons `show/hide raw data` und `Copy raw data` angezeigt.
   - `false`: Keine zusaetzlichen Raw-Data-Controls in der Sidebar.
+- `config/app.config.js` kann optional ein Default-Verbindungsprofil ueber `defaultConnectionProfile` setzen.
+  - Wertebeispiel: `viewer-editor-connection-profile.v1.json` (Datei in `public/connection-profile/`).
+  - Beim App-Start laedt `App.vue` das Profil ueber `useConnectionProfileStore.loadConnectionProfileFromDefault(...)` und schreibt es bei Erfolg in `localStorage` (`viewerEditor.connectionProfile.v1`).
+  - Die URL-Aufloesung fuer relative Werte ist robust gegen unterschiedliche Deploy-Pfade: es werden mehrere Kandidaten aus `window.location.pathname`, `import.meta.env.BASE_URL` und Root (`/`) gebildet (u. a. mit und ohne `connection-profile/`-Prefix).
 - `config/wording.json` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - Online-Create-Texte sind ebenfalls ueber Handles abgedeckt (u. a. `onlineCreateItem`, `onlineNewItemFallback`) und werden in Listenkopf/Fallback-Label verwendet.
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
@@ -252,10 +256,12 @@ Die Data-Transfer-Funktion ist modularisiert:
 - Die Level-1-Boxen werden im Hierarchie-Modus sofort gerendert (auch dann, wenn noch keine Item-Karten geladen sind).
 - Wenn `response.data.settings` nicht als gueltige Config interpretierbar ist, wechselt die UI in einen expliziten Fehlerzustand (kein stilles Weiterlaufen mit inkonsistentem Stand).
 - `src/components/OnlineAccessPanel.vue` zeigt Auth-, Settings- und Item-Status inkl. Save-Controls (`Save changes`), Unsaved-Counter, Save-Feedback und Retry-Aktion.
+- Wenn kein Verbindungsprofil verfuegbar ist, zeigt `src/components/OnlineAccessPanel.vue` zusaetzlich eine technische Diagnose (`reason`, `profileUrl`, `attempted`) aus `useConnectionProfileStore.lastConnectionProfileLoadError`; dadurch sind 404-/Pfadprobleme beim Default-Profil direkt in der UI sichtbar.
 - Optionaler Header-Toggle `Configuration only` (Store: `useOnlineModeStore`) laedt beim Online-Start nur `response.data.settings`; Item-Requests werden dabei vollstaendig uebersprungen.
 - In `Configuration only` bleibt die Settings-Initialisierung verbindlich: Die aus Strapi geladenen Settings werden trotz leerer Item-Liste in den User-Config-State uebernommen und im Konfigurations-Tab angezeigt.
 - Erfolgs-Feedback des Speicherns wird nach kurzem Timeout automatisch ausgeblendet; alle Texte der Save-UX (Button-States, Fehler/Retry) sind als Wording-Handles in `config/wording.json` hinterlegt.
 - Authentifiziert zeigt der Header im Online-Modus nur den Button `Abmelden` (kein zusaetzliches User-Label); nicht notwendige Erfolgsmeldungen/Transfer-Hinweise wurden entfernt.
+- Bei Fehlschlag des Default-Profil-Ladens loggt `App.vue` einmalig `Default connection profile load failed:` in der Browser-Konsole inklusive Fehlerobjekt.
 
 ### Online-Login-Modal
 

@@ -15,8 +15,13 @@ function normalizeGithubRepoUrl(value) {
   return String(value || '').trim()
 }
 
+function normalizeDefaultConnectionProfile(value) {
+  return String(value || '').trim()
+}
+
 const languageMode = normalizeLanguageMode(appConfig.languageMode)
 const githubRepoUrl = normalizeGithubRepoUrl(appConfig.githubRepo)
+const defaultConnectionProfile = normalizeDefaultConnectionProfile(appConfig.defaultConnectionProfile)
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -102,6 +107,7 @@ export function useAppConfigStore() {
     languageMode,
     showLanguageSwitch: languageMode === 'multi',
     githubRepoUrl,
+    defaultConnectionProfile,
     language,
     supportedLanguages,
     setLanguage,

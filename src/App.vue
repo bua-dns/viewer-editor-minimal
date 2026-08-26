@@ -47,9 +47,19 @@ const {
   createEditedFileName,
 } = useDataTransferStore()
 
-const { primaryColor, dataInspectionMode, showLanguageSwitch, language, setLanguage, t, setOnlineWording, clearOnlineWording } =
+const {
+  primaryColor,
+  dataInspectionMode,
+  showLanguageSwitch,
+  defaultConnectionProfile,
+  language,
+  setLanguage,
+  t,
+  setOnlineWording,
+  clearOnlineWording,
+} =
   useAppConfigStore()
-const { connectionProfile, loadConnectionProfileFromStorage } = useConnectionProfileStore()
+const { connectionProfile, loadConnectionProfileFromDefault } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
 const {
@@ -731,12 +741,15 @@ function updateStickyMeasurements() {
   appShellRef.value.style.setProperty('--ve-edit-sticky-stack-height', `${stickyTopHeight}px`)
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.documentElement.style.setProperty('--color-primary', primaryColor)
   loadDataModeFromSession()
   loadAppModeFromStorage()
   loadOnlineConfigOnlyFromStorage()
-  loadConnectionProfileFromStorage()
+  const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile)
+  if (!connectionProfileLoadResult?.ok) {
+    console.warn('Default connection profile load failed:', connectionProfileLoadResult)
+  }
   restoreSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
   window.addEventListener('keydown', keydownListener)

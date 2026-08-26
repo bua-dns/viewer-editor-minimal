@@ -25,7 +25,25 @@ let saveStatusTimeoutId = null
 
 const { t } = useAppConfigStore()
 const { appMode, onlineConfigOnly, isConnectionModeSwitchable, setAppMode, setOnlineConfigOnly } = useOnlineModeStore()
-const { hasConnectionProfile } = useConnectionProfileStore()
+const { hasConnectionProfile, lastConnectionProfileLoadError } = useConnectionProfileStore()
+
+function connectionProfileDebugMessage() {
+  const details = lastConnectionProfileLoadError.value
+  if (!details || typeof details !== 'object') return ''
+
+  const reason = String(details.reason || '').trim()
+  const profileUrl = String(details.profileUrl || '').trim()
+  const attemptedUrls = Array.isArray(details.attemptedUrls)
+    ? details.attemptedUrls.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : []
+
+  const parts = []
+  if (reason) parts.push(`reason=${reason}`)
+  if (profileUrl) parts.push(`profileUrl=${profileUrl}`)
+  if (attemptedUrls.length) parts.push(`attempted=${attemptedUrls.join(', ')}`)
+
+  return parts.join(' | ')
+}
 const { authStatus, isAuthenticated, lastAuthError, login, logout } = useAuthStore()
 const { settingsStatus, lastSettingsError } = useOnlineSettingsStore()
 const { itemsStatus, lastItemsError } = useOnlineItemsStore()
@@ -134,6 +152,9 @@ onBeforeUnmount(() => {
         <button type="button" class="inline-link" @click="emit('open-connection-tab')">
           {{ t('dbConnectionOpenTab', 'Open Database Connection tab') }}
         </button>
+      </p>
+      <p v-if="!hasConnectionProfile && connectionProfileDebugMessage()" class="auth-note status-neutral">
+        {{ connectionProfileDebugMessage() }}
       </p>
 
       <div v-else-if="!isAuthenticated" class="auth-user-card">
