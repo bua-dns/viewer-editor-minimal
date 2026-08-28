@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
       <p v-if="!hasConnectionProfile" class="auth-note status-error">
         {{ t('dbConnectionRequired', 'Configure a saved connection profile before using online mode.') }}
         <button type="button" class="inline-link" @click="emit('open-connection-tab')">
-          {{ t('dbConnectionOpenTab', 'Open Database Connection tab') }}
+          {{ t('dbConnectionOpenTab', 'Open Settings tab') }}
         </button>
       </p>
       <p v-if="!hasConnectionProfile && connectionProfileDebugMessage()" class="auth-note status-neutral">

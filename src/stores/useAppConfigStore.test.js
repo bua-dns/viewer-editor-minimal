@@ -58,4 +58,18 @@ describe('useAppConfigStore wording merge', () => {
     store.clearOnlineWording()
     expect(store.t('appTitle', '')).toBe('Viewer Editor for Finding Aids')
   })
+
+  test('keeps local settings tab wording even with backend wording override', () => {
+    const store = useAppConfigStore()
+
+    store.setOnlineWording({
+      tabDatabaseConnection: {
+        de: 'Datenbankanbindung',
+        en: 'Database link',
+      },
+    })
+
+    store.setLanguage('de')
+    expect(store.t('tabDatabaseConnection', '')).toBe('Einstellungen')
+  })
 })

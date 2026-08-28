@@ -742,11 +742,11 @@ function updateStickyMeasurements() {
 }
 
 onMounted(async () => {
-  document.documentElement.style.setProperty('--color-primary', primaryColor)
+  document.documentElement.style.setProperty('--color-primary', primaryColor.value)
   loadDataModeFromSession()
   loadAppModeFromStorage()
   loadOnlineConfigOnlyFromStorage()
-  const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile)
+  const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile.value)
   if (!connectionProfileLoadResult?.ok) {
     console.warn('Default connection profile load failed:', connectionProfileLoadResult)
   }
@@ -773,6 +773,13 @@ onBeforeUnmount(() => {
     stickyResizeObserver = null
   }
 })
+
+watch(
+  () => primaryColor.value,
+  (nextPrimaryColor) => {
+    document.documentElement.style.setProperty('--color-primary', nextPrimaryColor)
+  },
+)
 
 watch(
   () => importFileName.value,
@@ -1044,7 +1051,7 @@ watch(
             :tabindex="activeTab === 'database-connection' ? 0 : -1"
             :class="{ active: activeTab === 'database-connection' }" @click="setActiveTab('database-connection')"
             @keydown="onTabKeydown($event, 'database-connection')">
-            {{ t('tabDatabaseConnection', 'Database Connection') }}
+            {{ t('tabDatabaseConnection', 'Settings') }}
           </button>
           <button id="tab-info" type="button" class="app-tab-btn" role="tab" aria-controls="panel-info"
             :aria-selected="activeTab === 'info'" :tabindex="activeTab === 'info' ? 0 : -1"

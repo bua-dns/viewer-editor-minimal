@@ -30,8 +30,8 @@ Kernfunktionen:
 - Session-persistenter Datenmodus JSON/CSV (via `sessionStorage`)
 - Optionaler Timestamp im Export-Dateinamen
 - Keyboard-Shortcuts mit `Escape` (Start-From-Scratch-Modal und Lightbox schliessen / Sidebar-Auswahl aufheben)
-- Tab-Navigation mit fuenf Bereichen (`Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info`)
-- Neuer Tab `Datenbankverbindung` fuer runtime-konfigurierbare Strapi-Connection-Profile (localStorage + JSON Import/Export + Verbindungstest)
+- Tab-Navigation mit fuenf Bereichen (`Editieren`, `Konfiguration`, `Ersetzungen`, `Einstellungen`, `Info`)
+- Tab `Einstellungen` fuer runtime-konfigurierbare Strapi-Connection-Profile **und** editierbare App-Settings (beides mit localStorage + JSON Import/Export)
 - Online/Offline-App-Modus mit Strapi-Login (FE-Users), persistenter Session und automatischem Session-Restore
 - Online-Modus laedt Konfiguration aus `response.data.settings` und Items aus `settings.itemsPath` (Legacy-Fallback: `item_path`) inklusive Pagination
 - Lokale Datei-Transfer-Controls (JSON/CSV Upload, Beispieldaten, lokaler Download) sind im Online-Modus deaktiviert/ausgeblendet
@@ -75,7 +75,7 @@ Abhaengigkeiten stehen in `package.json`.
 - `src/fields/fieldRegistry.js` - zentrale Feldtyp-Registry inkl. Field-Contract (Rendering, Defaults, Value-Mapping)
 - `src/components/ListPanel.vue` - Listen-/Kartenpanel inkl. optional getrenntem Kopf-/Body-Rendering, Hierarchie-UI (Level-1-Boxen + einklappbare Level-2-Gruppen) und Create-Button im Online-Modus
 - `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow
-- `src/components/DatabaseConnectionPanel.vue` - GUI fuer Strapi-Verbindungsprofil (Base URL, Config-Pfad, Speichern, Test, JSON Import/Export)
+- `src/components/DatabaseConnectionPanel.vue` - GUI fuer den Settings-Tab: Strapi-Verbindungsprofil (Base URL, Config-Pfad, Speichern, Test, JSON Import/Export) plus editierbare App-Settings
 - `src/components/OnlineAccessPanel.vue` - Umschalter Offline/Online inkl. Login/Logout und Status fuer Auth/Online-Settings/Online-Items
 - `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Feldlabel/Placeholder/Hint/Sortierung und Binding zur Feld-Registry
 - `src/composables/useViewerData.js` - Datenmodell, Validierung, Such-/Edit-Logik
@@ -119,8 +119,10 @@ Abhaengigkeiten stehen in `package.json`.
 - `config/wording.json` enthaelt die Sprachvarianten pro Handle (`de`, `en`).
 - Online-Create-Texte sind ebenfalls ueber Handles abgedeckt (u. a. `onlineCreateItem`, `onlineNewItemFallback`) und werden in Listenkopf/Fallback-Label verwendet.
 - `src/stores/useAppConfigStore.js` loest Handles gegen die aktuell aktive Sprache auf und stellt die Werte als `computed` bereit.
+- `src/stores/useAppConfigStore.js` verwaltet zusaetzlich editierbare App-Settings in `localStorage` (`viewerEditor.appConfig.v1`) inkl. JSON Import/Export sowie Runtime-Updates fuer `primaryColor`, `connectionMode`, `language`, `languageMode`, `githubRepo`, `dataInspectionMode`, `defaultConnectionProfile`.
 - Sprachwechsel passiert in `App.vue` per einfachem `DE | EN`-Schalter in der Topbar.
-- Tab-Beschriftungen (`Editieren`/`Info`/`Datenbankverbindung`) sowie Footer-Credit und zugehoerige ARIA-Labels werden ebenfalls ueber Wording-Handles lokalisiert.
+- Tab-Beschriftungen (`Editieren`/`Info`/`Einstellungen`) sowie Footer-Credit und zugehoerige ARIA-Labels werden ebenfalls ueber Wording-Handles lokalisiert.
+- Die Keys `tabDatabaseConnection` und `dbConnectionOpenTab` werden bewusst **nicht** von Online-Wording ueberschrieben, damit die lokale Tab-Benennung `Einstellungen` stabil bleibt.
 
 ## User-Config-GUI (minimal)
 
@@ -241,6 +243,7 @@ Die Data-Transfer-Funktion ist modularisiert:
 - `connectionMode` aus `config/app.config.js` kann diesen App-Modus fixieren (`offline` oder `online`); in diesem Fall wird kein Moduswechsel in der UI angeboten.
 - Login/Logout fuer Strapi FE-Users laeuft ueber `src/stores/useAuthStore.js` + `src/services/strapiApi.js` (JWT + Session-Restore beim App-Start).
 - Das Verbindungsprofil (Base URL, Auth-/Settings-Endpoint) kommt aus `src/stores/useConnectionProfileStore.js`; die GUI liegt in `src/components/DatabaseConnectionPanel.vue`.
+- Der Settings-Tab (`src/components/DatabaseConnectionPanel.vue`) umfasst neben dem Verbindungsprofil auch App-Settings; diese sind im Store `useAppConfigStore` persistiert/importierbar/exportierbar.
 - Der Online-Initialisierungsfluss in `App.vue` ist strikt sequenziell:
   1. Settings laden (`response.data.settings`)
   2. `itemsPath` aus Settings lesen (Legacy-Fallback: `item_path`)
@@ -419,7 +422,7 @@ Nicht editierbare komplexe Werte (Objekte/Arrays) werden in der UI als JSON in `
 
 Die Seite ist in mehrere Bereiche gegliedert:
 
-- Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
+- Oberhalb des Inhalts: sticky Tab-Leiste fuer `Editieren`, `Konfiguration`, `Ersetzungen`, `Einstellungen`, `Info` inkl. Tastatursteuerung (Left/Right/Home/End/Enter/Space)
 - Topbar (Titel + Transfer-Controls) steht oberhalb der Tabs und bleibt damit immer sichtbar
 - Header-Controls sind so ausgerichtet, dass sie bei ausreichend Platz in einem einzigen horizontalen Fluss stehen
 - Im Edit-Tab: sticky Header-Stack mit Listenkopf (`Digitalisate` + Suche)

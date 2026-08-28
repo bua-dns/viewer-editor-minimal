@@ -59,11 +59,11 @@ describe('useOnlineModeStore', () => {
     const store = useOnlineModeStore()
 
     if (isSwitchable) {
-      expect(store.isConnectionModeSwitchable).toBe(true)
+      expect(store.isConnectionModeSwitchable.value).toBe(true)
       return
     }
 
-    expect(store.isConnectionModeSwitchable).toBe(false)
+    expect(store.isConnectionModeSwitchable.value).toBe(false)
     const oppositeMode = fixedMode === 'online' ? 'offline' : 'online'
     const changed = store.setAppMode(oppositeMode)
     expect(changed).toBe(false)

@@ -152,8 +152,8 @@
     "en": "Replacements"
   },
   "tabDatabaseConnection": {
-    "de": "Datenbankverbindung",
-    "en": "Database Connection"
+    "de": "Einstellungen",
+    "en": "Settings"
   },
   "authStateAuthenticating": {
     "de": "Authentifizierung läuft...",
@@ -216,8 +216,8 @@
     "en": "A saved connection profile is required for online mode."
   },
   "dbConnectionOpenTab": {
-    "de": "Tab Datenbankverbindung öffnen",
-    "en": "Open Database Connection tab"
+    "de": "Tab Einstellungen öffnen",
+    "en": "Open Settings tab"
   },
   "onlineSettingsLoaded": {
     "de": "Online-Konfiguration aus response.data.settings geladen.",
@@ -448,6 +448,98 @@
     "en": "Connection test failed."
   },
   "dbConnectionLastSaved": {
+    "de": "Zuletzt gespeichert",
+    "en": "Last saved"
+  },
+  "appSettingsTitle": {
+    "de": "App-Einstellungen",
+    "en": "App settings"
+  },
+  "appSettingsDescription": {
+    "de": "Laufzeit-App-Einstellungen bearbeiten und als JSON/localStorage persistieren (ohne Wording-Handles).",
+    "en": "Edit runtime app settings and persist them as JSON/localStorage (without wording handles)."
+  },
+  "appSettingsLanguageField": {
+    "de": "Standard-Sprache",
+    "en": "Default language"
+  },
+  "appSettingsLanguageModeField": {
+    "de": "Sprachmodus",
+    "en": "Language mode"
+  },
+  "appSettingsGithubRepoField": {
+    "de": "GitHub-Repository-URL (optional)",
+    "en": "GitHub repository URL (optional)"
+  },
+  "appSettingsPrimaryColorField": {
+    "de": "Primärfarbe",
+    "en": "Primary color"
+  },
+  "appSettingsConnectionModeField": {
+    "de": "Verbindungsmodus",
+    "en": "Connection mode"
+  },
+  "appSettingsDataInspectionModeField": {
+    "de": "Data-Inspection-Modus",
+    "en": "Data inspection mode"
+  },
+  "appSettingsDefaultConnectionProfileField": {
+    "de": "Default-Verbindungsprofil",
+    "en": "Default connection profile"
+  },
+  "appSettingsSave": {
+    "de": "App-Einstellungen speichern",
+    "en": "Save app settings"
+  },
+  "appSettingsDownload": {
+    "de": "App-Einstellungen als JSON herunterladen",
+    "en": "Download app settings JSON"
+  },
+  "appSettingsUpload": {
+    "de": "App-Einstellungen-JSON importieren",
+    "en": "Import app settings JSON"
+  },
+  "appSettingsResetFormButton": {
+    "de": "App-Formular zurücksetzen",
+    "en": "Reset app settings form"
+  },
+  "appSettingsClearSaved": {
+    "de": "Gespeicherte App-Einstellungen löschen",
+    "en": "Clear saved app settings"
+  },
+  "appSettingsSaveSuccess": {
+    "de": "App-Einstellungen gespeichert.",
+    "en": "App settings saved."
+  },
+  "appSettingsSaveFailed": {
+    "de": "App-Einstellungen konnten nicht gespeichert werden.",
+    "en": "App settings could not be saved."
+  },
+  "appSettingsResetForm": {
+    "de": "App-Formular auf gespeicherten Stand zurückgesetzt.",
+    "en": "App settings form reset."
+  },
+  "appSettingsCleared": {
+    "de": "Gespeicherte App-Einstellungen entfernt.",
+    "en": "Saved app settings removed."
+  },
+  "appSettingsNoSavedConfig": {
+    "de": "Keine App-Einstellungen verfügbar.",
+    "en": "No app settings available."
+  },
+  "appSettingsDownloadSuccess": {
+    "de": "App-Einstellungen heruntergeladen.",
+    "en": "App settings downloaded."
+  },
+  "appSettingsImportSuccess": {
+    "de": "App-Einstellungen importiert.",
+    "en": "App settings imported."
+  },
+  "appSettingsImportFailed": {
+    "de": "Import der App-Einstellungen fehlgeschlagen.",
+    "en": "App settings import failed."
+  },
+  "appSettingsLastSaved": {
     "de": "Zuletzt gespeichert",
     "en": "Last saved"
   },

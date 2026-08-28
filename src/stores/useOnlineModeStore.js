@@ -1,5 +1,5 @@
-import { ref } from 'vue'
-import appConfig from '../../config/app.config'
+import { computed, ref, watch } from 'vue'
+import { useAppConfigStore } from './useAppConfigStore'
 
 const APP_MODE_STORAGE_KEY = 'viewerEditor.appMode.v1'
 const ONLINE_CONFIG_ONLY_STORAGE_KEY = 'viewerEditor.onlineConfigOnly.v1'
@@ -12,10 +12,11 @@ function normalizeConnectionMode(value) {
   return 'switchable'
 }
 
-const connectionMode = normalizeConnectionMode(appConfig.connectionMode)
-const fixedAppMode = connectionMode === 'switchable' ? '' : connectionMode
+const { connectionMode: appConnectionMode } = useAppConfigStore()
+const connectionMode = computed(() => normalizeConnectionMode(appConnectionMode.value))
+const fixedAppMode = computed(() => (connectionMode.value === 'switchable' ? '' : connectionMode.value))
 
-const appMode = ref(fixedAppMode || 'offline')
+const appMode = ref(fixedAppMode.value || 'offline')
 const onlineConfigOnly = ref(false)
 
 function getLocalStorageSafe() {
@@ -27,8 +28,8 @@ function getLocalStorageSafe() {
 }
 
 function loadAppModeFromStorage() {
-  if (fixedAppMode) {
-    appMode.value = fixedAppMode
+  if (fixedAppMode.value) {
+    appMode.value = fixedAppMode.value
     return
   }
 
@@ -51,8 +52,8 @@ function loadOnlineConfigOnlyFromStorage() {
 
 function setAppMode(nextMode) {
   if (!APP_MODES.has(nextMode)) return false
-  if (fixedAppMode) {
-    appMode.value = fixedAppMode
+  if (fixedAppMode.value) {
+    appMode.value = fixedAppMode.value
     return false
   }
   if (appMode.value === nextMode) return false
@@ -64,6 +65,20 @@ function setAppMode(nextMode) {
   }
   return true
 }
+
+watch(
+  () => fixedAppMode.value,
+  (nextFixedMode) => {
+    if (nextFixedMode) {
+      appMode.value = nextFixedMode
+      return
+    }
+
+    if (!APP_MODES.has(appMode.value)) {
+      appMode.value = 'offline'
+    }
+  },
+)
 
 function setOnlineConfigOnly(nextValue) {
   const normalized = Boolean(nextValue)
@@ -82,7 +97,7 @@ export function useOnlineModeStore() {
     appMode,
     onlineConfigOnly,
     connectionMode,
-    isConnectionModeSwitchable: connectionMode === 'switchable',
+    isConnectionModeSwitchable: computed(() => connectionMode.value === 'switchable'),
     loadAppModeFromStorage,
     loadOnlineConfigOnlyFromStorage,
     setAppMode,
