@@ -2,69 +2,45 @@
 
 Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON- und CSV-Listen mit Objektkarten (inkl. Scan-Vorschau).
 
+> Diese README ist die kurze Einstiegs- und Setup-Beschreibung.
+> Die maßgebliche Implementierungs- und Architekturreferenz ist
+> [`docs/technical-documentation.md`](docs/technical-documentation.md).
+
 ## Features
 
-- Datenmodus-Umschalter in der Topbar (`JSON | CSV`)
-- Tab-Navigation mit Bereichen `Editieren`, `Konfiguration`, `Ersetzungen`, `Datenbankverbindung`, `Info`
-- JSON-Datei lokal hochladen (Top-Level-Array oder Objekt mit `data`-Array)
-- CSV-Datei lokal hochladen (erste Zeile = Header, danach Datensaetze)
-- Beispieldaten laden (`sample-data.json` / `sample-data.csv`) passend zum aktiven Datenmodus
-- Volltextsuche über alle Felder
-- Kartenansicht mit Bildvorschau (`scan`-URL)
-- Detail-Editor für einfache Feldtypen (`string`, `number`, `boolean`, `null`)
-- Optionaler Dev-Inspektionsmodus (`dataInspectionMode`): im Edit-Panel zusaetzliche Buttons `show/hide raw data` und `Copy raw data` mit `<pre>`-Preview des aktuell selektierten Items
-- Neuer Feldtyp `wikidata-autosuggest` mit Entity-Array-Wertmodell (`[{ id, label, ... }]`)
-- Neuer Feldtyp `candidate` fuer Vorschlagswerte inkl. Inline-Uebernahme in ein konfiguriertes Ziel-Feld
-- `candidate` unterstuetzt Ziel-Felder vom Typ `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest` (kein self-target, kein Target auf `candidate`)
-- `candidate` unterstuetzt `inputType: normal | text` fuer ein- oder mehrzeilige Eingabe
-- `wikidata-autosuggest` unterstuetzt konfigurierbare Priorisierung (`claimPresence`, `claimValueMatch`) inkl. optionaler Emit-Metadaten
-- Wikidata-Multilanguage-Suche ist fehlertolerant: Teilausfaelle einzelner Sprachen werden abgefangen, verbleibende Treffer bleiben erhalten
-- Wikidata-Suche bricht veraltete In-Flight-Requests beim Tippen/Unmount per `AbortController` ab (keine stale Treffer, keine Abort-Fehleranzeige)
-- App-Config für Wording/Farbe (`config/app.config.js`, `config/wording.json`)
-- Sprachumschalter (DE/EN) in der Topbar
-- Offline/Online-App-Modus mit Strapi-Login (FE-Users) und Session-Restore
-- Online-Modus mit gezieltem Delta-Speichern, Retry bei Teilfehlern und Unsaved-Counter
-- Hierarchische Navigation ueber `hierarchyFields` (inkl. Legacy-Fallbacks)
-- Optionales `firstLevelStaticList` fuer feste Level-1-Boxen (ohne Initial-Ladevorgang von Items)
-- Optionaler Header-Toggle `Configuration only` fuer settings-only Start im Online-Modus (Settings werden trotzdem aus `response.data.settings` geladen und in der Konfigurations-UI angezeigt)
-- Desktop-Sticky-Workspace: Tab-Leiste sowie Edit-Header (Titel, Controls, Konfiguration, Listenkopf) bleiben beim Scrollen fixiert
-- Dirty-State mit Reset auf den importierten Stand
-- Export als neue `*-edited.json` (Format: `{ data, config, replacements? }`)
-- Minimale User-Config-GUI pro Feld (Typ, Beschriftung, Eingabehinweis, Reihenfolge per Drag-and-Drop)
-- Fuer `wikidata-autosuggest` Felder: alle Feldoptionen in einklappbarem `Optionen`-Bereich (Suchoptionen + Priorisierung mit `claimPresence`/`claimValueMatch`)
-- Bei bereits vorkonfigurierten `wikidata-autosuggest` Feldern startet der `Optionen`-Bereich eingeklappt; bei neu angelegten Feldern ausgeklappt
-- Nach `Konfiguration anwenden` werden geoeffnete `Optionen`-Bereiche wieder eingeklappt
-- Felder koennen in der User-Config hinzugefuegt und entfernt werden
-- User-Config anwenden auf die Felddarstellung in der Sidebar
-- Bei aktivem CSV-Modus wechselt `Konfiguration anwenden` automatisch auf JSON-Modus
-- User-Config bleibt in `sessionStorage` ueber Reloads erhalten
-- Datenmodus bleibt in `sessionStorage` ueber Reloads erhalten
-- Optionaler Timestamp im Export-Dateinamen (aktivierbar/deaktivierbar)
-- Lightbox für größere Scan-Ansicht
-- Keyboard-Shortcuts: `Escape` schliesst Start-From-Scratch-Modal und Lightbox bzw. hebt die Sidebar-Selektion auf
-- Footer-Identity mit Links zu GitHub-Repository und Berlin University Collections
-- Empty-State-Hinweise im Statusbereich: zuerst `Noch keine Daten geladen`, danach Upload-Hinweis
+- Lokales Bearbeiten von JSON- und CSV-Daten inkl. Validierung, Reset und Export
+- Online-Betrieb gegen Strapi: Login (FE-Users), Laden der Konfiguration und Items, feldgenaues Speichern
+- Anlegen neuer Items im Online-Modus (lokaler Entwurf, Persistenz beim Speichern)
+- Hierarchische Navigation (Level-1-Boxen, einklappbare Level-2-Gruppen) mit bedarfsgesteuertem Nachladen
+- Konfigurierbare Feldtypen: `normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`
+- Wikidata-Autosuggest inkl. Priorisierung, Statement-Nachladen und mehrsprachigen Labels
+- User-Config-GUI pro Feld (Typ, Beschriftung, Hinweis, Breite, Reihenfolge per Drag-and-Drop)
+- Volltextsuche über alle Felder sowie Sortierung nach Bearbeitungsstand und `suspendEditing`
+- Ersetzungslisten je Feld (werden gesammelt und exportiert, nicht automatisch angewendet)
+- Kartenansicht mit Bildvorschau (`scan`-URL) inkl. Lightbox; ohne `scan` automatische Listenansicht
+- Lokalisierung über Wording-Handles (DE/EN), optional aus dem Backend überschreibbar
+- Tab `Einstellungen` für Strapi-Verbindungsprofile und zur Laufzeit editierbare App-Settings
+- Tab-Navigation: `Editieren`, `Konfiguration`, `Ersetzungen`, `Einstellungen`, `Info`
+- Responsives Editor-Layout mit sticky Kopfbereich und erweitertem Vollbreiten-Modus
 
-Hinweis zur Bedienung:
-- Datenmodus- und Sprach-Umschalter sind als aktive/inaktive Segmented Controls dargestellt.
+Details zu jedem Punkt stehen in der [Technischen Dokumentation](docs/technical-documentation.md).
 
 ## Tech Stack
 
-- Vue 3
-- Vite
-- Vitest
+- Vue 3, Vite, Vitest
 - Sass (SCSS)
+- `markdown-it` + `highlight.js` (Info-Tab)
 
 ## Voraussetzungen
 
 - Node.js 18+ (empfohlen: aktuelle LTS)
-- npm
+- pnpm (im Repository liegt ausschließlich `pnpm-lock.yaml`)
 
 ## Lokale Entwicklung
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Danach im Browser die von Vite ausgegebene URL öffnen (meist `http://localhost:5173`).
@@ -72,17 +48,17 @@ Danach im Browser die von Vite ausgegebene URL öffnen (meist `http://localhost:
 ## Build und Preview
 
 ```bash
-npm run build
-npm run preview
+pnpm build
+pnpm preview
 ```
 
 Deploy-Hinweis:
-- Der Vite-Build ist auf den Subpfad `/viewer-editor/` konfiguriert (`base` in `vite.config.js`).
+- Der Vite-Build ist auf den Subpfad `/viewer-editor-strapi/` konfiguriert (`base` in `vite.config.js`).
 
 ## Tests
 
 ```bash
-npm run test
+pnpm test
 ```
 
 ## Erwartetes JSON-Format
@@ -132,12 +108,12 @@ Beim Import werden zwei JSON-Formate akzeptiert:
 }
 ```
 
-Beim JSON-Export nutzt die App immer das kanonische Format mit `data` und `config`. Falls die importierte Datei zusätzlich ein `replacements`-Objekt enthält, wird dieses unverändert mit exportiert (`{ data, config, replacements }`).
-Wenn beim Download noch nicht angewendete Konfigurationsaenderungen vorhanden sind, werden diese vor dem Export automatisch angewendet. Dadurch passen exportierte Daten und exportierte Konfiguration immer zusammen.
+Beim JSON-Export nutzt die App immer das kanonische Format `{ data, config, suspendedItems, replacements }`. `suspendedItems` ist ein Array von Item-Indizes und darf auch beim Import mitgegeben werden; `replacements` wird unverändert durchgereicht.
+Wenn beim Download noch nicht angewendete Konfigurationsänderungen vorhanden sind, werden diese vor dem Export automatisch angewendet. Dadurch passen exportierte Daten und exportierte Konfiguration immer zusammen.
 
 ### Feldtyp `candidate` in `config.fields`
 
-`candidate` ist ein regulaerer Feldtyp in `config.fields` und speichert den Vorschlagswert selbst als String im Item.
+`candidate` ist ein regulärer Feldtyp in `config.fields` und speichert den Vorschlagswert selbst als String im Item.
 
 Beispiel:
 
@@ -160,10 +136,10 @@ Beispiel:
 
 Hinweise:
 - `candidate.targetField` ist Pflicht und muss auf ein vorhandenes, nicht-`candidate` Feld zeigen.
-- Gueltige Zieltypen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+- Gültige Zieltypen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
 - `candidate.inputType` ist optional und kann `normal` (Default) oder `text` sein.
-- In der Sidebar ist pro Candidate-Feld ein Inline-Button verfuegbar: Klick uebernimmt den Vorschlag in das Ziel-Feld.
-- Bei Zieltyp `wikidata-autosuggest` wird der Wert als Such-Query vorbefuellt und die Suche direkt gestartet (ohne Auto-Selektion).
+- In der Sidebar ist pro Candidate-Feld ein Inline-Button verfügbar: Klick übernimmt den Vorschlag in das Ziel-Feld.
+- Bei Zieltyp `wikidata-autosuggest` wird der Wert als Such-Query vorbefüllt und die Suche direkt gestartet (ohne Auto-Selektion).
 
 Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.
@@ -175,7 +151,7 @@ Hinweise:
 
 ## Erwartetes CSV-Format
 
-CSV erwartet eine Header-Zeile und danach Datensaetze:
+CSV erwartet eine Header-Zeile und danach Datensätze:
 
 ```csv
 inventory_number,species,collector,scan
@@ -183,70 +159,37 @@ A.51-98-6-778,Cedrus atlantica,Georg August Schweinfurth,https://example.org/car
 ```
 
 Hinweise:
-- Das Feld `scan` wird automatisch als Digitalisat-URL interpretiert und fuer die Scan-Anzeige genutzt.
-- Headernamen muessen eindeutig sein (keine doppelten Spaltennamen).
-- Leere Spaltennamen sind unzulaessig.
-- Fuehrende/nachgestellte Leerzeichen in CSV-Werten bleiben beim Import erhalten (auch in unquoted Feldern).
-- CRLF-Zeilenenden werden unterstuetzt; nur der Zeilenumbruch selbst wird entfernt.
+- Das Feld `scan` wird automatisch als Digitalisat-URL interpretiert und für die Scan-Anzeige genutzt.
+- Headernamen müssen eindeutig sein (keine doppelten Spaltennamen).
+- Leere Spaltennamen sind unzulässig.
+- Führende/nachgestellte Leerzeichen in CSV-Werten bleiben beim Import erhalten (auch in unquoted Feldern).
+- CRLF-Zeilenenden werden unterstützt; nur der Zeilenumbruch selbst wird entfernt.
 
-## Projektstruktur
+## Projektstruktur (Überblick)
 
-- `src/App.vue` – UI-Composition-Root (Orchestrierung von Komponenten, Stores und Composables)
-- `src/components/InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen (`src/assets/texts/info-de.md`, `src/assets/texts/info-en.md`)
-- `src/composables/useViewerData.js` – Datenlogik (Import, Suche, Editieren, Export)
-- `src/composables/useFieldMapping.js` - Mapping-Helpers fuer Sidebar-Feldrendering
-- `src/composables/useDataImportExport.js` - Import/Export-Orchestrierung inkl. Dateimodus-Pruefung und Download-Flow
-- `src/composables/useSelectionNavigation.js` - Navigation der gefilterten Auswahl (vor/zurueck/clear)
-- `src/composables/useModalKeyboard.js` - gemeinsames Keyboard-Handling fuer Escape-basiertes Modal-Schliessen
-- `src/composables/useViewerData.test.js` – Unit-Tests für Kernfunktionen
-- `src/composables/userConfigValidation.test.js` – Unit-Tests für die JSON-Config-Validierung
-- `src/stores/useAppConfigStore.js` - App-weite Konfiguration (Sprache/Wording/Farbe/`dataInspectionMode`)
-- `src/stores/useUserConfigStore.js` - User-Config-State und Aktionen (Session, Apply, Add/Remove, Reorder)
-- `src/stores/useDataTransferStore.js` - Datenmodus-UI-State und Dateinamenlogik (inkl. Session)
-- `src/stores/useConnectionProfileStore.js` - persistentes Verbindungsprofil (Base URL, Endpoints, Import/Export)
-- `src/stores/useOnlineModeStore.js` - App-Modus (`offline`/`online`) inkl. Persistenz
-- `src/stores/useAuthStore.js` - Auth-Session fuer Strapi FE-Users
-- `src/stores/useOnlineSettingsStore.js` - Laden der Online-Settings aus `response.data.settings`
-- `src/stores/useOnlineItemsStore.js` - Laden/Hierarchie-Handling fuer Online-Items inkl. Level-1-Buckets
-- `src/stores/useOnlineUpdatesStore.js` - Delta-Tracking und Save-Orchestrierung fuer Online-Edits/Creates
-- `src/composables/userConfigValidation.js` - zentraler Validator fuer eingebettete JSON-Config
-- `src/components/UserConfigPanel.vue` - User-Config-GUI als eigenstaendige SFC
-- `src/components/DataTransferControls.vue` - Upload/Download-Controls als eigenstaendige SFC
-- `src/components/DatabaseConnectionPanel.vue` - GUI fuer Connection-Profile (inkl. Test und JSON Import/Export)
-- `src/components/OnlineAccessPanel.vue` - Online-Status, Login/Logout, Save-Status und `Configuration only` Toggle
-- `src/components/ItemFieldEditor.vue` - Sidebar-Feldeditor als eigenstaendige SFC inkl. optionaler Raw-Data-Dev-Preview
-- `src/components/ViewerWikidataField.vue` - Wrapper fuer `wikidata-autosuggest` (Selection/Chips/Remove)
-- `src/components/WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe, erhaelt `autosuggest`-Config als pass-through
-- `src/components/config/AutosuggestFieldConfig.vue` - GUI-Editor fuer `autosuggest` Feldkonfiguration in der Konfigurationsansicht
-- `src/composables/useWikidataSearch.js` - Wikidata-Suche inkl. optionaler Priorisierung und Claim-Metadaten
-- `src/composables/useWikidataSearch.test.js` - Unit-Tests fuer resiliente Multilanguage-Suche und Abort-Verhalten
-- Sidebar im Edit-Bereich unterstuetzt einen erweiterten Modus (volle Breite) mit Maximize/Minimize-Icons.
-- Hinweise zum Ladezustand und Dirty-/Fehlerstatus werden im `status-panel` in `src/App.vue` gerendert
-- `src/components/LightboxModal.vue` - Lightbox fuer grosse Scan-Ansicht als eigenstaendige SFC
-- `src/components/StartFromScratchModal.vue` - Modal fuer den "Neu beginnen"-Flow als eigenstaendige SFC
-- `src/components/ListPanel.vue` - Kartenliste inkl. Ergebniszustaende und Auswahlinteraktionen als eigenstaendige SFC
-- `src/components/ListPanel.vue` - Kartenliste mit trennbarem Kopf-/Body-Rendering (`renderHeader`/`renderBody`) fuer sticky Header-Komposition
-- `src/components/footer/Identity.vue` - Footer mit Projekt-/Institutions-Links
-- `src/assets/texts/info-de.md` / `src/assets/texts/info-en.md` - Markdown-Quellen fuer den Info-Tab
-- `src/assets/icons/` - SVG-Icons fuer Expand/Collapse-Steuerungen im Edit-Bereich
-- `src/assets/styles/index.scss` - zentraler Styling-Einstieg
-- `src/assets/styles/tokens/_index.scss` - globale Design-Tokens als CSS-Variablen (`--ve-*`)
-- `src/assets/styles/base/_index.scss` - Base-Layer (Reset, Elemente, globale Utilities)
-- `src/assets/styles/layout/_index.scss` - Layout-Layer (App-Shell, Grid, responsive Struktur)
-- `src/assets/styles/legacy.scss` - temporaerer Migrations-Layer fuer bestehende globale Styles
-- `src/assets/styles/components/_index.scss` - optionaler Ausnahme-Layer fuer globale Sonderfaelle
-- `config/app.config.js` - App-Konfiguration (Wording-Handles, Primaerfarbe, Default-Sprache, `connectionMode`, `dataInspectionMode`)
-- `config/wording.json` - Sprachvarianten je Wording-Handle
+- `src/App.vue` – UI-Composition-Root (Verdrahtung von Komponenten, Stores und Composables)
+- `src/components/` – SFCs für Liste, Sidebar-Editor, Konfiguration, Ersetzungen, Einstellungen, Modals
+- `src/composables/` – Datenlogik, Import/Export, Feld-Mapping, Navigation, Wikidata-Suche, Validierung
+- `src/stores/` – App-Config, User-Config, Datenmodus, Ersetzungen, Auth, Online-Modus/-Settings/-Items/-Updates
+- `src/fields/` – zentrale Feldtypen-Registry
+- `src/services/strapiApi.js` – gesamter Strapi-HTTP-Zugriff
+- `src/assets/` – Styles (Tokens/Base/Layout/Components/Legacy), Info-Texte, Icons, Logos
+- `config/` – `app.config.js` (App-Defaults) und `wording.json` (Sprachvarianten)
+- `public/` – Beispieldaten, Beispielscans, optionales Default-Verbindungsprofil
+- Tests liegen als `*.test.js` neben ihrem jeweiligen Modul
+
+Die vollständige Dateiliste mit Verantwortlichkeiten steht in der
+[Technischen Dokumentation, Kapitel 3](docs/technical-documentation.md#3-projektstruktur).
 
 ## Styling-Architektur
 
-- Zentral in `src/assets/styles/`: Tokens, Base, Layout und globale Utilities.
-- Farbthema basiert auf semantischen Root-Tokens (`--color-*`) in `src/assets/styles/tokens/_index.scss` und wird auf bestehende `--ve-*` Tokens gemappt, damit Alt-Styles stabil bleiben.
-- Aktuelle Theme-Palette: Primary `#0066CC`, Primary Hover `#004F99`, Secondary `#FF8C42`, Background `#EEF1F5`, Surface `#FFFFFF`, Border `#D6DCE5`, Text `#1F2937`/`#5B6575`.
-- Globaler App-Hintergrund ist ein radialer Verlauf in `src/assets/styles/base/_index.scss` (`#F8FAFC -> #EEF1F5 -> #E7ECF2`).
-- Komponenten-spezifische Styles gehoeren in die jeweiligen SFCs (`<style scoped lang="scss">`).
-- `components/_index.scss` nur fuer Ausnahmen mit notwendiger globaler Wirkung (z. B. Third-Party-Overrides).
-- Fuer kritische UI-Steuerungen (Tabs, Modus-Switch, Transfer-Buttons, Karten) sind lokale `:hover`-Regeln gesetzt, damit globale `button:hover`-Styles keine unerwuenschten Farbwechsel erzeugen.
+- Zentral in `src/assets/styles/`: Tokens, Base, Layout, Components und ein Legacy-Layer.
+- Das Farbthema basiert auf semantischen Root-Tokens (`--color-*`), die auf die bestehenden `--ve-*` Tokens gemappt werden.
+- `--color-primary` wird zur Laufzeit aus der App-Config (`primaryColor`) überschrieben.
+- Komponenten-spezifische Styles gehören in die jeweiligen SFCs (`<style scoped lang="scss">`);
+  `components/_index.scss` nur für Ausnahmen mit notwendiger globaler Wirkung.
+
+Details: [Technische Dokumentation, Kapitel 15](docs/technical-documentation.md#15-styling-und-responsiveness).
 
 ## Lizenz
 
