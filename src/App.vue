@@ -3,6 +3,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useDataImportExport } from './composables/useDataImportExport'
+import { useReplacementsApply } from './composables/useReplacementsApply'
+import { collectReplaceableFieldKeys } from './composables/replacementRules'
 import { useSelectionNavigation } from './composables/useSelectionNavigation'
 import { useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
@@ -66,6 +68,7 @@ const {
   settings: onlineSettings,
   fetchOnlineSettings,
   persistOnlineSettings,
+  persistOnlineReplacements,
   clearOnlineSettings,
   markOnlineSettingsInvalid,
 } = useOnlineSettingsStore()
@@ -87,6 +90,7 @@ const {
   clearSaveFeedback,
   trackOnlineDraftCreate,
   trackOnlineFieldChange,
+  trackOnlineReplacementUpdatesForRemainingItems,
   saveOnlineUpdates,
 } = useOnlineUpdatesStore()
 
@@ -98,6 +102,7 @@ const {
   applyImportedConfigPayload,
   hasUnappliedUserConfigChanges,
   appliedUserConfigFields,
+  userConfigFields,
   appliedItemLabelField,
   appliedMarkAsEditedBasis,
 } = useUserConfigStore()
@@ -123,6 +128,7 @@ const {
   importFromCsvText,
   selectItem,
   updateField,
+  applyReplacementsToLoadedItems,
   toggleSuspendEditingByUid,
   resetToImportedSnapshot,
   createExportPayload,
@@ -150,7 +156,37 @@ const startFromScratchModalError = ref('')
 const candidateAutosuggestPrefills = ref({})
 let candidateAutosuggestPrefillToken = 0
 
-const { createReplacementsPayload, hasReplacementsChanges, resetReplacements } = useReplacementsStore()
+const {
+  createReplacementsPayload,
+  hasReplacementsChanges,
+  initializeReplacements,
+  markReplacementsAsSaved,
+  resetReplacements,
+} = useReplacementsStore()
+
+const replacementFieldConfigs = computed(() => {
+  const applied = appliedUserConfigFields.value || {}
+  if (collectReplaceableFieldKeys(applied).length) return applied
+  return userConfigFields.value || {}
+})
+
+const { applyReplacementsNow } = useReplacementsApply({
+  appMode,
+  isAuthenticated,
+  connectionProfile,
+  token,
+  onlineSettings,
+  rawItems,
+  importSnapshot,
+  replacementFieldConfigs,
+  applyReplacementsToLoadedItems,
+  trackOnlineFieldChange,
+  trackOnlineReplacementUpdatesForRemainingItems,
+})
+
+async function onApplyReplacements() {
+  await applyReplacementsNow()
+}
 
 const resultCountLabel = computed(() => {
   if (!hasData.value) return '0 / 0'
@@ -461,7 +497,6 @@ async function onSelectHierarchyLevel1(value) {
 
     initializeFromJsonArray(result.items, `online:${result.itemsPath}`)
     clearOnlineUpdates()
-    resetReplacements()
 
     const applyResult = applyImportedConfigPayload(onlineSettings.value)
     if (!applyResult.ok) {
@@ -481,16 +516,36 @@ async function onSelectHierarchyLevel1(value) {
   initializeExpandedHierarchyLevel2(normalizedLevel1Value)
 }
 
+const hasPendingOnlineChanges = computed(() => {
+  if (appMode.value !== 'online' || !isAuthenticated.value) return false
+  return hasPendingUpdates.value || hasReplacementsChanges.value
+})
+
+async function persistReplacementRulesIfChanged() {
+  if (!hasReplacementsChanges.value) return
+  const result = await persistOnlineReplacements(createReplacementsPayload())
+  if (result?.ok) {
+    markReplacementsAsSaved()
+  }
+}
+
 async function onSaveOnlineChanges() {
   if (appMode.value !== 'online') return
   if (!isAuthenticated.value) return
   if (!connectionProfile.value) return
-  if (!hasPendingUpdates.value) return
+  if (!hasPendingOnlineChanges.value) return
+
+  if (!hasPendingUpdates.value) {
+    await persistReplacementRulesIfChanged()
+    return
+  }
 
   const result = await saveOnlineUpdates({
     profile: connectionProfile.value,
     token: token.value || '',
   })
+
+  await persistReplacementRulesIfChanged()
 
   if (result.ok) {
     markAsSaved(importFileName.value)
@@ -960,7 +1015,7 @@ watch(
     initializeFromJsonArray([], itemsPathFromSettings ? `online:${itemsPathFromSettings}` : 'online:settings')
     clearOnlineItems()
     clearOnlineUpdates()
-    resetReplacements()
+    initializeReplacements(result.replacements)
     hasSelectedHierarchyLevel1.value = false
     selectedHierarchyLevel1.value = ''
     expandedHierarchyLevel2Values.value = []
@@ -983,7 +1038,6 @@ watch(
     initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
     applyUserConfigToRawItems(rawItems.value)
     clearOnlineUpdates()
-    resetReplacements()
     hasSelectedHierarchyLevel1.value = false
     selectedHierarchyLevel1.value = ''
     expandedHierarchyLevel2Values.value = []
@@ -1010,7 +1064,7 @@ watch(
       <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
       <div class="actions">
         <OnlineAccessPanel
-          :has-pending-online-updates="hasPendingUpdates"
+          :has-pending-online-updates="hasPendingOnlineChanges"
           :pending-online-update-count="pendingUpdateCount"
           :save-status="onlineSaveStatus"
           :save-error="onlineSaveError"
@@ -1190,7 +1244,7 @@ watch(
                     :selected-view-item="selectedViewItem" :include-configured-types="['checkbox']"
                     :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
                     @accept-candidate="onAcceptCandidate" />
-                  <ReplacementsUnit/>
+                  <ReplacementsUnit @apply-replacements="onApplyReplacements" />
                 </div>
 
                 <ItemFieldEditor :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
@@ -1223,7 +1277,7 @@ watch(
 
         <section v-if="activeTab === 'replacements'" id="panel-replacements"
           class="replacements-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-replacements">
-          <ReplacementsPanel />
+          <ReplacementsPanel @apply-replacements="onApplyReplacements" />
         </section>
 
         <section v-if="activeTab === 'database-connection'" id="panel-database-connection"

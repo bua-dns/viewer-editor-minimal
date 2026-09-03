@@ -1,11 +1,17 @@
 import { computed, ref } from 'vue'
 import {
   createCollectionItemInStrapi,
+  fetchAllCollectionItemsFromStrapi,
+  getWikidataAutosuggestFieldKeysFromSettings,
   normalizeOnlineChangedFieldsForStrapi,
+  normalizeStrapiItem,
   pickNonEmptyOnlineFields,
+  resolveItemsPathFromSettings,
+  resolveScanFieldFromSettings,
   resolveStableIdentifierFromRow,
   updateCollectionItemInStrapi,
 } from '../services/strapiApi'
+import { computeReplacementChangesForItem } from '../composables/replacementRules'
 import { useOnlineSettingsStore } from './useOnlineSettingsStore'
 
 const ONLINE_META_KEY = '__onlineMeta'
@@ -134,6 +140,76 @@ function trackOnlineFieldChange({ item, snapshotItem, key, nextValue }) {
     [entryKey]: currentEntry,
   }
   return true
+}
+
+/**
+ * Extends a replacements run to the whole collection: every item that is not
+ * currently loaded is fetched, matched against the rules and — when it changes —
+ * registered as a regular pending update, so it is written by the normal save.
+ */
+async function trackOnlineReplacementUpdatesForRemainingItems({
+  profile,
+  token = '',
+  settings,
+  replacements,
+  fieldConfigs,
+  loadedIds = [],
+}) {
+  const itemsPath = resolveItemsPathFromSettings(settings)
+  if (!itemsPath) {
+    return { ok: false, error: 'Online settings must provide itemsPath.' }
+  }
+
+  const settingsFields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
+  const scanFieldKey = resolveScanFieldFromSettings(settings)
+  const populateFields = getWikidataAutosuggestFieldKeysFromSettings(settings)
+  const skippedIds = new Set(loadedIds.map((id) => String(id)))
+
+  let changedItemCount = 0
+  let changedFieldCount = 0
+
+  try {
+    const fetchedRows = await fetchAllCollectionItemsFromStrapi({
+      profile,
+      itemsPath,
+      token,
+      populateFields,
+    })
+
+    fetchedRows.forEach((rawRow) => {
+      const item = normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey)
+      const id = item?.[ONLINE_META_KEY]?.id
+      if (!id || skippedIds.has(String(id))) return
+
+      const changedFields = computeReplacementChangesForItem(item, replacements, fieldConfigs)
+      const changedKeys = Object.keys(changedFields)
+      if (!changedKeys.length) return
+
+      const snapshotItem = { ...item }
+      changedKeys.forEach((key) => {
+        item[key] = changedFields[key]
+        trackOnlineFieldChange({ item, snapshotItem, key, nextValue: changedFields[key] })
+      })
+
+      changedItemCount += 1
+      changedFieldCount += changedKeys.length
+    })
+
+    return {
+      ok: true,
+      scannedCount: fetchedRows.length,
+      skippedCount: skippedIds.size,
+      changedItemCount,
+      changedFieldCount,
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error: normalizeSaveErrorMessage(error, 'Could not load the collection for the replacements run.'),
+      changedItemCount,
+      changedFieldCount,
+    }
+  }
 }
 
 function removePendingUpdate(entryKey) {
@@ -273,6 +349,7 @@ export function useOnlineUpdatesStore() {
     clearSaveFeedback,
     trackOnlineDraftCreate,
     trackOnlineFieldChange,
+    trackOnlineReplacementUpdatesForRemainingItems,
     saveOnlineUpdates,
   }
 }

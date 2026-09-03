@@ -93,11 +93,54 @@ export async function fetchViewerSettingsFromStrapi({ profile, token = '' }) {
   }
 
   const wording = isPlainObject(payload?.data?.wording) ? payload.data.wording : {}
+  const replacements = resolveReplacementsFromConfigPayload(payload)
 
   return {
     payload,
     settings,
     wording,
+    replacements,
+  }
+}
+
+/**
+ * Replacement rules live in their own prop of the viewer-settings singleton
+ * (`data.replacements`); older instances kept them inside the settings object.
+ */
+function resolveReplacementsFromConfigPayload(payload) {
+  if (isPlainObject(payload?.data?.replacements)) return payload.data.replacements
+  if (isPlainObject(payload?.data?.settings?.replacements)) return payload.data.settings.replacements
+  return {}
+}
+
+export async function updateViewerReplacementsInStrapi({ profile, token = '', replacements }) {
+  if (!isPlainObject(replacements)) {
+    throw createHttpError('Updated replacements must be an object.', 400, replacements)
+  }
+
+  const payload = await strapiFetchJson({
+    profile,
+    path: profile.configPath,
+    method: 'PUT',
+    token,
+    body: {
+      data: {
+        replacements,
+      },
+    },
+  })
+
+  if (!isPlainObject(payload?.data?.replacements)) {
+    throw createHttpError(
+      'Config update response must contain an object at data.replacements. Does the viewer settings type have a JSON prop named "replacements"?',
+      500,
+      payload,
+    )
+  }
+
+  return {
+    payload,
+    replacements: payload.data.replacements,
   }
 }
 
@@ -129,6 +172,7 @@ export async function updateViewerSettingsInStrapi({ profile, token = '', settin
     payload,
     settings: updatedSettings,
     wording,
+    replacements: resolveReplacementsFromConfigPayload(payload),
   }
 }
 

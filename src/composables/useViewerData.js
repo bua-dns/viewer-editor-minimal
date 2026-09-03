@@ -1,5 +1,6 @@
 import { computed, ref, unref } from 'vue'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
+import { computeReplacementChanges, countChangedFields } from './replacementRules'
 import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 
 function uid() {
@@ -386,6 +387,38 @@ export function useViewerData(options = {}) {
     return true
   }
 
+  /**
+   * Applies the replacement rules to every loaded item. Returns the applied
+   * changes so callers can forward them to the online delta pipeline.
+   */
+  function applyReplacementsToLoadedItems(replacements, fieldConfigs) {
+    const changes = computeReplacementChanges(rawItems.value, replacements, fieldConfigs)
+    if (!changes.length) {
+      return { changes: [], changedItemCount: 0, changedFieldCount: 0 }
+    }
+
+    const viewItemsByIndex = new Map(viewItems.value.map((viewItem) => [viewItem._index, viewItem]))
+
+    changes.forEach(({ index, changedFields }) => {
+      const item = rawItems.value[index]
+      if (!item) return
+      Object.entries(changedFields).forEach(([key, value]) => {
+        item[key] = value
+      })
+      const viewItem = viewItemsByIndex.get(index)
+      if (viewItem) {
+        viewItem._searchText = toSearchText(item)
+      }
+    })
+
+    isDirty.value = true
+    return {
+      changes,
+      changedItemCount: changes.length,
+      changedFieldCount: countChangedFields(changes),
+    }
+  }
+
   function toggleSuspendEditingByUid(uidValue, checked) {
     const targetViewItem = viewItems.value.find((item) => item._uid === uidValue)
     if (!targetViewItem) return false
@@ -490,6 +523,7 @@ export function useViewerData(options = {}) {
     importFromCsvText,
     selectItem,
     updateField,
+    applyReplacementsToLoadedItems,
     toggleSuspendEditingByUid,
     resetToImportedSnapshot,
     createExportPayload,

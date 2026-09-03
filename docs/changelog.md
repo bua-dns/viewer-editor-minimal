@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09 - Replacements applied to the data, online included
+
+- Replacements are no longer collect-and-export only: adding a rule, or pressing `Ersetzungen anwenden`
+  in the replacements tab, now rewrites the data. Matching is literal, substring based and
+  case-sensitive; only fields of type `normal` and `text` are touched, read-only and reserved fields
+  (`scan`, `suspendEditing`, `__onlineMeta`) are excluded. `allFields` means every configured field
+  that qualifies.
+- Online a run covers the **whole collection**: loaded items change in place and become regular field
+  deltas, all remaining items are fetched, matched and registered as pending updates. Nothing is
+  written until `Änderungen speichern` - the run only produces pending changes.
+- Online the rules themselves live in a dedicated JSON prop `replacements` of the viewer settings
+  singleton (legacy `settings.replacements` is still read). They are written with the same save action,
+  so the save button is now also active when only rules changed.
+- Rules loaded from Strapi or from a JSON import are never applied automatically; loading a bucket in
+  hierarchy mode no longer discards unsaved rules.
+- Replacements tab gained a per-rule remove button, an explicit apply button and a result summary;
+  the field dropdown now offers only fields a rule can actually touch.
+- New modules: `src/composables/replacementRules.js` (pure rule logic) and
+  `src/composables/useReplacementsApply.js` (run orchestration).
+- No undo and no dry run: a run changes values immediately, `Reset` before saving is the only way back.
+
 ## 2026-09 - Configurable scan source field
 
 - Added optional online settings key `scanField` (legacy form `scan_field`, default `scan`) that names the Strapi field holding the image URL.

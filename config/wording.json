@@ -563,6 +563,46 @@
     "de": "zur Ersetzungsliste hinzufügen",
     "en": "add to replacements list"
   },
+  "replacementsApplyButton": {
+    "de": "Ersetzungen anwenden",
+    "en": "Apply replacements"
+  },
+  "replacementsApplyRunning": {
+    "de": "Ersetzungen werden angewendet ...",
+    "en": "Applying replacements ..."
+  },
+  "replacementsApplyLocalSummary": {
+    "de": "Ersetzungen angewendet: {items} Datensätze, {fields} Felder geändert.",
+    "en": "Replacements applied: {items} items, {fields} fields changed."
+  },
+  "replacementsApplyOnlineSummary": {
+    "de": "Ersetzungen angewendet: {items} geladene Datensätze und {remoteItems} weitere Datensätze der Collection geändert ({fields} Felder). Zum Speichern auf \"Änderungen speichern\" klicken.",
+    "en": "Replacements applied: {items} loaded items and {remoteItems} further items of the collection changed ({fields} fields). Use \"Save changes\" to write them."
+  },
+  "replacementsApplyNoMatch": {
+    "de": "Keine Treffer - es wurde nichts geändert.",
+    "en": "No matches - nothing was changed."
+  },
+  "replacementsApplyFailed": {
+    "de": "Ersetzungen konnten nicht vollständig angewendet werden.",
+    "en": "Replacements could not be applied completely."
+  },
+  "replacementsOnlineHint": {
+    "de": "Ersetzungen werden auf die gesamte Collection angewendet und mit dem nächsten Speichern nach Strapi geschrieben.",
+    "en": "Replacements are applied to the entire collection and written to Strapi with the next save."
+  },
+  "replacementsFieldTypeHint": {
+    "de": "Es werden nur Felder der Typen normal und Text berücksichtigt (ohne Read-only-Felder). Ersetzt wird literal, Teilzeichenketten, Groß-/Kleinschreibung beachtend.",
+    "en": "Only fields of type normal and text are affected (read-only fields excluded). Matching is literal, substring based and case-sensitive."
+  },
+  "replacementsRemoveRule": {
+    "de": "Regel entfernen",
+    "en": "Remove rule"
+  },
+  "replacementsEmpty": {
+    "de": "Noch keine Ersetzungen erfasst.",
+    "en": "No replacements yet."
+  },
   "applyConfiguration": {
     "de": "Konfiguration anwenden",
     "en": "Apply configuration"

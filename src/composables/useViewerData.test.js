@@ -420,6 +420,41 @@ describe('useViewerData flow', () => {
     expect(model.rawItems.value).toHaveLength(2)
   })
 
+  test('applyReplacementsToLoadedItems rewrites values, search text and dirty state', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([
+      { inventory_number: 'A1', place: 'Gruenberg i. Schl.' },
+      { inventory_number: 'A2', place: 'Berlin' },
+    ])
+
+    const result = model.applyReplacementsToLoadedItems(
+      { allFields: { 'i. Schl.': 'in Schlesien' } },
+      { inventory_number: { type: 'normal' }, place: { type: 'normal' } },
+    )
+
+    expect(result.changedItemCount).toBe(1)
+    expect(result.changedFieldCount).toBe(1)
+    expect(result.changes).toEqual([{ index: 0, changedFields: { place: 'Gruenberg in Schlesien' } }])
+    expect(model.rawItems.value[0].place).toBe('Gruenberg in Schlesien')
+    expect(model.rawItems.value[1].place).toBe('Berlin')
+    expect(model.viewItems.value[0]._searchText).toContain('gruenberg in schlesien')
+    expect(model.isDirty.value).toBe(true)
+  })
+
+  test('applyReplacementsToLoadedItems leaves data untouched without matches', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([{ inventory_number: 'A1', place: 'Berlin' }])
+
+    const result = model.applyReplacementsToLoadedItems(
+      { place: { Hamburg: 'Altona' } },
+      { place: { type: 'normal' } },
+    )
+
+    expect(result.changedItemCount).toBe(0)
+    expect(model.rawItems.value[0].place).toBe('Berlin')
+    expect(model.isDirty.value).toBe(false)
+  })
+
   test('syncSnapshotItemAtIndex rejects invalid indices', () => {
     const model = useViewerData()
     model.initializeFromJsonArray([{ inventory_number: 'A1' }])

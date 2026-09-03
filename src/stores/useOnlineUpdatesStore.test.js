@@ -232,4 +232,72 @@ describe('useOnlineUpdatesStore draft creates', () => {
     expect(JSON.parse(updateInit.body)).toEqual({ data: { inventory_number: 'EDIT-2' } })
     expect(store.pendingUpdateCount.value).toBe(0)
   })
+  test('replacements run tracks updates for collection items that are not loaded', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { id: 1, documentId: 'doc-1', place: 'Gruenberg i. Schl.' },
+          { id: 2, documentId: 'doc-2', place: 'Berlin' },
+          { id: 3, documentId: 'doc-3', place: 'Sagan i. Schl.' },
+        ],
+        meta: { pagination: { page: 1, pageCount: 1 } },
+      }),
+    })
+
+    const store = useOnlineUpdatesStore()
+    const result = await store.trackOnlineReplacementUpdatesForRemainingItems({
+      profile: { baseUrl: 'https://cms.example.org' },
+      token: 'jwt-1',
+      settings: { itemsPath: '/api/cards', fields: { place: { type: 'normal' } } },
+      replacements: { allFields: { 'i. Schl.': 'in Schlesien' } },
+      fieldConfigs: { place: { type: 'normal' } },
+      loadedIds: ['doc-1'],
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.scannedCount).toBe(3)
+    expect(result.changedItemCount).toBe(1)
+    expect(result.changedFieldCount).toBe(1)
+    expect(store.pendingUpdateCount.value).toBe(1)
+
+    const entry = Object.values(store.pendingUpdatesById.value)[0]
+    expect(entry.id).toBe('doc-3')
+    expect(entry.changedFields).toEqual({ place: 'Sagan in Schlesien' })
+  })
+
+  test('replacements run reports a failed collection fetch without pending updates', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: { message: 'boom' } }),
+    })
+
+    const store = useOnlineUpdatesStore()
+    const result = await store.trackOnlineReplacementUpdatesForRemainingItems({
+      profile: { baseUrl: 'https://cms.example.org' },
+      token: 'jwt-1',
+      settings: { itemsPath: '/api/cards' },
+      replacements: { allFields: { a: 'b' } },
+      fieldConfigs: { place: { type: 'normal' } },
+      loadedIds: [],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('boom')
+    expect(store.pendingUpdateCount.value).toBe(0)
+  })
+
+  test('replacements run requires an itemsPath', async () => {
+    const store = useOnlineUpdatesStore()
+    const result = await store.trackOnlineReplacementUpdatesForRemainingItems({
+      profile: { baseUrl: 'https://cms.example.org' },
+      settings: {},
+      replacements: { allFields: { a: 'b' } },
+      fieldConfigs: {},
+    })
+
+    expect(result.ok).toBe(false)
+    expect(store.pendingUpdateCount.value).toBe(0)
+  })
 })

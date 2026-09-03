@@ -3,27 +3,36 @@ import { computed, ref } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
+import { ALL_FIELDS_REPLACEMENT_KEY, collectReplaceableFieldKeys } from '../composables/replacementRules'
+
+const emit = defineEmits(['apply-replacements'])
 
 const { t } = useAppConfigStore()
 
 const replaceValue = ref('')
 const withValue = ref('')
-const fieldValue = ref('allFields')
+const fieldValue = ref(ALL_FIELDS_REPLACEMENT_KEY)
 
-const { addReplacement } = useReplacementsStore()
+const { addReplacement, applyStatus } = useReplacementsStore()
 const { appliedUserConfigFields, userConfigFields } = useUserConfigStore()
 
 const availableFields = computed(() => {
-    const appliedKeys = Object.keys(appliedUserConfigFields.value || {})
+    const appliedKeys = collectReplaceableFieldKeys(appliedUserConfigFields.value)
     if (appliedKeys.length) return appliedKeys
-    return Object.keys(userConfigFields.value || {})
+    return collectReplaceableFieldKeys(userConfigFields.value)
 })
 
+const isApplying = computed(() => applyStatus.value === 'applying')
+const canAddReplacement = computed(() => Boolean(replaceValue.value) && !isApplying.value)
+
 function addToReplacementsList(replace, withText, field) {
-    addReplacement(field, replace, withText)
+    if (!canAddReplacement.value) return
+    if (!addReplacement(field, replace, withText)) return
+
     replaceValue.value = ''
     withValue.value = ''
-    fieldValue.value = 'allFields'
+    fieldValue.value = ALL_FIELDS_REPLACEMENT_KEY
+    emit('apply-replacements')
 }
 </script>
 
@@ -56,9 +65,14 @@ function addToReplacementsList(replace, withText, field) {
             </div>
         </div>
 
-        <button type="button" class="add-button" @click="addToReplacementsList(replaceValue, withValue, fieldValue)">
+        <button type="button" class="add-button" :disabled="!canAddReplacement"
+            @click="addToReplacementsList(replaceValue, withValue, fieldValue)">
             {{ t('add_to_replacements_list', 'zur Ersetzungsliste hinzufügen') }}
         </button>
+
+        <p class="replacements-hint">
+            {{ t('replacementsFieldTypeHint', 'Es werden nur Felder der Typen normal und Text berücksichtigt (ohne Read-only-Felder). Ersetzt wird literal, Teilzeichenketten, Groß-/Kleinschreibung beachtend.') }}
+        </p>
     </div>
 </template>
 
@@ -112,6 +126,18 @@ function addToReplacementsList(replace, withText, field) {
   cursor: pointer;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.add-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.replacements-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
 }
 
 .replacements-list {

@@ -9,6 +9,7 @@ import {
   normalizeOnlineChangedFieldsForStrapi,
   normalizeStrapiItem,
   resolveScanFieldFromSettings,
+  updateViewerReplacementsInStrapi,
   updateViewerSettingsInStrapi,
   updateCollectionItemInStrapi,
 } from './strapiApi'
@@ -311,6 +312,65 @@ describe('strapiApi helpers', () => {
 
     expect(result.settings.version).toBe(1)
     expect(result.wording.appTitle.de).toBe('Online Titel')
+  })
+
+  test('loads replacements from the dedicated prop and falls back to the settings object', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          settings: { version: 1, fields: {}, replacements: { allFields: { legacy: 'legacy' } } },
+          replacements: { allFields: { 'i. Schl.': 'in Schlesien' } },
+        },
+      }),
+    })
+
+    const profile = { baseUrl: 'https://cms.example.org', configPath: '/api/viewer-setting' }
+    const result = await fetchViewerSettingsFromStrapi({ profile, token: 'jwt-1' })
+    expect(result.replacements).toEqual({ allFields: { 'i. Schl.': 'in Schlesien' } })
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: { settings: { version: 1, fields: {}, replacements: { allFields: { legacy: 'kept' } } } },
+      }),
+    })
+
+    const legacyResult = await fetchViewerSettingsFromStrapi({ profile, token: 'jwt-1' })
+    expect(legacyResult.replacements).toEqual({ allFields: { legacy: 'kept' } })
+  })
+
+  test('writes replacements to the config singleton', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { replacements: { allFields: { a: 'b' } } } }),
+    })
+
+    const result = await updateViewerReplacementsInStrapi({
+      profile: { baseUrl: 'https://cms.example.org/project', configPath: '/api/viewer-setting' },
+      token: 'jwt-1',
+      replacements: { allFields: { a: 'b' } },
+    })
+
+    expect(result.replacements).toEqual({ allFields: { a: 'b' } })
+    const [url, init] = globalThis.fetch.mock.calls[0]
+    expect(url).toBe('https://cms.example.org/project/api/viewer-setting')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body)).toEqual({ data: { replacements: { allFields: { a: 'b' } } } })
+  })
+
+  test('fails when the config singleton has no replacements prop', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { settings: { version: 1 } } }),
+    })
+
+    await expect(
+      updateViewerReplacementsInStrapi({
+        profile: { baseUrl: 'https://cms.example.org', configPath: '/api/viewer-setting' },
+        replacements: {},
+      }),
+    ).rejects.toThrow(/data\.replacements/)
   })
 
   test('checks data model and reports wikidata_id mismatch', async () => {

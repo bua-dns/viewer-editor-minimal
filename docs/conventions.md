@@ -27,6 +27,7 @@
 ## Konfiguration (JSON)
 
 - Beim JSON-Export wird immer das kanonische Format `{ data, config, replacements, suspendedItems }` geschrieben.
+- Im Online-Modus liegen `config` und `replacements` in getrennten Props der Viewer-Settings: `Konfiguration anwenden` schreibt nur `settings`, `Änderungen speichern` nur `replacements`.
 - Optional kann `suspendedItems` bereits beim JSON-Import mitgegeben werden (Array von Item-Indizes).
 - `config.fields` muss ein Objekt sein, dessen Schlüssel den Feldnamen entsprechen.
 - Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`, `hint`.
@@ -64,13 +65,25 @@
   - `descriptions: { de: string, en: string }`
   - die bisherigen Top-Level-Felder `label` und `description` bleiben aus Kompatibilitätsgründen weiterhin erhalten
 
-## Replacements (JSON)
+## Replacements
 
-- Falls die importierte JSON-Datei ein `replacements`-Objekt enthält, wird es unverändert mitgenommen und beim JSON-Export wieder geschrieben.
 - Struktur: `replacements[feldschlüssel][suchtext] = ersetzungstext`. Der Schlüssel `allFields` steht für "alle Felder".
-- **Ersetzungen werden vom Viewer nicht auf die Daten angewendet.** Sie werden nur gesammelt, angezeigt und exportiert; die Anwendung ist Sache nachgelagerter Verarbeitung.
 - `replacements` muss ein Objekt sein. Die Struktur innerhalb wird derzeit nicht weiter validiert.
-- Beim CSV-Import oder Daten-Reset wird `replacements` zurückgesetzt.
+
+### Ablage der Regeln
+
+- **Offline:** Die Regeln kommen aus der importierten JSON-Datei und werden beim JSON-Export wieder geschrieben.
+- **Online:** Die Regeln liegen in einem eigenen JSON-Prop `replacements` der Viewer-Settings in Strapi (nicht im `settings`-Objekt; Legacy-Form `settings.replacements` wird beim Lesen noch akzeptiert). Geschrieben werden sie zusammen mit den Item-Änderungen über `Änderungen speichern`. Damit gelten sie zentral für alle Nutzer dieser Strapi-Instanz.
+- Beim CSV-Import wird `replacements` geleert, beim Daten-Reset auf den zuletzt geladenen Stand zurückgesetzt.
+
+### Anwendung
+
+- **Ersetzungen werden angewendet, sobald eine Regel hinzugefügt oder `Ersetzungen anwenden` geklickt wird** - ohne Vorschau und ohne Rückfrage. Das bloße Laden von Regeln ändert nichts.
+- Offline wirkt ein Lauf auf die geladenen Datensätze, online auf die **gesamte Collection**: geladene Items ändern sich sofort sichtbar, alle übrigen werden nachgeladen und als ungespeicherte Änderungen vorgemerkt. Geschrieben wird erst mit `Änderungen speichern`.
+- Es gibt kein Undo. Vor dem Speichern hilft nur `Reset`; das Entfernen einer Regel wirkt ausschließlich auf künftige Läufe.
+- Gesucht wird **literal** (kein Regex), als **Teilzeichenkette** und **case-sensitiv**; ersetzt werden alle Vorkommen. Ein leerer Ersetzungstext löscht den Suchtext.
+- Betroffen sind nur Felder der Typen `normal` und `text` mit String-Wert. Read-only-Felder sowie `scan`, `suspendEditing` und `__onlineMeta` bleiben unangetastet.
+- `allFields` bedeutet: jedes konfigurierte Feld, das diese Bedingungen erfüllt. Aus der Konfiguration entfernte Felder sind nicht dabei.
 
 ## Speichern und Dateinamen
 

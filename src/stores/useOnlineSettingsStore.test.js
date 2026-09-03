@@ -141,4 +141,40 @@ describe('useOnlineSettingsStore', () => {
     expect(settingsStore.lastSettingsError.value).toBe('Server exploded')
     expect(settingsStore.settings.value.fields.existing.label).toBe('Existing')
   })
+  test('persists replacements against the config singleton', async () => {
+    const authStore = useAuthStore()
+    authStore.token.value = 'token-1'
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { replacements: { allFields: { a: 'b' } } } }),
+    })
+
+    const settingsStore = useOnlineSettingsStore()
+    const result = await settingsStore.persistOnlineReplacements({ allFields: { a: 'b' } })
+
+    expect(result.ok).toBe(true)
+    expect(settingsStore.settingsStatus.value).toBe('ready')
+    const [url, init] = globalThis.fetch.mock.calls[0]
+    expect(url).toBe('https://cms.example.org/project/api/viewer-setting')
+    expect(JSON.parse(init.body)).toEqual({ data: { replacements: { allFields: { a: 'b' } } } })
+  })
+
+  test('reports an error when replacements cannot be persisted', async () => {
+    const authStore = useAuthStore()
+    authStore.token.value = 'token-1'
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: 'Invalid key replacements' } }),
+    })
+
+    const settingsStore = useOnlineSettingsStore()
+    const result = await settingsStore.persistOnlineReplacements({})
+
+    expect(result.ok).toBe(false)
+    expect(settingsStore.settingsStatus.value).toBe('error')
+    expect(settingsStore.lastSettingsError.value).toBe('Invalid key replacements')
+  })
 })

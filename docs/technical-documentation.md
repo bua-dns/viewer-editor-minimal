@@ -1,6 +1,7 @@
 # Technical Documentation
 
-> **Referenzstand:** verifiziert am 2026-08-31 gegen Commit `9f9ae8e` (`main`).
+> **Referenzstand:** verifiziert am 2026-09-03 gegen Commit `256758f` (`main`) zuzüglich des
+> Replacements-Features (siehe [Kapitel 11](#11-ersetzungen-replacements)).
 > Bei Abweichungen zwischen diesem Dokument und dem Code gilt der Code.
 > Dieses Dokument ist die maßgebliche Implementierungs-/Architekturreferenz;
 > `README.md` ist die kurze Einstiegs- und Setup-Beschreibung.
@@ -45,7 +46,8 @@ Kernfunktionen:
 - Wikidata-Autosuggest inkl. Priorisierung, Statement-Nachladen und mehrsprachigen Labels
 - User-Config-GUI pro Datenfeld (Typ, Label, Placeholder, Hint, Breite, Reihenfolge, Read-only)
 - Volltextsuche über alle Feldwerte sowie Sortiersteuerung über Bearbeitungsstand und `suspendEditing`
-- Ersetzungslisten je Feld (werden gesammelt und exportiert, siehe [Kapitel 11](#11-ersetzungen-replacements))
+- Ersetzungsregeln je Feld, die auf Nutzeraktion hin auf die Daten angewendet werden (offline auf die
+  geladenen Items, online auf die gesamte Collection, siehe [Kapitel 11](#11-ersetzungen-replacements))
 - Bildvorschau für `scan`-URLs inkl. Lightbox und Fullscreen; automatischer Listenmodus ohne `scan`-Spalte
 - Lokalisierung über Wording-Handles (DE/EN) mit optionaler Überschreibung aus dem Backend
 - Runtime-editierbare App-Settings und Strapi-Verbindungsprofile im Tab `Einstellungen`
@@ -119,8 +121,9 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `DatabaseConnectionPanel.vue` - Tab `Einstellungen`: Verbindungsprofil, Verbindungstest,
   Datenmodell-Prüfung sowie editierbare App-Settings (jeweils mit JSON Import/Export)
 - `OnlineAccessPanel.vue` - Offline/Online-Umschalter, Login/Logout, Status- und Save-Controls
-- `ReplacementsPanel.vue` - Tab-Panel mit Ersetzungstabellen je Feld
-- `ReplacementsUnit.vue` - Inline-Eingabe für neue Ersetzungen in der Sidebar
+- `ReplacementsPanel.vue` - Tab-Panel mit Ersetzungstabellen je Feld, Entfernen-Button je Regel,
+  `Ersetzungen anwenden` und Statuszeile des letzten Laufs
+- `ReplacementsUnit.vue` - Inline-Eingabe für neue Ersetzungen (Sidebar und Tab)
 - `LightboxModal.vue` - Modal für die Scan-Vollansicht inkl. Fullscreen
 - `StartFromScratchModal.vue` - Modal für den "Neu beginnen"-Flow
 - `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen
@@ -133,6 +136,8 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `useFieldMapping.js` - Label-/Placeholder-/Hint-/Sortier-Mapping und Binding an die Feld-Registry
 - `useSelectionNavigation.js` - Auswahlindex, Vor/Zurück-Navigation, Auswahl aufheben
 - `useModalKeyboard.js` - gemeinsames Escape-Handling für Modals
+- `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
+- `useReplacementsApply.js` - Orchestrierung eines Ersetzungslaufs (lokal bzw. über die ganze Collection)
 - `useWikidataSearch.js` - Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen, Lokalisierung
 - `userConfigValidation.js` - zentraler Validator für importierte bzw. geladene JSON-Config
 - `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
@@ -144,7 +149,8 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
   sowie Persistenz/Import/Export der editierbaren App-Settings
 - `useUserConfigStore.js` - User-Config-State und Aktionen (Add/Remove, Reorder, Apply, Session)
 - `useDataTransferStore.js` - Datenmodus (JSON/CSV), Session-Persistenz, Dateinamenslogik
-- `useReplacementsStore.js` - Ersetzungslisten inkl. Snapshot, Change-Tracking und Export-Payload
+- `useReplacementsStore.js` - Ersetzungsregeln inkl. Snapshot, Change-Tracking, Export-Payload und
+  Status des letzten Anwendungslaufs
 - `useConnectionProfileStore.js` - persistentes Verbindungsprofil, Default-Profil-Laden,
   Verbindungstest, Datenmodell-Prüfung, JSON Import/Export
 - `useOnlineModeStore.js` - App-Modus (`offline`/`online`) und `Configuration only`-Schalter
@@ -152,7 +158,8 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `useOnlineSettingsStore.js` - Laden **und Zurückschreiben** der Online-Settings inkl. Backend-Wording
 - `useOnlineItemsStore.js` - Laden der Online-Items: Hierarchie-Erkennung, Level-1-Optionen
   (aus Strapi oder `firstLevelStaticList`), gefiltertes Nachladen je Level-1-Wert, Sanitizing
-- `useOnlineUpdatesStore.js` - Delta-Tracking für Updates und Draft-Creates, Save-Orchestrator, Save-Status
+- `useOnlineUpdatesStore.js` - Delta-Tracking für Updates, Draft-Creates und Ersetzungsläufe über die
+  gesamte Collection, Save-Orchestrator, Save-Status
 
 ### Feldtypen (`src/fields/`)
 
@@ -262,8 +269,10 @@ sind gegen nicht verfügbaren Storage abgesichert.
 | `viewerEditor.userConfig.v1` | **sessionStorage** | `useUserConfigStore` | `fields`/`appliedFields`, `itemLabelField`/`appliedItemLabelField`, `markAsEditedBasis`/`appliedMarkAsEditedBasis`, `showOnlyNonEmptyFields`/`appliedShowOnlyNonEmptyFields` | beim Start der Session | `clearUserConfigSession()` bei jedem Datei-Import, Beispieldaten-Load und Start-from-Scratch |
 | `viewerEditor.dataMode.v1` | **sessionStorage** | `useDataTransferStore` | aktiver Datenmodus `json` \| `csv` | beim Start der Session | Moduswechsel schreibt neu |
 
-Nicht persistiert werden Items, Ersetzungen, Auswahl und Dirty-State: sie leben nur im Speicher und
-gehen beim Reload verloren.
+Nicht im Browser persistiert werden Items, Ersetzungsregeln, Auswahl und Dirty-State: sie leben nur im
+Speicher und gehen beim Reload verloren. Die Ersetzungsregeln haben allerdings eine eigene Ablage
+außerhalb des Browsers - offline die exportierte JSON-Datei, online das Settings-Singleton in Strapi
+(siehe [11.4](#114-persistenz-der-regeln)).
 
 ---
 
@@ -570,26 +579,90 @@ nicht-JSON-Typen (`Date`, `Map`, Funktionen).
 
 ## 11 Ersetzungen (Replacements)
 
-Ersetzungen sind eine **Sammel- und Transportfunktion, keine Transformation.** Der Viewer wendet
-Ersetzungsregeln zu keinem Zeitpunkt selbst auf Feldwerte an; er nimmt sie beim Import entgegen, macht
-sie in der UI editierbar und schreibt sie beim JSON-Export wieder heraus. Die Anwendung der Regeln ist
-Sache nachgelagerter Verarbeitung.
+Ersetzungen sind Regeln der Form `replacements[fieldKey][suchtext] = ersetzungstext`, die der Viewer
+**auf ausdrückliche Nutzeraktion hin auf die Daten anwendet**. Der Schlüssel `allFields` steht dabei
+für "alle Felder"; er ist ein regulärer Objektschlüssel im selben Namensraum wie echte Feldnamen.
 
-- **Datenstruktur:** `replacements[fieldKey][suchtext] = ersetzungstext`. Der Schlüssel
-  `allFields` steht dabei für "alle Felder" - er ist ein regulärer Objektschlüssel im selben
-  Namensraum wie echte Feldnamen (`ReplacementsUnit.vue` setzt ihn als Default-Auswahl).
-- **Eingabe:** `ReplacementsUnit.vue` in der Sidebar (Dropdown `Feld` inkl. `alle Felder`, Eingaben
-  `Ersetze` und `mit`, Button `zur Ersetzungsliste hinzufügen`). Die Feldliste stammt aus den
-  angewendeten User-Config-Feldern, ersatzweise aus den aktuell konfigurierten.
-- **Anzeige:** `ReplacementsPanel.vue` im Tab `Ersetzungen` gruppiert die Einträge je Feld und zeigt
-  nur Felder mit Einträgen.
-- **Persistenz:** nur im Speicher. `initializeReplacements(payload)` setzt Wert und Snapshot beim
-  JSON-Import; `hasReplacementsChanges` vergleicht serialisiert gegen den Snapshot und beeinflusst den
-  Dirty-/Download-Zustand; `resetReplacements()` stellt den Snapshot wieder her; `clearReplacements()`
-  leert beides (CSV-Import, Online-Init).
-- **Export:** `createReplacementsPayload()` liefert eine tiefe Kopie in das JSON-Export-Payload.
-  Der CSV-Export enthält keine Ersetzungen.
-- Der Validator prüft nur, dass `replacements` ein Objekt ist; die innere Struktur wird nicht validiert.
+### 11.1 Matching-Semantik
+
+- **literal** (kein Regex), **Teilzeichenkette**, **Groß-/Kleinschreibung beachtend**
+- Ersetzt werden **alle** Vorkommen im Feldwert; ein leerer Ersetzungstext löscht den Suchtext.
+- Betroffen sind nur Felder der konfigurierten Typen `normal` und `text`, deren aktueller Wert ein
+  String ist. Read-only-Felder sowie `scan`, `suspendEditing` und `__onlineMeta` bleiben ausgenommen.
+- `allFields` meint **jedes konfigurierte Feld** (User-Config bzw. Online-Settings), das nach diesen
+  Regeln ersetzbar ist - Felder, die aus der Konfiguration entfernt wurden, sind nicht dabei.
+- Reihenfolge je Feld: zuerst die `allFields`-Regeln, danach die feldspezifischen, jeweils in
+  Einfügereihenfolge. Regeln wirken also nacheinander auf denselben Wert.
+- Die Regel-Logik liegt ohne Vue-Abhängigkeit in `src/composables/replacementRules.js`
+  (`collectReplaceableFieldKeys`, `collectRulesForField`, `computeReplacementChanges`).
+
+### 11.2 Auslöser eines Laufs
+
+Angewendet wird ausschließlich auf Nutzeraktion, ohne Dry-Run und ohne Bestätigungsdialog:
+
+- beim Hinzufügen einer Regel (`ReplacementsUnit.vue`, Sidebar und Tab)
+- über `Ersetzungen anwenden` im Tab `Ersetzungen`
+
+Das bloße **Laden** von Regeln (JSON-Import, Online-Settings) wendet **nichts** an. Das Entfernen
+einer Regel wirkt nur auf künftige Läufe - bereits ersetzte Werte bleiben ersetzt. Ein Undo gibt es
+nicht; der Rückweg ist `Reset` bzw. der noch nicht gespeicherte Stand.
+
+### 11.3 Wirkungsbereich eines Laufs
+
+Orchestriert wird der Lauf in `src/composables/useReplacementsApply.js`:
+
+- **Offline:** betroffen sind die geladenen Datensätze (`applyReplacementsToLoadedItems` in
+  `useViewerData`). Die Änderungen sind sofort sichtbar, `_searchText` wird neu berechnet und
+  `isDirty` gesetzt.
+- **Online:** betroffen ist die **gesamte Collection**, nicht nur der geladene Ausschnitt:
+  1. Geladene Items werden in place geändert (sofort sichtbar) und über `trackOnlineFieldChange(...)`
+     als normale Feld-Deltas registriert.
+  2. `trackOnlineReplacementUpdatesForRemainingItems(...)` (`useOnlineUpdatesStore`) lädt anschließend
+     die Collection paginiert nach, überspringt die bereits geladenen Items anhand `__onlineMeta.id`
+     und registriert für jeden weiteren Treffer ebenfalls ein Delta.
+  - Der Lauf **schreibt nichts** direkt nach Strapi. Er erzeugt nur Pending-Updates, die der normale
+    `Änderungen speichern`-Flow per `PUT` schreibt (siehe [12.8](#128-update-flow-bestehende-items)).
+  - Im Hierarchie-Modus sind Änderungen an nicht geladenen Items daher erst nach dem Speichern und
+    erneutem Laden des jeweiligen Level-1-Buckets sichtbar; die Zusammenfassung nennt beide Zahlen.
+  - `Configuration only` verhindert den Collection-Durchlauf **nicht**: der Schalter steuert das
+    Startverhalten, ein ausgelöster Ersetzungslauf greift bewusst auf die Collection zu.
+- Status und Ergebnis des letzten Laufs (`applyStatus`, `lastApplySummary`, `lastApplyError`) liegen im
+  `useReplacementsStore` und werden im Tab `Ersetzungen` als Zusammenfassung angezeigt.
+
+### 11.4 Persistenz der Regeln
+
+| Modus | Quelle beim Laden | Ziel beim Speichern |
+| --- | --- | --- |
+| Offline | `replacements` aus dem JSON-Import | JSON-Export (`{ data, config, suspendedItems, replacements }`) |
+| Online | `data.replacements` des Settings-Singletons (Legacy-Fallback `data.settings.replacements`) | `PUT <configPath>` mit `{ data: { replacements } }` |
+
+- Die Regeln liegen online in einem **eigenen JSON-Prop** `replacements` des Viewer-Settings-Typs,
+  nicht im `settings`-Objekt. `Konfiguration anwenden`
+  (siehe [12.7](#127-settings-write-back-konfiguration-anwenden-im-online-modus)) fasst sie damit
+  nicht an, und umgekehrt.
+- Geschrieben werden sie zusammen mit den Item-Änderungen über `Änderungen speichern`
+  (`persistOnlineReplacements` → `updateViewerReplacementsInStrapi`). Der Save-Button ist im
+  Online-Modus deshalb auch dann aktiv, wenn **nur** Regeln geändert wurden.
+- Fehlt das Prop in der Strapi-Instanz, schlägt das Speichern mit einer expliziten Meldung fehl
+  (Anzeige über `settingsStatus`/`lastSettingsError` im `OnlineAccessPanel.vue`).
+- Die Regeln sind zentral: Wer sie speichert, ändert sie für alle Nutzer dieser Strapi-Instanz.
+- `initializeReplacements(payload)` setzt Wert und Snapshot (JSON-Import, Online-Settings-Load);
+  `hasReplacementsChanges` vergleicht serialisiert gegen den Snapshot und beeinflusst Dirty-/Download-
+  Zustand sowie den Online-Save-Button; `resetReplacements()` stellt den Snapshot wieder her;
+  `clearReplacements()` leert beides (CSV-Import); `markReplacementsAsSaved()` synchronisiert den
+  Snapshot nach erfolgreichem Schreiben.
+- Ein Wechsel des Level-1-Buckets lässt die Regeln unangetastet.
+- Der Validator prüft weiterhin nur, dass `replacements` ein Objekt ist; die innere Struktur wird
+  nicht validiert.
+
+### 11.5 UI
+
+- **Eingabe:** `ReplacementsUnit.vue` (Sidebar und Tab) mit Dropdown `Feld`, das `alle Felder` sowie
+  **nur die ersetzbaren** Feldschlüssel anbietet, dazu `Ersetze`/`mit` und den Button
+  `zur Ersetzungsliste hinzufügen`. Nach dem Hinzufügen startet der Lauf.
+- **Anzeige:** `ReplacementsPanel.vue` im Tab `Ersetzungen` gruppiert die Regeln je Feld, bietet je
+  Regel einen Entfernen-Button, den Button `Ersetzungen anwenden` sowie die Statuszeile des letzten
+  Laufs.
 
 ---
 
@@ -635,7 +708,10 @@ Ein Watcher in `App.vue` reagiert auf App-Modus, Auth-Status, `Configuration onl
 werden Online-Wording, Settings, Items und Updates geleert. Andernfalls läuft strikt sequenziell:
 
 1. **Settings laden** (`fetchOnlineSettings` → `GET <configPath>`, erwartet ein Objekt unter
-   `data.settings`; optionales `data.wording` wird mitgenommen).
+   `data.settings`; optionales `data.wording` und `data.replacements` werden mitgenommen). Die
+   geladenen Ersetzungsregeln gehen per `initializeReplacements(...)` in den Replacements-Store und
+   bilden dort zugleich den Snapshot; **angewendet werden sie dabei nicht**
+   (siehe [Kapitel 11](#11-ersetzungen-replacements)).
 2. **Backend-Wording setzen** (`setOnlineWording`, siehe [4.3](#43-wording-backend-merge-und-sprachen)).
 3. `itemsPath` aus den Settings lesen (`itemsPath`, Legacy-Fallback `item_path`) und das Datenmodell
    mit einer leeren Liste initialisieren (`online:<itemsPath>` als Anzeigename). Die Scan-Quelle wird
@@ -744,6 +820,9 @@ Strapi-Instanz.
   `normalizeOnlineChangedFieldsForStrapi(...)` in die Strapi-Komponentenform gebracht.
 - Bei Vollerfolg synchronisiert `markAsSaved(...)` die Baseline; bei Teilfehlern bleibt ein
   konsistenter, retry-fähiger Pending-Stand erhalten.
+- Im selben Speichervorgang werden geänderte **Ersetzungsregeln** nach Strapi geschrieben
+  (siehe [11.4](#114-persistenz-der-regeln)). Der Save-Button ist deshalb auch dann aktiv, wenn nur
+  Regeln geändert wurden und kein Item-Delta ansteht.
 - Save-Status: `idle | saving | success | error`, inkl. Unsaved-Counter und Retry-Aktion im
   `OnlineAccessPanel.vue`. Erfolgs-Feedback blendet sich nach kurzem Timeout aus; alle Texte der
   Save-UX liegen als Wording-Handles vor.
@@ -937,18 +1016,20 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand `9f9ae8e`: 17 Testdateien, 151 Tests, alle grün.
+Stand `256758f` + Replacements-Feature: 19 Testdateien, 176 Tests, alle grün.
 
 ### Composables
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `tokenize`, `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex` |
+| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `tokenize`, `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
 | `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
 | `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
+| `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
+| `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
 
 ### Fields und Services
@@ -956,7 +1037,7 @@ Stand `9f9ae8e`: 17 Testdateien, 151 Tests, alle grün.
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
-| `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key |
+| `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key |
 
 ### Stores
 
@@ -967,9 +1048,9 @@ Stand `9f9ae8e`: 17 Testdateien, 151 Tests, alle grün.
 | `stores/useAuthStore.test.js` | Login speichert das JWT; `restoreSession` lädt Token und Nutzer; Login ohne Credentials schlägt fehl |
 | `stores/useConnectionProfileStore.test.js` | Speichern und Neuladen eines Profils; Ablehnung ungültiger Profile; JSON-Import; Laden des Default-Profils über Runtime-Fallback-Pfade |
 | `stores/useOnlineModeStore.test.js` | Speichern/Restore des App-Modus; Ablehnung ungültiger Modi; deaktiviertes Umschalten bei fixiertem `connectionMode` |
-| `stores/useOnlineSettingsStore.test.js` | Laden aus `response.data.settings`; Persistieren gegen den Singleton-Endpoint; lokaler State bleibt bei fehlgeschlagenem Persist erhalten |
+| `stores/useOnlineSettingsStore.test.js` | Laden aus `response.data.settings`; Persistieren gegen den Singleton-Endpoint; lokaler State bleibt bei fehlgeschlagenem Persist erhalten; Persistieren der Ersetzungsregeln inkl. Fehlerpfad |
 | `stores/useOnlineItemsStore.test.js` | Laden und Sanitizing über `settings.itemsPath`; `attributes`-Form mit numerischem ID-Fallback; harter Fehler ohne stabile ID; Level-1-Optionen ohne Voll-Item-Fetch; `firstLevelStaticList` ohne Item-Requests; Hierarchie-Erkennung über den Legacy-Schlüssel `hierarchy_fields` |
-| `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad |
+| `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad; Ersetzungslauf über die Collection registriert Deltas nur für nicht geladene Treffer, meldet Fetch-Fehler ohne Pending-Updates und verlangt einen `itemsPath` |
 
 ---
 
@@ -981,7 +1062,11 @@ Stand `9f9ae8e`: 17 Testdateien, 151 Tests, alle grün.
   Rohdaten sichtbar und werden nicht semantisch aufbereitet.
 - Deep Clone via JSON-Serialisierung unterstützt keine Spezialtypen (`Date`, `Map`, Funktionen).
 - Die Bildvorschau basiert auf URL-Pattern und prüft die Erreichbarkeit nicht vor dem Laden.
-- Ersetzungen werden nicht auf die Daten angewendet (siehe [Kapitel 11](#11-ersetzungen-replacements)).
+- Ersetzungen kennen kein Undo und keinen Dry-Run: ein Lauf ändert die Werte sofort
+  (siehe [Kapitel 11](#11-ersetzungen-replacements)). Rückweg ist nur `Reset` vor dem Speichern.
+- Ein Online-Ersetzungslauf lädt die gesamte Collection einmal paginiert nach; bei großen Collections
+  ist das entsprechend teuer.
+- Ersetzungen greifen nur auf String-Werte in Feldern der Typen `normal` und `text`.
 - Items, Auswahl, Dirty-State und Ersetzungen überleben keinen Reload.
 - Im Online-Modus ohne Hierarchie werden alle Items paginiert vollständig geladen; es gibt kein
   virtuelles Scrolling.
@@ -993,6 +1078,7 @@ Stand `9f9ae8e`: 17 Testdateien, 151 Tests, alle grün.
 - Schema-basierte Feldvalidierung (z. B. pro Key-Regeln)
 - Undo/Redo statt nur globalem Reset
 - Virtuelles Scrolling/Pagination für große Datensätze in der Liste
-- Anwendung der Ersetzungsregeln direkt im Viewer (heute bewusst nur Sammlung/Export)
+- Dry-Run/Vorschau und Undo für Ersetzungsläufe (heute wird direkt angewendet)
+- Regex- oder Wortgrenzen-Modus für Ersetzungen (heute nur literale Teilzeichenketten)
 - Feinere i18n/Locale-Unterstützung über DE/EN hinaus
 - Konfigurierbare Auth-Endpunkte im Verbindungsprofil (heute fest `/api/auth/local` und `/api/users/me`)
