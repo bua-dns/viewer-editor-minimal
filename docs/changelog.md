@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-09 - Configurable scan source field
+
+- Added optional online settings key `scanField` (legacy form `scan_field`, default `scan`) that names the Strapi field holding the image URL.
+- `normalizeStrapiItem` now maps the configured source field onto `scan`, so data models that keep the URL under another key (e.g. `scan_url`) render scan previews without further changes; the rest of the UI still reads `item.scan` only.
+- Behaviour is unchanged for existing instances: without `scanField` the source stays `scan`.
+
 ## 2026-08 - Sidebar suspend toggle and configurable field widths
 
 - Moved the sidebar `suspendEditing` control (`Bearbeitung aussetzen`) into the edit form header, positioned next to the close button.

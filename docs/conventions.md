@@ -4,6 +4,7 @@
 
 - Quelle ist das Feld "scan" im Daten-JSON
 - Dort muss eine URL zu einem Digitalisat hinterlegt sein
+- Im Online-Modus kann die Quelle über den Settings-Schlüssel `scanField` auf ein anderes Strapi-Feld gelegt werden (z. B. `scan_url`); dessen Wert wird beim Laden nach `scan` gemappt. Ohne `scanField` gilt weiterhin `scan`.
 - Wenn kein `scan`-Feld vorhanden ist, arbeitet die App automatisch im No-Scans-Modus mit textbasierter Item-Liste.
 
 ## Datenformate
@@ -19,6 +20,7 @@
 
 - Das Feld `scan` ist für die Bildvorschau reserviert.
 - Für die automatische Vorschau sollte `scan` auf eine direkt ladbare Bild-URL zeigen (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
+- Das über `scanField` benannte Quellfeld ist damit ebenfalls reserviert und sollte nicht zusätzlich in `config.fields` konfiguriert werden.
 - Alle übrigen Felder können über die Konfiguration als `normal`, `text`, `integer`, `checkbox`, `candidate` oder `wikidata-autosuggest` typisiert werden.
 - Das globale Config-Feld `itemLabelField` kann auf einen vorhandenen Feldschlüssel zeigen und steuert dann die Item-Beschriftung in Karten-/Listenansicht.
 
@@ -42,6 +44,7 @@
 - Optional kann `config.showOnlyNonEmptyFields` gesetzt werden (Boolean): blendet leere Felder im Sidebar-Editor aus.
 - Optional kann `config.hierarchyFields` gesetzt werden (Liste von Feldschlüsseln für hierarchische Navigation, Legacy-Formen bleiben kompatibel).
 - Optional kann `config.firstLevelStaticList` gesetzt werden (Liste fixer Level-1-Werte, nur relevant zusammen mit `hierarchyFields`).
+- Optional kann `scanField` in den Online-Settings gesetzt werden (String, Legacy-Form `scan_field`): Feldschlüssel der Strapi-Collection, dessen Wert beim Laden nach `scan` gemappt wird. Default ist `scan`.
 - Für `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
   - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeinträge bleiben kompatibel)
   - `claimValueMatch.defs`: Liste aus Objekten `{ property, value, label }` (`label` dient der Anzeige)

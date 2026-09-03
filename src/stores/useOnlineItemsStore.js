@@ -5,6 +5,7 @@ import {
   getWikidataAutosuggestFieldKeysFromSettings,
   normalizeStrapiItem,
   resolveItemsPathFromSettings,
+  resolveScanFieldFromSettings,
 } from '../services/strapiApi'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
@@ -161,6 +162,7 @@ async function fetchOnlineItems({ settings }) {
   }
 
   const settingsFields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
+  const scanFieldKey = resolveScanFieldFromSettings(settings)
   const populateFields = getWikidataAutosuggestFieldKeysFromSettings(settings)
   const normalizedHierarchyFields = normalizeHierarchyFields(settings)
   const firstLevelStaticList = normalizeFirstLevelStaticList(settings)
@@ -218,7 +220,9 @@ async function fetchOnlineItems({ settings }) {
       populateFields,
     })
 
-    items.value = fetchedRows.map((rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath))
+    items.value = fetchedRows.map((rawRow) =>
+      normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey),
+    )
     itemsStatus.value = 'ready'
     return {
       ok: true,
@@ -262,6 +266,7 @@ async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
   }
 
   const settingsFields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
+  const scanFieldKey = resolveScanFieldFromSettings(settings)
   const populateFields = getWikidataAutosuggestFieldKeysFromSettings(settings)
   const normalizedLevel1Value = normalizeHierarchyValue(level1Value)
   const level1FieldKey = normalizedHierarchyFields[0]
@@ -282,7 +287,7 @@ async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
     })
 
     const normalizedItems = fetchedRows
-      .map((rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath))
+      .map((rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey))
       .filter((item) => {
         const currentValue = normalizeHierarchyValue(item?.[level1FieldKey])
         if (hasExplicitLevel1Value) {

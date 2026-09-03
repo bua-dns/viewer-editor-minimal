@@ -638,7 +638,8 @@ werden Online-Wording, Settings, Items und Updates geleert. Andernfalls läuft s
    `data.settings`; optionales `data.wording` wird mitgenommen).
 2. **Backend-Wording setzen** (`setOnlineWording`, siehe [4.3](#43-wording-backend-merge-und-sprachen)).
 3. `itemsPath` aus den Settings lesen (`itemsPath`, Legacy-Fallback `item_path`) und das Datenmodell
-   mit einer leeren Liste initialisieren (`online:<itemsPath>` als Anzeigename).
+   mit einer leeren Liste initialisieren (`online:<itemsPath>` als Anzeigename). Die Scan-Quelle wird
+   analog aus `scanField` aufgelöst (siehe [12.6](#126-item-normalisierung-und-wikidata-mapping)).
 4. **Settings-Config anwenden** (`applyImportedConfigPayload`). Ist `data.settings` nicht als gültige
    Config interpretierbar, geht die UI in einen expliziten Fehlerzustand
    (`markOnlineSettingsInvalid`) - kein stilles Weiterlaufen mit inkonsistentem Stand.
@@ -693,8 +694,14 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
 
 ### 12.6 Item-Normalisierung und Wikidata-Mapping
 
-- `normalizeStrapiItem(row, settingsFields, itemsPath)` unterstützt beide Zeilenformen: flach
+- `normalizeStrapiItem(row, settingsFields, itemsPath, scanFieldKey)` unterstützt beide Zeilenformen: flach
   (Strapi v5) und `{ id, attributes }`.
+- **Scan-Quelle:** `resolveScanFieldFromSettings(settings)` liest den Settings-Schlüssel `scanField`
+  (Legacy-Fallback `scan_field`, Default `scan`). `normalizeStrapiItem` kopiert den Wert dieses Feldes
+  nach `scan`; die restliche UI liest weiterhin ausschließlich `item.scan`. Damit lassen sich
+  Datenmodelle anbinden, in denen die Bild-URL unter einem anderen Schlüssel liegt (z. B. `scan_url`,
+  während `scan` eine Laufnummer trägt). Fehlt das Quellfeld in der Zeile, erhält das Item **kein**
+  `scan` und die App fällt in den No-Scans-Modus.
 - **Stabile Identifikation** nutzt primär `documentId`, mit Fallback auf `id`. Fehlt beides, ist das
   ein harter Fehler beim Ingest.
 - Interne Metadaten liegen pro Item unter `__onlineMeta` (u. a. `id`, `idKind`, `itemsPath`,

@@ -8,6 +8,7 @@ import {
   getWikidataAutosuggestFieldKeysFromSettings,
   normalizeOnlineChangedFieldsForStrapi,
   normalizeStrapiItem,
+  resolveScanFieldFromSettings,
   updateViewerSettingsInStrapi,
   updateCollectionItemInStrapi,
 } from './strapiApi'
@@ -61,6 +62,42 @@ describe('strapiApi helpers', () => {
         updatedAt: '2026-07-22T00:00:00.000Z',
       },
     })
+  })
+
+  test('resolves the scan source field from settings with legacy and default fallback', () => {
+    expect(resolveScanFieldFromSettings({ scanField: ' scan_url ' })).toBe('scan_url')
+    expect(resolveScanFieldFromSettings({ scan_field: 'scan_url' })).toBe('scan_url')
+    expect(resolveScanFieldFromSettings({})).toBe('scan')
+    expect(resolveScanFieldFromSettings(null)).toBe('scan')
+  })
+
+  test('maps a configured scan source field onto scan', () => {
+    const item = normalizeStrapiItem(
+      {
+        id: 8,
+        documentId: 'doc-8',
+        file: '00003.jpg',
+        scan: '3',
+        scan_url: 'https://example.org/00003.jpg',
+      },
+      ['file'],
+      '/api/index-cards',
+      'scan_url',
+    )
+
+    expect(item.scan).toBe('https://example.org/00003.jpg')
+    expect(item.file).toBe('00003.jpg')
+  })
+
+  test('omits scan when the configured scan source field is missing', () => {
+    const item = normalizeStrapiItem(
+      { id: 9, documentId: 'doc-9', label: 'Card B', scan: '9' },
+      ['label'],
+      '/api/index-cards',
+      'scan_url',
+    )
+
+    expect(Object.prototype.hasOwnProperty.call(item, 'scan')).toBe(false)
   })
 
   test('throws when no stable identifier exists', () => {

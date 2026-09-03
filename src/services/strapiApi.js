@@ -132,6 +132,20 @@ export async function updateViewerSettingsInStrapi({ profile, token = '', settin
   }
 }
 
+const DEFAULT_SCAN_FIELD_KEY = 'scan'
+
+export function resolveScanFieldFromSettings(settings = {}) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return DEFAULT_SCAN_FIELD_KEY
+
+  const scanField = String(settings.scanField || '').trim()
+  if (scanField) return scanField
+
+  const legacyScanField = String(settings.scan_field || '').trim()
+  if (legacyScanField) return legacyScanField
+
+  return DEFAULT_SCAN_FIELD_KEY
+}
+
 export function resolveItemsPathFromSettings(settings = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return ''
 
@@ -593,7 +607,12 @@ function resolveStableIdentifier(source) {
   return null
 }
 
-export function normalizeStrapiItem(row, settingsFields = {}, itemsPath = '') {
+export function normalizeStrapiItem(
+  row,
+  settingsFields = {},
+  itemsPath = '',
+  scanFieldKey = DEFAULT_SCAN_FIELD_KEY,
+) {
   const source = isPlainObject(row) ? row : {}
   const attributes = isPlainObject(source.attributes) ? source.attributes : null
   const valueSource = attributes || source
@@ -621,8 +640,9 @@ export function normalizeStrapiItem(row, settingsFields = {}, itemsPath = '') {
     }
   })
 
-  if (Object.prototype.hasOwnProperty.call(valueSource, 'scan')) {
-    nextItem.scan = valueSource.scan
+  const normalizedScanFieldKey = String(scanFieldKey || '').trim() || DEFAULT_SCAN_FIELD_KEY
+  if (Object.prototype.hasOwnProperty.call(valueSource, normalizedScanFieldKey)) {
+    nextItem.scan = valueSource[normalizedScanFieldKey]
   }
 
   nextItem[ONLINE_META_KEY] = {
