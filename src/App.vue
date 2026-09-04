@@ -19,7 +19,6 @@ import Identity from './components/footer/Identity.vue'
 import InfoPanel from './components/InfoPanel.vue'
 import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import ReplacementsPanel from './components/ReplacementsPanel.vue'
-import ReplacementsUnit from './components/ReplacementsUnit.vue'
 import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
 import OnlineAccessPanel from './components/OnlineAccessPanel.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
@@ -1244,7 +1243,6 @@ watch(
                     :selected-view-item="selectedViewItem" :include-configured-types="['checkbox']"
                     :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
                     @accept-candidate="onAcceptCandidate" />
-                  <ReplacementsUnit @apply-replacements="onApplyReplacements" />
                 </div>
 
                 <ItemFieldEditor :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
