@@ -51,7 +51,8 @@ Kernfunktionen:
 - Bildvorschau für `scan`-URLs inkl. Lightbox und Fullscreen; automatischer Listenmodus ohne `scan`-Spalte
 - Lokalisierung über Wording-Handles (DE/EN) mit optionaler Überschreibung aus dem Backend
 - Runtime-editierbare App-Settings und Strapi-Verbindungsprofile im Tab `Einstellungen`
-- Responsives Editor-Layout mit sticky Kopfbereich, Sidebar-Editor und erweitertem Vollbreiten-Modus
+- Responsives Editor-Layout mit dreistufig sticky Kopfbereich (Topbar, Tab-Reihe, Edit-Kopfzeile),
+  Sidebar-Editor und erweitertem Vollbreiten-Modus
 
 ---
 
@@ -922,8 +923,14 @@ auf, sperrt den Button während des Laufs und rendert das Ergebnis als Statusmel
 
 Aufbau der Seite:
 
-- **Topbar** (Titel, Online-Panel, Transfer-Controls) oberhalb der Tabs, immer sichtbar. Die
-  Header-Controls sind so ausgerichtet, dass sie bei ausreichend Platz in einem horizontalen Fluss stehen.
+- **Topbar** (Titel, Online-Panel, Transfer-Controls) oberhalb der Tabs. Ab `769px` ist sie sticky
+  (`top: 0`, `z-index: 37`) und damit unabhaengig von der Scrollposition sichtbar - insbesondere die
+  Save-Changes-UI aus `OnlineAccessPanel`. Beim Scrollen ueber `24px` erhaelt sie die Klasse
+  `topbar-condensed`: der Titel wird ausgeblendet und das vertikale Padding reduziert, damit die
+  Controls einzeilig passen und der Sticky-Stack weniger Hoehe kostet; unter `8px` Scrollposition
+  klappt sie wieder auf (Hysterese gegen Flackern, weil das Einklappen die Dokumenthoehe verringert).
+  Unterhalb von `769px` bleibt die Topbar wie bisher im normalen Fluss. Die Header-Controls sind so
+  ausgerichtet, dass sie bei ausreichend Platz in einem horizontalen Fluss stehen.
 - **Tab-Leiste** (sticky) mit fünf Bereichen: `Editieren`, `Konfiguration`, `Ersetzungen`,
   `Einstellungen`, `Info`. Interner Tab-Key des Settings-Tabs ist weiterhin `database-connection`.
   Tastatursteuerung: Left/Right (zyklisch), Home/End, Enter/Space.
@@ -955,8 +962,14 @@ Interne Aufteilung:
 - `App.vue` bleibt Composition-Root und beschränkt sich auf Verdrahtung von Komponenten, Stores,
   Watchern und Lifecycle-Events. Im Online-Modus verhindert es zusätzlich, dass die lokale
   Feld-Auto-Initialisierung die aus Strapi geladenen Settings überschreibt.
-- Die Höhen von Tab-Reihe und Edit-Header werden per `ResizeObserver` gemessen und als CSS-Variablen
-  für die Sticky-Offsets gesetzt.
+- Die Höhen von Topbar, Tab-Reihe und Edit-Header werden per `ResizeObserver` gemessen und als
+  CSS-Variablen (`--ve-header-offset`, `--ve-tabs-row-height`, `--ve-edit-sticky-stack-height`) auf
+  `.app-shell` für die Sticky-Offsets gesetzt. Beobachtet wird explizit die **Border-Box**, weil das
+  Ein-/Ausklappen der Topbar nur das Padding ändert und die Content-Box (Default des
+  `ResizeObserver`) dabei unverändert bleibt.
+- Die Verdrahtung dieser Messung steht in `onMounted` **vor** dem `await` auf
+  `loadConnectionProfileFromDefault`. Andernfalls blieben die Offsets bei langsamer oder
+  fehlschlagender Profil-Anfrage ungesetzt und die Sticky-Ebenen würden überlappen.
 
 ---
 
@@ -991,7 +1004,10 @@ Globaler Seitenhintergrund:
 
 Layoutverhalten:
 
-- Grid-Layout für Desktop (`list/sidebar/status`) plus sticky Header-Stack im Edit-Tab
+- Grid-Layout für Desktop (`list/sidebar/status`) plus sticky Header-Stack im Edit-Tab. Der Stack ist
+  dreistufig: Topbar (`z-index: 37`), Tab-Reihe (`36`), Edit-Kopfzeile (`35`); jede Ebene setzt ihr
+  `top` aus der Summe der Höhen darüber. `--ve-sticky-top-offset` fällt auf `58px` zurück, falls die
+  gemessene Topbar-Höhe (noch) nicht vorliegt.
 - Responsive Umschaltung auf einspaltiges Layout bei `max-width: 768px`
 - Im erweiterten Modus wird die Sidebar nicht sticky gerendert, nutzt volle Inhaltsbreite und
   vergrößert den Scanbereich relativ zur Feldspalte

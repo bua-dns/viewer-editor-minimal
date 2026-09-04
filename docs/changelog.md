@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-09 - Sticky topbar
+
+- The topbar (title, online panel, transfer controls) is sticky from `769px` upward, so the
+  save-changes UI stays reachable without scrolling back to the top of the item list.
+- Scrolling past `24px` condenses it: the title is hidden and the vertical padding shrinks, so the
+  controls fit on one row and the sticky stack costs less height; it expands again below `8px`
+  (hysteresis, because condensing shortens the document). Below `769px` nothing changes.
+- `--ve-header-offset` was referenced by the sticky offsets but never set; `App.vue` now measures the
+  topbar alongside the tab row and edit header and writes all three onto `.app-shell`.
+- Fixed two defects this surfaced: the sticky measurement was wired up *after* the awaited
+  `loadConnectionProfileFromDefault` call, so a slow or failing profile request left the offsets
+  unset and the sticky layers overlapped; and the `ResizeObserver` watched the default content-box,
+  which does not change when only padding changes - it now observes the border-box.
+
 ## 2026-09 - Replacements applied to the data, online included
 
 - Replacements are no longer collect-and-export only: adding a rule, or pressing `Ersetzungen anwenden`
