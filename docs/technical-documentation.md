@@ -94,13 +94,18 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `vite.config.js` - Vite-Konfiguration (Vue-Plugin, `base`)
 - `package.json` / `pnpm-lock.yaml` - Abhängigkeiten und Skripte
 - `config/app.config.js` - App-Defaults (Sprache, Sprachmodus, GitHub-Repo, Primärfarbe,
-  `connectionMode`, `dataInspectionMode`, `defaultConnectionProfile`) und Import des Wordings
+  `connectionMode`, `dataInspectionMode`, `defaultConnectionProfile`, `defaultAppConfig`) und Import
+  des Wordings
 - `config/wording.json` - **maßgebliche** Sprachvarianten je Wording-Handle (aktuell 238 Handles)
 - `config/wording.js` - **Legacy/unbenutzt.** Die Datei wird von keinem Modul importiert
   (`app.config.js` importiert `wording.json`) und ist eine unvollständige Teilmenge von
   `wording.json` (215 Handles, keine eigenen Schlüssel). Änderungen dort haben keine Wirkung;
   die Datei kann entfernt werden.
 - `docs/` - `technical-documentation.md` (dieses Dokument), `conventions.md`, `changelog.md`
+- `public/app-config/` - optionale Default-App-Config, die zur Laufzeit geladen wird
+  (siehe [4.4](#44-default-app-config-aus-publicapp-config))
+- `public/connection-profile/` - optionales Default-Verbindungsprofil
+  (siehe [12.1](#121-verbindungsprofil))
 
 ### Einstieg
 
@@ -199,21 +204,28 @@ Alle Tests liegen neben ihrem Modul (`*.test.js`); Inhalte siehe [Kapitel 16](#1
 
 ### 4.1 Konfigurationsquellen und Präzedenz
 
-Es gibt drei Ebenen, die sich in genau dieser Reihenfolge überlagern:
+Es gibt vier Ebenen, die sich in genau dieser Reihenfolge überlagern:
 
 1. **Build-Defaults** aus `config/app.config.js`.
-2. **Lokal gespeicherte App-Settings** aus `localStorage` (`viewerEditor.appConfig.v1`), gepflegt im
+2. **Default-App-Config aus `public/app-config/`** - eine ausgelieferte JSON-Datei, die beim
+   App-Start geladen wird und die Build-Defaults als Basisebene **ersetzt**
+   (siehe [4.4](#44-default-app-config-aus-publicapp-config)).
+3. **Lokal gespeicherte App-Settings** aus `localStorage` (`viewerEditor.appConfig.v1`), gepflegt im
    Tab `Einstellungen`.
-3. **Online-Settings aus Strapi** - betreffen *nicht* die App-Settings aus (1)/(2), sondern die
+4. **Online-Settings aus Strapi** - betreffen *nicht* die App-Settings aus (1)-(3), sondern die
    User-Config (Felder, Hierarchie, Labels) und optional das Wording.
 
 Wichtig für die Wartung: `useAppConfigStore.js` lädt beim Modul-Import einmalig
 `loadEditableAppConfigFromStorage()`. Existiert ein gespeicherter Eintrag, **gewinnt dieser
-vollständig** über `config/app.config.js`. Eine Änderung an `app.config.js` wirkt sich also bei
-Nutzern, die bereits einmal im Tab `Einstellungen` gespeichert haben, **nicht** aus, solange sie die
-App-Settings nicht zurücksetzen (`clearEditableAppConfig`, entfernt den localStorage-Eintrag und
-fällt auf die Build-Defaults zurück). Ohne gespeicherten Eintrag gelten die Werte aus
-`app.config.js` unverändert.
+vollständig** über die Basisebene. Eine Änderung an `app.config.js` **oder** an der Default-Datei
+wirkt sich also bei Nutzern, die bereits einmal im Tab `Einstellungen` gespeichert haben, **nicht**
+aus, solange sie die App-Settings nicht zurücksetzen (`clearEditableAppConfig`, entfernt den
+localStorage-Eintrag und fällt auf die aktuelle Basisebene zurück - also auf die Default-Datei,
+sofern geladen). Ohne gespeicherten Eintrag gilt die Basisebene unverändert.
+
+Der Tab `Einstellungen` blendet unter den App-Settings ein, welche Basis aktiv ist
+(`appSettingsSourceDefaultFile` / `appSettingsSourceBuild`) und weist bei vorhandenem
+localStorage-Snapshot auf dessen Vorrang hin (`appSettingsSourceOverridden`).
 
 Alle Werte werden beim Laden normalisiert (`normalizeAppConfigInput`), unbekannte oder ungültige
 Eingaben fallen auf definierte Defaults zurück. Gespeicherte Snapshots tragen `version: 1` und
@@ -230,10 +242,14 @@ Eingaben fallen auf definierte Defaults zurück. Gespeicherte Snapshots tragen `
 | `connectionMode` | `switchable` \| `offline` \| `online` (Fallback `switchable`) | `switchable` zeigt den Umschalter `Offline \| Online`; `offline`/`online` fixieren den App-Modus ohne Umschalter. |
 | `dataInspectionMode` | `true` \| `false` | `true` blendet im Sidebar-Editor unter der Feldliste `show/hide raw data` und `Copy raw data` ein. |
 | `defaultConnectionProfile` | Dateiname oder Leerstring | Dateiname eines Profils in `public/connection-profile/`, das beim App-Start geladen wird (siehe [12.1](#121-verbindungsprofil)). Leer = nur localStorage-Verhalten. |
+| `defaultAppConfig` | Dateiname oder Leerstring | **Build-only.** Dateiname einer App-Config in `public/app-config/`, die beim App-Start als Basisebene geladen wird (siehe [4.4](#44-default-app-config-aus-publicapp-config)). Leer = nur `app.config.js` + localStorage. |
 | `wording` | Import aus `config/wording.json` | Basis-Wording-Dictionary |
 
-Alle Schlüssel außer `wording` sind zur Laufzeit im Tab `Einstellungen` editierbar und werden dort
-gespeichert, importiert und exportiert.
+Alle Schlüssel außer `wording` und `defaultAppConfig` sind zur Laufzeit im Tab `Einstellungen`
+editierbar und werden dort gespeichert, importiert und exportiert. `defaultAppConfig` ist bewusst
+ausgenommen: der Schlüssel entscheidet, *woher* die App-Config geladen wird, und muss deshalb vor
+diesem Ladevorgang feststehen - er kann nicht aus der Datei stammen, die er adressiert. Er ist
+entsprechend auch **nicht** Teil des Exports aus dem Tab `Einstellungen`.
 
 ### 4.3 Wording, Backend-Merge und Sprachen
 
@@ -253,6 +269,34 @@ gespeichert, importiert und exportiert.
 - `supportedLanguages` wird dynamisch aus allen Sprachschlüsseln des gemergten Wordings abgeleitet;
   ist das Dictionary leer, enthält die Liste nur die aktive Sprache.
 
+### 4.4 Default-App-Config aus `public/app-config/`
+
+Damit eine Deployment-Konfiguration nicht im Build festgeschrieben werden muss, kann eine App-Config
+als JSON neben dem Build liegen und zur Laufzeit geladen werden - dasselbe Muster wie beim
+Verbindungsprofil ([12.1](#121-verbindungsprofil)).
+
+- **Erzeugen:** Tab `Einstellungen`, Button `App-Einstellungen als JSON herunterladen`. Die Datei
+  nach `public/app-config/` legen; der Dateiname muss zu `defaultAppConfig` in
+  `config/app.config.js` passen (Default `viewer-editor-app-config.v1.json`).
+- **Laden:** `loadEditableAppConfigFromDefault()` in `useAppConfigStore.js`, aufgerufen aus
+  `onMounted` in `App.vue`.
+- **URL-Auflösung:** über `resolvePublicConfigUrls(value, 'app-config')`
+  (`src/composables/publicConfigUrls.js`). Ein blosser Dateiname wird im Unterordner `app-config/`
+  gesucht, ein Wert mit Pfadanteil unverändert übernommen, eine absolute `http(s)`-URL direkt. Es
+  wird eine Kandidatenliste vom spezifischsten zum allgemeinsten Pfadpräfix probiert
+  (`location.pathname`, dann `import.meta.env.BASE_URL`, dann `/`), damit die App auch unter
+  wechselnden Basispfaden funktioniert.
+- **Wirkung:** die Datei ersetzt ausschliesslich die **Basisebene**. Ein localStorage-Snapshot bleibt
+  vorrangig und wird weder überschrieben noch gelöscht - Unterschied zum Verbindungsprofil, das
+  localStorage aktiv überschreibt.
+- **Fehlerfall:** schlägt Fetch, JSON-Parsing oder die Objektprüfung fehl, bleibt
+  `config/app.config.js` die Basis und die App startet normal. Der Grund landet in
+  `lastAppConfigLoadError` und als `console.warn` aus `App.vue`.
+- **Reihenfolge in `onMounted` ist bindend:** die Default-App-Config wird **vor**
+  `loadAppModeFromStorage()` und **vor** `loadConnectionProfileFromDefault()` geladen, weil sie
+  `connectionMode` und `defaultConnectionProfile` liefern kann, die unmittelbar danach gelesen
+  werden. Der Start kostet dadurch zwei sequenzielle Requests.
+
 ---
 
 ## 5 Browser-Persistenz
@@ -262,7 +306,7 @@ sind gegen nicht verfügbaren Storage abgesichert.
 
 | Schlüssel | Storage | Owner | Inhalt | Restore | Löschen/Ersetzen |
 | --- | --- | --- | --- | --- | --- |
-| `viewerEditor.appConfig.v1` | localStorage | `useAppConfigStore` | Snapshot der editierbaren App-Settings (`version`, alle Schlüssel aus [4.2](#42-schlüssel-in-configappconfigjs), `updatedAt`) | beim Modul-Import (App-Start) | `clearEditableAppConfig()` im Tab `Einstellungen`; JSON-Import überschreibt |
+| `viewerEditor.appConfig.v1` | localStorage | `useAppConfigStore` | Snapshot der editierbaren App-Settings (`version`, alle Schlüssel aus [4.2](#42-schlüssel-in-configappconfigjs) außer `defaultAppConfig`, `updatedAt`) | beim Modul-Import (App-Start); behält Vorrang vor einer geladenen Default-App-Config | `clearEditableAppConfig()` im Tab `Einstellungen` (fällt auf die Default-Datei zurück, sofern geladen); JSON-Import überschreibt |
 | `viewerEditor.connectionProfile.v1` | localStorage | `useConnectionProfileStore` | Verbindungsprofil (`version`, `label`, `baseUrl`, `configPath`, `updatedAt`) | beim App-Start; wird bei gesetztem `defaultConnectionProfile` ggf. durch das geladene Default-Profil überschrieben | `clearConnectionProfile()`; Speichern/Import ersetzt |
 | `viewerEditor.authToken.v1` | localStorage | `useAuthStore` | Strapi-JWT | `restoreSession()` beim App-Start (holt anschließend `/api/users/me`) | Logout und fehlgeschlagener Restore entfernen den Token |
 | `viewerEditor.appMode.v1` | localStorage | `useOnlineModeStore` | App-Modus `offline` \| `online` | beim App-Start; ein fixierter `connectionMode` hat Vorrang | Moduswechsel schreibt neu |

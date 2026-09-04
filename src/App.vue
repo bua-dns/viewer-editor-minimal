@@ -55,6 +55,8 @@ const {
   dataInspectionMode,
   showLanguageSwitch,
   defaultConnectionProfile,
+  defaultAppConfigFile,
+  loadEditableAppConfigFromDefault,
   language,
   setLanguage,
   t,
@@ -824,9 +826,6 @@ function updateTopbarCondensedState() {
 
 onMounted(async () => {
   document.documentElement.style.setProperty('--color-primary', primaryColor.value)
-  loadDataModeFromSession()
-  loadAppModeFromStorage()
-  loadOnlineConfigOnlyFromStorage()
 
   // Muss vor dem await stehen: die Sticky-Offsets der Topbar/Tab-Reihe/Edit-Kopfzeile
   // haengen an den hier gesetzten CSS-Variablen. Wuerde die Verdrahtung auf das
@@ -845,6 +844,17 @@ onMounted(async () => {
   requestAnimationFrame(() => {
     updateStickyMeasurements()
   })
+
+  // Reihenfolge ist bindend: die Default-App-Config kann `defaultConnectionProfile`
+  // und `connectionMode` liefern, die unmittelbar danach gelesen werden.
+  const appConfigLoadResult = await loadEditableAppConfigFromDefault(defaultAppConfigFile)
+  if (!appConfigLoadResult?.ok) {
+    console.warn('Default app config load failed:', appConfigLoadResult)
+  }
+
+  loadDataModeFromSession()
+  loadAppModeFromStorage()
+  loadOnlineConfigOnlyFromStorage()
 
   const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile.value)
   if (!connectionProfileLoadResult?.ok) {
