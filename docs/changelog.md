@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-09 - Runtime app config from public/app-config
+
+- A JSON app config placed in `public/app-config/` is now loaded at startup and replaces
+  `config/app.config.js` as the base layer, so deployment settings no longer have to be baked into
+  the build. Produce the file with `App-Einstellungen als JSON herunterladen` in the
+  `Einstellungen` tab.
+- The filename comes from the new build-only key `defaultAppConfig` in `config/app.config.js`
+  (default `viewer-editor-app-config.v1.json`); empty disables the fetch. It is deliberately not
+  runtime-editable, because it decides where the config is fetched from and so cannot come from the
+  file it addresses.
+- Precedence is unchanged where it matters: a config saved in the `Einstellungen` tab
+  (`viewerEditor.appConfig.v1`) still wins over the file, and is neither overwritten nor cleared by
+  it. `Gespeicherte App-Einstellungen loeschen` now falls back to the deployed file rather than to
+  `app.config.js`. The tab shows which base is active and whether localStorage is overriding it.
+- If the fetch, the JSON parse or the object check fails, `app.config.js` stays the base and the app
+  starts normally; the reason lands in `lastAppConfigLoadError` and a `console.warn`.
+- Load order in `onMounted` is now binding: app config, then app mode, then connection profile - the
+  file can carry `connectionMode` and `defaultConnectionProfile`, which are read right after.
+- New `src/composables/publicConfigUrls.js` holds the runtime path-prefix resolution and the
+  first-available fetch that the connection profile loader already used; `useConnectionProfileStore`
+  now shares it instead of keeping its own copy.
+
+## 2026-09 - Sticky topbar
+
+- The topbar (title, online panel, transfer controls) is sticky from `769px` upward, so the
+  save-changes UI stays reachable without scrolling back to the top of the item list.
+- Scrolling past `24px` condenses it: the title is hidden and the vertical padding shrinks, so the
+  controls fit on one row and the sticky stack costs less height; it expands again below `8px`
+  (hysteresis, because condensing shortens the document). Below `769px` nothing changes.
+- `--ve-header-offset` was referenced by the sticky offsets but never set; `App.vue` now measures the
+  topbar alongside the tab row and edit header and writes all three onto `.app-shell`.
+- Fixed two defects this surfaced: the sticky measurement was wired up *after* the awaited
+  `loadConnectionProfileFromDefault` call, so a slow or failing profile request left the offsets
+  unset and the sticky layers overlapped; and the `ResizeObserver` watched the default content-box,
+  which does not change when only padding changes - it now observes the border-box.
+
 ## 2026-09 - Replacements applied to the data, online included
 
 - Replacements are no longer collect-and-export only: adding a rule, or pressing `Ersetzungen anwenden`

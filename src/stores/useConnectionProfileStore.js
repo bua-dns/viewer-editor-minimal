@@ -5,6 +5,7 @@ import {
   parseConnectionProfileJsonText,
   validateConnectionProfile,
 } from '../composables/connectionProfile'
+import { fetchFirstAvailableConfigText, resolvePublicConfigUrls } from '../composables/publicConfigUrls'
 import { checkDataModelImplementationInStrapi } from '../services/strapiApi'
 
 const CONNECTION_PROFILE_STORAGE_KEY = 'viewerEditor.connectionProfile.v1'
@@ -208,117 +209,36 @@ async function testConnection(input = {}) {
   }
 }
 
-function uniqueNonEmpty(values) {
-  return Array.from(new Set(values.filter(Boolean)))
-}
-
-function normalizePathPrefix(value) {
-  const normalized = String(value || '').trim()
-  if (!normalized) return '/'
-
-  const withLeadingSlash = normalized.startsWith('/') ? normalized : `/${normalized}`
-  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`
-}
-
-function collectLocationPathPrefixes() {
-  const pathname = String(globalThis?.location?.pathname || '').trim()
-  if (!pathname) return []
-
-  const sanitizedPathname = pathname.split('?')[0].split('#')[0]
-  const segments = sanitizedPathname.split('/').filter(Boolean)
-  const pointsToDirectory = sanitizedPathname.endsWith('/')
-  const directorySegments = pointsToDirectory ? segments : segments.slice(0, -1)
-
-  const prefixes = []
-  for (let index = directorySegments.length; index >= 0; index -= 1) {
-    const partialSegments = directorySegments.slice(0, index)
-    const prefix = partialSegments.length ? `/${partialSegments.join('/')}/` : '/'
-    prefixes.push(prefix)
-  }
-
-  return uniqueNonEmpty(prefixes)
-}
-
-function resolveRuntimePathPrefixes() {
-  const rawBasePath = String(import.meta?.env?.BASE_URL || '/').trim()
-  const basePath = normalizePathPrefix(rawBasePath)
-  const locationPrefixes = collectLocationPathPrefixes()
-  return uniqueNonEmpty([...locationPrefixes, basePath, '/'])
-}
-
-function resolveDefaultConnectionProfileUrls(value) {
-  const normalized = String(value || '').trim()
-  if (!normalized) return []
-
-  if (/^https?:\/\//i.test(normalized)) return [normalized]
-
-  const prefixes = resolveRuntimePathPrefixes()
-  const cleanedPath = normalized.replace(/^\/+/, '')
-
-  if (normalized.startsWith('/') || normalized.includes('/')) {
-    return uniqueNonEmpty(prefixes.map((prefix) => `${prefix}${cleanedPath}`))
-  }
-
-  const withConnectionProfile = prefixes.map((prefix) => `${prefix}connection-profile/${cleanedPath}`)
-  const direct = prefixes.map((prefix) => `${prefix}${cleanedPath}`)
-  return uniqueNonEmpty([...withConnectionProfile, ...direct])
-}
-
 async function loadConnectionProfileFromDefault(defaultProfilePath = '') {
-  const profileUrls = resolveDefaultConnectionProfileUrls(defaultProfilePath)
+  const profileUrls = resolvePublicConfigUrls(defaultProfilePath, 'connection-profile')
   if (!profileUrls.length) {
     return loadConnectionProfileFromStorage()
   }
 
-  if (typeof globalThis.fetch !== 'function') {
+  const fetched = await fetchFirstAvailableConfigText(profileUrls)
+  if (!fetched.ok) {
+    const error =
+      fetched.reason === 'fetch-unavailable'
+        ? fetched.error
+        : 'Could not load default connection profile.'
     connectionProfile.value = null
     lastConnectionProfileLoadError.value = {
       source: 'default',
-      reason: 'fetch-unavailable',
-      error: 'Fetch API is not available in this environment.',
-    }
-    return { ok: false, reason: 'fetch-unavailable', error: 'Fetch API is not available in this environment.' }
-  }
-
-  let payloadText = ''
-  let loadedProfileUrl = ''
-  let lastFetchError = null
-  for (const candidateUrl of profileUrls) {
-    try {
-      const response = await fetch(candidateUrl, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
-      })
-      if (!response.ok) {
-        lastFetchError = `Could not load default connection profile (HTTP ${response.status}).`
-        continue
-      }
-      payloadText = await response.text()
-      loadedProfileUrl = candidateUrl
-      break
-    } catch {
-      lastFetchError = 'Could not load default connection profile.'
-    }
-  }
-
-  if (!loadedProfileUrl) {
-    connectionProfile.value = null
-    lastConnectionProfileLoadError.value = {
-      source: 'default',
-      reason: 'fetch-failed',
-      error: lastFetchError || 'Could not load default connection profile.',
+      reason: fetched.reason,
+      error,
       profileUrl: profileUrls[0] || '',
       attemptedUrls: profileUrls,
     }
     return {
       ok: false,
-      reason: 'fetch-failed',
-      error: lastFetchError || 'Could not load default connection profile.',
+      reason: fetched.reason,
+      error,
       profileUrl: profileUrls[0] || '',
     }
   }
+
+  const payloadText = fetched.text
+  const loadedProfileUrl = fetched.url
 
   const parsed = parseConnectionProfileJsonText(payloadText)
   if (!parsed.ok) {

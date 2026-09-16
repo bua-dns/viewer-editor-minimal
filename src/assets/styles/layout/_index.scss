@@ -135,9 +135,39 @@
 
 @media (min-width: 769px) {
   .app-shell {
-    --ve-sticky-top-offset: var(--ve-header-offset, 0px);
+    // Statische Defaults; App.vue misst die tatsaechlichen Hoehen und ueberschreibt
+    // --ve-header-offset / --ve-tabs-row-height / --ve-edit-sticky-stack-height inline.
+    --ve-sticky-top-offset: var(--ve-header-offset, 58px);
     --ve-tabs-row-height: 58px;
     --ve-edit-sticky-stack-height: 220px;
+  }
+
+  // Sticky, damit die Save-/Transfer-Controls unabhaengig von der Scrollposition
+  // erreichbar bleiben. Die gemessene Hoehe landet als --ve-header-offset auf
+  // .app-shell und verschiebt darueber die Offsets der beiden Sticky-Ebenen
+  // darunter (.app-tabs-row, .edit-sticky-top).
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 37;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    transition: padding 140ms ease, box-shadow 140ms ease;
+  }
+
+  // Im gescrollten Zustand entfaellt der Titel, damit die Controls einzeilig
+  // passen und der Sticky-Stack weniger Hoehe kostet.
+  .topbar.topbar-condensed {
+    padding-block: var(--ve-space-2);
+    box-shadow: 0 10px 18px rgba(18, 31, 46, 0.08);
+  }
+
+  .topbar.topbar-condensed h1 {
+    display: none;
+  }
+
+  .topbar.topbar-condensed .actions {
+    flex: 1;
   }
 
   .app-tab-sheet .app-tabs-row {

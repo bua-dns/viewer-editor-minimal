@@ -30,6 +30,7 @@ const {
   t,
   editableAppConfig,
   hasSavedEditableAppConfig,
+  appConfigSource,
   saveEditableAppConfig,
   clearEditableAppConfig,
   importEditableAppConfigFromJsonText,
@@ -422,6 +423,23 @@ async function onCheckDataModel() {
       </button>
       <input ref="appConfigFileInput" type="file" accept=".json,application/json" @change="onUploadAppConfigFileChange" />
     </div>
+
+    <p class="saved-meta">
+      {{
+        appConfigSource === 'default'
+          ? t('appSettingsSourceDefaultFile', 'Base: bundled default app config from /public/app-config.')
+          : t('appSettingsSourceBuild', 'Base: config/app.config.js (no default file loaded).')
+      }}
+    </p>
+
+    <p v-if="hasSavedEditableAppConfig" class="saved-meta">
+      {{
+        t(
+          'appSettingsSourceOverridden',
+          'Locally saved app settings are active and take precedence over the base. Use "Clear saved app settings" to fall back to the base.',
+        )
+      }}
+    </p>
 
     <p v-if="editableAppConfig?.updatedAt" class="saved-meta">
       {{ t('appSettingsLastSaved', 'Last saved') }}: {{ editableAppConfig.updatedAt }}

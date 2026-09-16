@@ -34,8 +34,10 @@ import { resolveItemsPathFromSettings } from './services/strapiApi'
 const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
 const appShellRef = ref(null)
+const topbarRef = ref(null)
 const appTabsRowRef = ref(null)
 const editStickyTopRef = ref(null)
+const isTopbarCondensed = ref(false)
 let stickyResizeObserver = null
 
 const {
@@ -53,6 +55,8 @@ const {
   dataInspectionMode,
   showLanguageSwitch,
   defaultConnectionProfile,
+  defaultAppConfigFile,
+  loadEditableAppConfigFromDefault,
   language,
   setLanguage,
   t,
@@ -787,19 +791,71 @@ function keydownListener(event) {
   }
 }
 
+// Border-Box: das Ein-/Ausklappen der Topbar aendert nur das Padding, was die
+// Content-Box (Default der ResizeObserver-Beobachtung) unveraendert laesst.
+function observeStickyElement(element) {
+  if (!stickyResizeObserver || !element) return
+  stickyResizeObserver.observe(element, { box: 'border-box' })
+}
+
 function updateStickyMeasurements() {
   if (!appShellRef.value) return
+  const headerHeight = topbarRef.value?.offsetHeight || 0
   const tabsHeight = appTabsRowRef.value?.offsetHeight || 0
   const stickyTopHeight = editStickyTopRef.value?.offsetHeight || 0
+  appShellRef.value.style.setProperty('--ve-header-offset', `${headerHeight}px`)
   appShellRef.value.style.setProperty('--ve-tabs-row-height', `${tabsHeight}px`)
   appShellRef.value.style.setProperty('--ve-edit-sticky-stack-height', `${stickyTopHeight}px`)
 }
 
+// Hysterese: Condense-/Expand-Schwelle liegen auseinander, damit die durch das
+// Einklappen schrumpfende Dokumenthoehe nicht in ein Flackern zurueckfuehrt.
+const TOPBAR_CONDENSE_SCROLL_Y = 24
+const TOPBAR_EXPAND_SCROLL_Y = 8
+
+function updateTopbarCondensedState() {
+  const scrollY = window.scrollY || window.pageYOffset || 0
+  if (!isTopbarCondensed.value && scrollY > TOPBAR_CONDENSE_SCROLL_Y) {
+    isTopbarCondensed.value = true
+    return
+  }
+  if (isTopbarCondensed.value && scrollY < TOPBAR_EXPAND_SCROLL_Y) {
+    isTopbarCondensed.value = false
+  }
+}
+
 onMounted(async () => {
   document.documentElement.style.setProperty('--color-primary', primaryColor.value)
+
+  // Muss vor dem await stehen: die Sticky-Offsets der Topbar/Tab-Reihe/Edit-Kopfzeile
+  // haengen an den hier gesetzten CSS-Variablen. Wuerde die Verdrahtung auf das
+  // Laden des Verbindungsprofils warten, blieben die Offsets bei einer langsamen
+  // oder fehlschlagenden Anfrage ungesetzt und die Sticky-Ebenen ueberlappen.
+  window.addEventListener('resize', updateStickyMeasurements)
+  window.addEventListener('scroll', updateTopbarCondensedState, { passive: true })
+  stickyResizeObserver = new ResizeObserver(() => {
+    updateStickyMeasurements()
+  })
+  observeStickyElement(topbarRef.value)
+  observeStickyElement(appTabsRowRef.value)
+  observeStickyElement(editStickyTopRef.value)
+  updateTopbarCondensedState()
+  updateStickyMeasurements()
+  requestAnimationFrame(() => {
+    updateStickyMeasurements()
+  })
+
+  // Reihenfolge ist bindend: die Default-App-Config kann `defaultConnectionProfile`
+  // und `connectionMode` liefern, die unmittelbar danach gelesen werden.
+  const appConfigLoadResult = await loadEditableAppConfigFromDefault(defaultAppConfigFile)
+  if (!appConfigLoadResult?.ok) {
+    console.warn('Default app config load failed:', appConfigLoadResult)
+  }
+
   loadDataModeFromSession()
   loadAppModeFromStorage()
   loadOnlineConfigOnlyFromStorage()
+
   const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile.value)
   if (!connectionProfileLoadResult?.ok) {
     console.warn('Default connection profile load failed:', connectionProfileLoadResult)
@@ -807,21 +863,13 @@ onMounted(async () => {
   restoreSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
   window.addEventListener('keydown', keydownListener)
-  window.addEventListener('resize', updateStickyMeasurements)
-  stickyResizeObserver = new ResizeObserver(() => {
-    updateStickyMeasurements()
-  })
-  if (appTabsRowRef.value) stickyResizeObserver.observe(appTabsRowRef.value)
-  if (editStickyTopRef.value) stickyResizeObserver.observe(editStickyTopRef.value)
-  requestAnimationFrame(() => {
-    updateStickyMeasurements()
-  })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', beforeUnloadListener)
   window.removeEventListener('keydown', keydownListener)
   window.removeEventListener('resize', updateStickyMeasurements)
+  window.removeEventListener('scroll', updateTopbarCondensedState)
   if (stickyResizeObserver) {
     stickyResizeObserver.disconnect()
     stickyResizeObserver = null
@@ -975,8 +1023,9 @@ watch(
   () => {
     requestAnimationFrame(() => {
       updateStickyMeasurements()
-      if (stickyResizeObserver && appTabsRowRef.value) stickyResizeObserver.observe(appTabsRowRef.value)
-      if (stickyResizeObserver && editStickyTopRef.value) stickyResizeObserver.observe(editStickyTopRef.value)
+      observeStickyElement(topbarRef.value)
+      observeStickyElement(appTabsRowRef.value)
+      observeStickyElement(editStickyTopRef.value)
     })
   },
 )
@@ -1059,7 +1108,8 @@ watch(
 
 <template>
   <div ref="appShellRef" class="app-shell">
-    <header class="topbar content-grid-topbar content-grid-full">
+    <header ref="topbarRef" class="topbar content-grid-topbar content-grid-full"
+      :class="{ 'topbar-condensed': isTopbarCondensed }">
       <h1>{{ t('appTitle', 'Viewer Editor') }}</h1>
       <div class="actions">
         <OnlineAccessPanel

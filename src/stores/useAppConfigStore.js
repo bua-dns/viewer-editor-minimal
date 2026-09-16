@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import appConfig from '../../config/app.config'
+import { fetchFirstAvailableConfigText, resolvePublicConfigUrls } from '../composables/publicConfigUrls'
 
 const APP_CONFIG_STORAGE_KEY = 'viewerEditor.appConfig.v1'
 
@@ -71,9 +72,21 @@ function getLocalStorageSafe() {
   }
 }
 
-const defaultEditableConfig = normalizeAppConfigInput(appConfig)
+// Basisebene der App-Settings. Start ist `config/app.config.js`; liegt eine
+// Default-Datei in `public/app-config/`, ersetzt diese die Basis (siehe
+// loadEditableAppConfigFromDefault). Ein im Tab `Einstellungen` gespeicherter
+// Snapshot in localStorage gewinnt weiterhin ueber beides.
+const buildDefaultConfig = normalizeAppConfigInput(appConfig)
+// Build-only: bestimmt, woher die Default-App-Config geladen wird, und kann daher
+// nicht selbst aus ihr stammen. Nicht Teil von normalizeAppConfigInput, damit der
+// Schluessel weder im Tab `Einstellungen` editierbar noch Teil des Exports ist.
+const defaultAppConfigFile = String(appConfig.defaultAppConfig || '').trim()
+const baseConfig = ref({ ...buildDefaultConfig })
+const lastAppConfigLoadError = ref(null)
+const appConfigSource = ref('build')
+
 const editableConfig = ref({
-  ...defaultEditableConfig,
+  ...baseConfig.value,
   updatedAt: '',
 })
 
@@ -95,7 +108,7 @@ function loadEditableAppConfigFromStorage() {
 
   const raw = storage.getItem(APP_CONFIG_STORAGE_KEY)
   if (!raw) {
-    applyEditableConfigSnapshot(defaultEditableConfig)
+    applyEditableConfigSnapshot(baseConfig.value)
     return { ok: true, hasConfig: false }
   }
 
@@ -104,8 +117,86 @@ function loadEditableAppConfigFromStorage() {
     applyEditableConfigSnapshot(parsed)
     return { ok: true, hasConfig: true, config: editableConfig.value }
   } catch {
-    applyEditableConfigSnapshot(defaultEditableConfig)
+    applyEditableConfigSnapshot(baseConfig.value)
     return { ok: false, reason: 'invalid-json' }
+  }
+}
+
+function hasSavedAppConfigInStorage() {
+  const storage = getLocalStorageSafe()
+  if (!storage) return false
+  return Boolean(storage.getItem(APP_CONFIG_STORAGE_KEY))
+}
+
+// Laedt die Default-App-Config aus `public/app-config/`. Sie ersetzt nur die
+// Basisebene: ein lokal gespeicherter Snapshot bleibt vorrangig und wird hier
+// weder ueberschrieben noch geloescht. Schlaegt das Laden fehl, bleibt
+// `config/app.config.js` die Basis - die App startet also immer.
+async function loadEditableAppConfigFromDefault(defaultAppConfigPath = '') {
+  const configUrls = resolvePublicConfigUrls(defaultAppConfigPath, 'app-config')
+  if (!configUrls.length) {
+    lastAppConfigLoadError.value = null
+    appConfigSource.value = 'build'
+    return { ok: true, hasDefault: false, source: 'build' }
+  }
+
+  const fetched = await fetchFirstAvailableConfigText(configUrls)
+  if (!fetched.ok) {
+    const error =
+      fetched.reason === 'fetch-unavailable' ? fetched.error : 'Could not load default app config.'
+    lastAppConfigLoadError.value = {
+      source: 'default',
+      reason: fetched.reason,
+      error,
+      attemptedUrls: configUrls,
+    }
+    return { ok: false, reason: fetched.reason, error }
+  }
+
+  let parsed = null
+  try {
+    parsed = JSON.parse(fetched.text)
+  } catch {
+    lastAppConfigLoadError.value = {
+      source: 'default',
+      reason: 'invalid-json',
+      error: 'Invalid JSON.',
+      configUrl: fetched.url,
+    }
+    return { ok: false, reason: 'invalid-json', error: 'Invalid JSON.', configUrl: fetched.url }
+  }
+
+  if (!isPlainObject(parsed)) {
+    lastAppConfigLoadError.value = {
+      source: 'default',
+      reason: 'invalid-config',
+      error: 'App config JSON must be an object.',
+      configUrl: fetched.url,
+    }
+    return {
+      ok: false,
+      reason: 'invalid-config',
+      error: 'App config JSON must be an object.',
+      configUrl: fetched.url,
+    }
+  }
+
+  baseConfig.value = normalizeAppConfigInput(parsed)
+  lastAppConfigLoadError.value = null
+  appConfigSource.value = 'default'
+
+  // Nur ohne gespeicherten Snapshot durchschlagen lassen; sonst gewinnt localStorage.
+  if (!hasSavedAppConfigInStorage()) {
+    applyEditableConfigSnapshot(baseConfig.value)
+  }
+
+  return {
+    ok: true,
+    hasDefault: true,
+    source: 'default',
+    configUrl: fetched.url,
+    config: baseConfig.value,
+    overriddenByStorage: hasSavedAppConfigInStorage(),
   }
 }
 
@@ -126,7 +217,7 @@ function clearEditableAppConfig() {
   if (storage) {
     storage.removeItem(APP_CONFIG_STORAGE_KEY)
   }
-  applyEditableConfigSnapshot(defaultEditableConfig)
+  applyEditableConfigSnapshot(baseConfig.value)
 }
 
 function importEditableAppConfigFromJsonText(jsonText) {
@@ -259,6 +350,10 @@ export function useAppConfigStore() {
     supportedLanguages,
     setLanguage,
     loadEditableAppConfigFromStorage,
+    loadEditableAppConfigFromDefault,
+    defaultAppConfigFile,
+    lastAppConfigLoadError,
+    appConfigSource,
     saveEditableAppConfig,
     clearEditableAppConfig,
     importEditableAppConfigFromJsonText,

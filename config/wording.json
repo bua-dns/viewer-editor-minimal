@@ -543,6 +543,18 @@
     "de": "Zuletzt gespeichert",
     "en": "Last saved"
   },
+  "appSettingsSourceDefaultFile": {
+    "de": "Basis: mitgelieferte Default-App-Config aus /public/app-config.",
+    "en": "Base: bundled default app config from /public/app-config."
+  },
+  "appSettingsSourceBuild": {
+    "de": "Basis: config/app.config.js (keine Default-Datei geladen).",
+    "en": "Base: config/app.config.js (no default file loaded)."
+  },
+  "appSettingsSourceOverridden": {
+    "de": "Lokal gespeicherte App-Einstellungen sind aktiv und haben Vorrang vor der Basis. Zum Zuruecksetzen auf die Basis: \"Gespeicherte App-Einstellungen loeschen\".",
+    "en": "Locally saved app settings are active and take precedence over the base. Use \"Clear saved app settings\" to fall back to the base."
+  },
   "field_label": {
     "de": "Feld",
     "en": "Field"
