@@ -27,6 +27,8 @@ export function useDataImportExport({
   hasUnappliedUserConfigChanges,
   resetToImportedSnapshot,
   resetReplacements,
+  dataSourceViewerSettings = { value: {} },
+  setDataSourceViewerSettings = () => {},
 }) {
   const baseUrl = import.meta.env.BASE_URL || '/'
 
@@ -173,14 +175,22 @@ export function useDataImportExport({
     return importFromJsonText(text, fileName)
   }
 
+  // Every import opens a new data source: its viewer settings replace the previous ones,
+  // and an import without a (valid) config falls back to the basic config.
   async function applyImportedConfigIfPresent() {
-    if (dataMode.value !== 'json' || !importedConfig.value) return true
+    if (dataMode.value !== 'json' || !importedConfig.value) {
+      setDataSourceViewerSettings({})
+      return true
+    }
 
     const applyResult = applyImportedConfigPayload(importedConfig.value)
     if (!applyResult.ok) {
+      setDataSourceViewerSettings({})
       errorMessage.value = applyResult.error
       return false
     }
+
+    setDataSourceViewerSettings(importedConfig.value)
 
     applyUserConfigToRawItems(rawItems.value)
     await nextTick()
@@ -264,7 +274,7 @@ export function useDataImportExport({
 
     const payload = {
       data: createExportPayload(),
-      config: createUserConfigPayload(),
+      config: { ...createUserConfigPayload(), ...dataSourceViewerSettings.value },
       suspendedItems: createSuspendedItemsPayload(),
     }
     payload.replacements = createReplacementsPayload()

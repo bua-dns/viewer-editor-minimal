@@ -148,6 +148,7 @@ describe('useAppConfigStore basic config', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch
     // Module-global state: reset to the defaults so a loaded file does not leak into other tests.
+    useAppConfigStore().clearDataSourceViewerSettings()
     useAppConfigStore().applyBasicConfig({})
     useAppConfigStore().setLocalWording(shippedWording)
     globalThis.localStorage = originalLocalStorage
@@ -233,6 +234,53 @@ describe('useAppConfigStore basic config', () => {
     await store.loadBasicConfig()
 
     expect(store.t('appTitle', 'Inline')).toBe('Inline')
+  })
+
+  test('lets the data source override viewer settings key by key', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ primaryColor: '#111111', languageMode: 'multi', dataInspectionMode: false })
+
+    store.setDataSourceViewerSettings({ primaryColor: '#222222', fields: {}, itemsPath: '/api/items' })
+
+    expect(store.dataSourceViewerSettings.value).toEqual({ primaryColor: '#222222' })
+    expect(store.primaryColor.value).toBe('#222222')
+    expect(store.languageMode.value).toBe('multi')
+    expect(store.dataInspectionMode.value).toBe(false)
+
+    store.clearDataSourceViewerSettings()
+    expect(store.primaryColor.value).toBe('#111111')
+  })
+
+  test('ignores invalid viewer settings from the data source', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({})
+
+    store.setDataSourceViewerSettings({ languageMode: 'both', primaryColor: '', dataInspectionMode: 'yes' })
+
+    expect(store.dataSourceViewerSettings.value).toEqual({})
+    expect(store.languageMode.value).toBe('multi')
+  })
+
+  test('sets the language from the data source and restores it when the source closes', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ language: 'de' })
+
+    store.setDataSourceViewerSettings({ language: 'en' })
+    expect(store.language.value).toBe('en')
+
+    store.clearDataSourceViewerSettings()
+    expect(store.language.value).toBe('de')
+  })
+
+  test('keeps a manually chosen language when the data source sets none', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ language: 'de' })
+    store.setLanguage('en')
+
+    store.setDataSourceViewerSettings({ primaryColor: '#222222' })
+    store.clearDataSourceViewerSettings()
+
+    expect(store.language.value).toBe('en')
   })
 
   test('removes the old app settings snapshot from localStorage', async () => {

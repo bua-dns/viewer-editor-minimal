@@ -127,7 +127,7 @@ function removeLegacyAppConfigSnapshot() {
 
 function applyBasicConfig(input) {
   basicConfig.value = normalizeBasicConfig(input)
-  language.value = basicConfig.value.language
+  language.value = dataSourceViewerSettings.value.language || basicConfig.value.language
 }
 
 // Loads the basic config and the local wording in parallel. Called once before the app
@@ -162,15 +162,66 @@ async function loadBasicConfig() {
   }
 }
 
+// Template for a deployment: the bootstrap keys plus the viewer settings currently in effect.
 function exportBasicConfigAsJson() {
-  return JSON.stringify(basicConfig.value, null, 2)
+  return JSON.stringify({ ...basicConfig.value, ...effectiveViewerSettings.value }, null, 2)
 }
+
+// Viewer settings can be overridden by the open data source (JSON `config` offline,
+// `viewer-setting.settings` online), key by key. Only valid, present keys override.
+export const VIEWER_SETTING_KEYS = ['language', 'languageMode', 'primaryColor', 'dataInspectionMode']
+
+export function pickViewerSettings(source) {
+  if (!isPlainObject(source)) return {}
+  const picked = {}
+  if (typeof source.language === 'string' && source.language.trim()) {
+    picked.language = normalizeLanguage(source.language)
+  }
+  if (source.languageMode === 'single' || source.languageMode === 'multi') {
+    picked.languageMode = source.languageMode
+  }
+  if (typeof source.primaryColor === 'string' && source.primaryColor.trim()) {
+    picked.primaryColor = source.primaryColor.trim()
+  }
+  if (typeof source.dataInspectionMode === 'boolean') {
+    picked.dataInspectionMode = source.dataInspectionMode
+  }
+  return picked
+}
+
+const dataSourceViewerSettings = ref({})
+
+// Called whenever a data source opens (with its config) or closes (with nothing). The
+// language is set only when the data source brings one, or reset when an override ends,
+// so the DE | EN switch otherwise keeps the user's choice.
+function setDataSourceViewerSettings(source) {
+  const previous = dataSourceViewerSettings.value
+  const next = pickViewerSettings(source)
+  dataSourceViewerSettings.value = next
+  if (next.language) {
+    language.value = next.language
+  } else if (previous.language) {
+    language.value = basicConfig.value.language
+  }
+}
+
+function clearDataSourceViewerSettings() {
+  setDataSourceViewerSettings({})
+}
+
+const effectiveViewerSettings = computed(() => {
+  const base = {}
+  VIEWER_SETTING_KEYS.forEach((key) => {
+    base[key] = basicConfig.value[key]
+  })
+  return { ...base, ...dataSourceViewerSettings.value }
+})
 
 const connectionMode = computed(() => basicConfig.value.connectionMode)
 const basicConnectionProfile = computed(() => basicConfig.value.connectionProfile)
-const languageMode = computed(() => basicConfig.value.languageMode)
-const primaryColor = computed(() => basicConfig.value.primaryColor)
-const dataInspectionMode = computed(() => basicConfig.value.dataInspectionMode)
+const languageMode = computed(() => effectiveViewerSettings.value.languageMode)
+const primaryColor = computed(() => effectiveViewerSettings.value.primaryColor)
+const dataInspectionMode = computed(() => effectiveViewerSettings.value.dataInspectionMode)
 
 const mergedWording = computed(() => {
   const backend = normalizeWordingDictionary(onlineWording.value)
@@ -245,6 +296,10 @@ export function useAppConfigStore() {
     exportBasicConfigAsJson,
     connectionMode,
     basicConnectionProfile,
+    dataSourceViewerSettings,
+    effectiveViewerSettings,
+    setDataSourceViewerSettings,
+    clearDataSourceViewerSettings,
     primaryColor,
     dataInspectionMode,
     languageMode,

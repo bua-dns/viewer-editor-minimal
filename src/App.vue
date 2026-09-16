@@ -6,7 +6,7 @@ import { useDataImportExport } from './composables/useDataImportExport'
 import { useReplacementsApply } from './composables/useReplacementsApply'
 import { collectReplaceableFieldKeys } from './composables/replacementRules'
 import { useSelectionNavigation } from './composables/useSelectionNavigation'
-import { useAppConfigStore } from './stores/useAppConfigStore'
+import { VIEWER_SETTING_KEYS, useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
 import { useReplacementsStore } from './stores/useReplacementsStore'
@@ -67,8 +67,10 @@ const {
   t,
   setOnlineWording,
   clearOnlineWording,
-} =
-  useAppConfigStore()
+  dataSourceViewerSettings,
+  setDataSourceViewerSettings,
+  clearDataSourceViewerSettings,
+} = useAppConfigStore()
 const { connectionProfile, initializeConnectionProfile } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
@@ -518,6 +520,25 @@ function onSidebarSuspendEditingChange(event) {
   onSuspendEditingToggle({ uid, checked: event.target.checked })
 }
 
+// Keeps the keys the viewer does not edit (itemsPath, scanField, ...) and replaces the field
+// config and the viewer settings; a viewer setting without override is removed.
+function buildMergedOnlineSettings() {
+  const baseSettings =
+    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
+  const mergedSettings = {
+    ...baseSettings,
+    ...createUserConfigPayload(),
+  }
+  VIEWER_SETTING_KEYS.forEach((key) => {
+    delete mergedSettings[key]
+  })
+  return { ...mergedSettings, ...dataSourceViewerSettings.value }
+}
+
+const canWriteOnlineSettings = computed(
+  () => appMode.value === 'online' && isAuthenticated.value && Boolean(connectionProfile.value),
+)
+
 async function onApplyUserConfig() {
   applyUserConfigToRawItems(rawItems.value)
   if (dataMode.value === 'csv') {
@@ -525,20 +546,38 @@ async function onApplyUserConfig() {
   }
   isDirty.value = rawItems.value.length > 0
 
-  if (appMode.value !== 'online' || !isAuthenticated.value || !connectionProfile.value) {
+  if (!canWriteOnlineSettings.value) {
     return
   }
 
-  const baseSettings =
-    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
-  const userConfigPayload = createUserConfigPayload()
-  const mergedSettings = {
-    ...baseSettings,
-    ...userConfigPayload,
-    fields: userConfigPayload.fields,
+  await persistOnlineSettings(buildMergedOnlineSettings())
+}
+
+// Viewer settings live with the data source, so they can only be edited while one is open.
+const canEditViewerSettings = computed(() => {
+  if (appMode.value === 'online') {
+    return canWriteOnlineSettings.value && Boolean(onlineSettings.value)
+  }
+  return hasData.value
+})
+
+// `nextSettings` = null removes every override, so the basic config applies again.
+async function onApplyViewerSettings(nextSettings) {
+  if (!canEditViewerSettings.value) {
+    return { ok: false, reason: 'no-data-source' }
   }
 
-  await persistOnlineSettings(mergedSettings)
+  setDataSourceViewerSettings(nextSettings || {})
+
+  if (appMode.value === 'online') {
+    return persistOnlineSettings(buildMergedOnlineSettings())
+  }
+
+  if (dataMode.value === 'csv') {
+    setDataMode('json')
+  }
+  isDirty.value = true
+  return { ok: true }
 }
 
 function onAcceptCandidate({ targetField, candidateValue, targetConfiguredType }) {
@@ -666,6 +705,8 @@ const {
   hasUnappliedUserConfigChanges,
   resetToImportedSnapshot,
   resetReplacements,
+  dataSourceViewerSettings,
+  setDataSourceViewerSettings,
 })
 
 function onReset() {
@@ -963,6 +1004,7 @@ watch(
   async ([nextMode, nextAuthenticated, nextOnlineConfigOnly]) => {
     if (nextMode !== 'online' || !nextAuthenticated) {
       clearOnlineWording()
+      clearDataSourceViewerSettings()
       clearOnlineSettings()
       clearOnlineItems()
       clearOnlineUpdates()
@@ -975,6 +1017,7 @@ watch(
     const result = await fetchOnlineSettings()
     if (!result.ok) {
       clearOnlineWording()
+      clearDataSourceViewerSettings()
       return
     }
 
@@ -992,10 +1035,12 @@ watch(
 
     const applyResult = applyImportedConfigPayload(result.settings)
     if (!applyResult.ok) {
+      clearDataSourceViewerSettings()
       markOnlineSettingsInvalid(applyResult.error)
       return
     }
 
+    setDataSourceViewerSettings(result.settings)
     applyUserConfigToRawItems(rawItems.value)
 
     if (nextOnlineConfigOnly) {
@@ -1252,7 +1297,8 @@ watch(
 
         <section v-if="activeTab === 'database-connection'" id="panel-database-connection"
           class="database-connection-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-database-connection">
-          <DatabaseConnectionPanel />
+          <DatabaseConnectionPanel :can-edit-viewer-settings="canEditViewerSettings"
+            :apply-viewer-settings="onApplyViewerSettings" />
         </section>
 
         <section v-if="activeTab === 'info'" id="panel-info" class="info-tab-panel tab-sheet-panel" role="tabpanel"

@@ -43,6 +43,26 @@ export function validateImportedConfigPayload(configPayload) {
     }
   }
 
+  // Viewer settings of the data source (optional; missing keys fall back to the basic config).
+  if (configPayload.language != null && (typeof configPayload.language !== 'string' || !configPayload.language.trim())) {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.language muss ein nicht-leerer String sein.' }
+  }
+
+  if (configPayload.languageMode != null && configPayload.languageMode !== 'single' && configPayload.languageMode !== 'multi') {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.languageMode muss single oder multi sein.' }
+  }
+
+  if (
+    configPayload.primaryColor != null &&
+    (typeof configPayload.primaryColor !== 'string' || !configPayload.primaryColor.trim())
+  ) {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.primaryColor muss ein nicht-leerer String sein.' }
+  }
+
+  if (configPayload.dataInspectionMode != null && typeof configPayload.dataInspectionMode !== 'boolean') {
+    return { ok: false, error: 'JSON-Config ist ungueltig: config.dataInspectionMode muss ein Boolean sein.' }
+  }
+
   const itemLabelField = String(configPayload.itemLabelField || '').trim()
   if (itemLabelField && !Object.prototype.hasOwnProperty.call(configPayload.fields, itemLabelField)) {
     return {

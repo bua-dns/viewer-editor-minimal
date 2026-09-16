@@ -1,8 +1,14 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
+
+const props = defineProps({
+  canEditViewerSettings: { type: Boolean, default: false },
+  // (settings | null) => Promise<{ ok, error? }>; null removes the data source overrides.
+  applyViewerSettings: { type: Function, default: null },
+})
 
 const fileInput = ref(null)
 const form = ref({
@@ -16,8 +22,26 @@ const statusType = ref('neutral')
 const isTesting = ref(false)
 const isSaving = ref(false)
 const isCheckingDataModel = ref(false)
+const isApplyingViewerSettings = ref(false)
+const viewerSettingsForm = ref({})
 
-const { t, basicConfig, basicConfigSource, exportBasicConfigAsJson } = useAppConfigStore()
+const {
+  t,
+  basicConfig,
+  basicConfigSource,
+  dataSourceViewerSettings,
+  effectiveViewerSettings,
+  exportBasicConfigAsJson,
+} = useAppConfigStore()
+
+const hasViewerSettingsOverrides = computed(() => Object.keys(dataSourceViewerSettings.value).length > 0)
+
+function hydrateViewerSettingsForm() {
+  viewerSettingsForm.value = { ...effectiveViewerSettings.value }
+}
+
+hydrateViewerSettingsForm()
+watch(effectiveViewerSettings, hydrateViewerSettingsForm)
 const { token } = useAuthStore()
 const {
   connectionProfile,
@@ -122,6 +146,27 @@ async function onUploadFileChange(event) {
   hydrateFormFromStore()
   fieldErrors.value = {}
   setStatus('success', t('dbConnectionImportSuccess', 'Connection profile imported.'))
+}
+
+async function runApplyViewerSettings(nextSettings) {
+  if (!props.applyViewerSettings || !props.canEditViewerSettings) return
+  isApplyingViewerSettings.value = true
+  const result = await props.applyViewerSettings(nextSettings)
+  isApplyingViewerSettings.value = false
+  if (!result?.ok) {
+    setStatus('error', result?.error || t('viewerSettingsApplyFailed', 'Viewer settings could not be applied.'))
+    return
+  }
+  hydrateViewerSettingsForm()
+  setStatus('success', t('viewerSettingsApplySuccess', 'Viewer settings applied to the data source.'))
+}
+
+function onApplyViewerSettings() {
+  return runApplyViewerSettings({ ...viewerSettingsForm.value })
+}
+
+function onUseBasicViewerSettings() {
+  return runApplyViewerSettings(null)
 }
 
 function onDownloadBasicConfig() {
@@ -263,7 +308,89 @@ async function onCheckDataModel() {
     </p>
 
     <header class="connection-header">
-      <h2>{{ t('appSettingsTitle', 'Settings') }}</h2>
+      <h2>{{ t('viewerSettingsTitle', 'Viewer settings') }}</h2>
+      <p>
+        {{
+          t(
+            'viewerSettingsDescription',
+            'Stored with the data source: in the JSON file offline, in the Strapi settings online. Values the data source does not set come from the basic config.',
+          )
+        }}
+      </p>
+    </header>
+
+    <p v-if="!props.canEditViewerSettings" class="saved-meta">
+      {{ t('viewerSettingsNoDataSource', 'Open a data source (load a file or log in online) to change the viewer settings.') }}
+    </p>
+
+    <fieldset class="connection-form-grid viewer-settings-form" :disabled="!props.canEditViewerSettings || isApplyingViewerSettings">
+      <label class="field">
+        <span>{{ t('appSettingsLanguageField', 'Default language') }}</span>
+        <select v-model="viewerSettingsForm.language">
+          <option value="de">DE</option>
+          <option value="en">EN</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('appSettingsLanguageModeField', 'Language mode') }}</span>
+        <select v-model="viewerSettingsForm.languageMode">
+          <option value="single">single</option>
+          <option value="multi">multi</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</span>
+        <div class="color-row">
+          <input v-model="viewerSettingsForm.primaryColor" type="text" placeholder="#0066CC" />
+          <input v-model="viewerSettingsForm.primaryColor" type="color" />
+        </div>
+      </label>
+
+      <label class="field field-checkbox">
+        <span>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</span>
+        <input v-model="viewerSettingsForm.dataInspectionMode" type="checkbox" />
+      </label>
+    </fieldset>
+
+    <div class="connection-actions">
+      <button
+        type="button"
+        class="transfer-btn transfer-btn-mode"
+        :disabled="!props.canEditViewerSettings || isApplyingViewerSettings"
+        @click="onApplyViewerSettings"
+      >
+        {{ t('viewerSettingsApply', 'Apply to data source') }}
+      </button>
+      <button
+        type="button"
+        class="transfer-btn transfer-btn-reset"
+        :disabled="!props.canEditViewerSettings || isApplyingViewerSettings"
+        @click="hydrateViewerSettingsForm"
+      >
+        {{ t('dbConnectionResetFormButton', 'Reset form') }}
+      </button>
+      <button
+        type="button"
+        class="transfer-btn transfer-btn-reset"
+        :disabled="!props.canEditViewerSettings || !hasViewerSettingsOverrides || isApplyingViewerSettings"
+        @click="onUseBasicViewerSettings"
+      >
+        {{ t('viewerSettingsUseBasic', 'Use basic config values') }}
+      </button>
+    </div>
+
+    <p class="saved-meta">
+      {{
+        hasViewerSettingsOverrides
+          ? t('viewerSettingsSourceDataSource', 'Source: the data source sets some of these values.')
+          : t('viewerSettingsSourceBasic', 'Source: basic config (the data source sets none of these values).')
+      }}
+    </p>
+
+    <header class="connection-header">
+      <h2>{{ t('appSettingsTitle', 'Basic config') }}</h2>
       <p>
         {{
           t(
@@ -275,6 +402,7 @@ async function onCheckDataModel() {
     </header>
 
     <dl class="connection-form-grid settings-readout">
+      <div v-if="basicConfig.connectionProfile"><dt>{{ t('dbConnectionBaseUrlField', 'Base URL (Strapi)') }}</dt><dd>{{ basicConfig.connectionProfile.baseUrl }}</dd></div>
       <div><dt>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</dt><dd>{{ basicConfig.connectionMode }}</dd></div>
       <div><dt>{{ t('appSettingsLanguageField', 'Default language') }}</dt><dd>{{ basicConfig.language }}</dd></div>
       <div><dt>{{ t('appSettingsLanguageModeField', 'Language mode') }}</dt><dd>{{ basicConfig.languageMode }}</dd></div>
@@ -370,6 +498,31 @@ async function onCheckDataModel() {
   width: 3rem;
   min-width: 3rem;
   padding: 0.1rem;
+}
+
+.viewer-settings-form {
+  margin: 0;
+  min-width: 0;
+}
+
+.settings-readout {
+  margin: 0;
+}
+
+.settings-readout > div {
+  display: grid;
+  grid-template-columns: minmax(10rem, 16rem) 1fr;
+  gap: 0.65rem;
+}
+
+.settings-readout dt {
+  font-weight: 600;
+  color: var(--ve-color-text-default);
+}
+
+.settings-readout dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .connection-actions {

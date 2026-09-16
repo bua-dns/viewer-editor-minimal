@@ -452,8 +452,8 @@
     "en": "Last saved"
   },
   "appSettingsTitle": {
-    "de": "App-Einstellungen",
-    "en": "App settings"
+    "de": "Grundkonfiguration",
+    "en": "Basic config"
   },
   "appSettingsDescription": {
     "de": "Grundkonfiguration dieser Installation aus /public/app-config.",
@@ -946,5 +946,41 @@
   "dbConnectionFixedNote": {
     "de": "Diese Verbindung ist in der Grundkonfiguration dieser Installation festgelegt und kann hier nicht geändert werden.",
     "en": "This connection is set by the basic config of this deployment and cannot be changed here."
+  },
+  "viewerSettingsTitle": {
+    "de": "Viewer-Einstellungen",
+    "en": "Viewer settings"
+  },
+  "viewerSettingsDescription": {
+    "de": "Werden mit der Datenquelle gespeichert: offline in der JSON-Datei, online in den Strapi-Settings. Werte, die die Datenquelle nicht setzt, kommen aus der Grundkonfiguration.",
+    "en": "Stored with the data source: in the JSON file offline, in the Strapi settings online. Values the data source does not set come from the basic config."
+  },
+  "viewerSettingsNoDataSource": {
+    "de": "Öffnen Sie eine Datenquelle (Datei laden oder online anmelden), um die Viewer-Einstellungen zu ändern.",
+    "en": "Open a data source (load a file or log in online) to change the viewer settings."
+  },
+  "viewerSettingsApply": {
+    "de": "Auf Datenquelle anwenden",
+    "en": "Apply to data source"
+  },
+  "viewerSettingsUseBasic": {
+    "de": "Werte der Grundkonfiguration verwenden",
+    "en": "Use basic config values"
+  },
+  "viewerSettingsApplySuccess": {
+    "de": "Viewer-Einstellungen auf die Datenquelle angewendet.",
+    "en": "Viewer settings applied to the data source."
+  },
+  "viewerSettingsApplyFailed": {
+    "de": "Viewer-Einstellungen konnten nicht angewendet werden.",
+    "en": "Viewer settings could not be applied."
+  },
+  "viewerSettingsSourceDataSource": {
+    "de": "Quelle: Die Datenquelle setzt einen Teil dieser Werte.",
+    "en": "Source: the data source sets some of these values."
+  },
+  "viewerSettingsSourceBasic": {
+    "de": "Quelle: Grundkonfiguration (die Datenquelle setzt keinen dieser Werte).",
+    "en": "Source: basic config (the data source sets none of these values)."
   }
 }
