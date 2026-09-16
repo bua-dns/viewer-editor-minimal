@@ -5,20 +5,10 @@ import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 
 const fileInput = ref(null)
-const appConfigFileInput = ref(null)
 const form = ref({
   label: '',
   baseUrl: '',
   configPath: '',
-})
-const appConfigForm = ref({
-  language: 'de',
-  languageMode: 'single',
-  githubRepo: '',
-  primaryColor: '#0066CC',
-  connectionMode: 'switchable',
-  dataInspectionMode: false,
-  defaultConnectionProfile: '',
 })
 const fieldErrors = ref({})
 const statusMessage = ref('')
@@ -26,17 +16,7 @@ const statusType = ref('neutral')
 const isTesting = ref(false)
 const isCheckingDataModel = ref(false)
 
-const {
-  t,
-  editableAppConfig,
-  hasSavedEditableAppConfig,
-  appConfigSource,
-  saveEditableAppConfig,
-  clearEditableAppConfig,
-  importEditableAppConfigFromJsonText,
-  exportEditableAppConfigAsJson,
-  buildEditableAppConfigDraft,
-} = useAppConfigStore()
+const { t, basicConfig, basicConfigSource, exportBasicConfigAsJson } = useAppConfigStore()
 const { token } = useAuthStore()
 const {
   connectionProfile,
@@ -51,7 +31,6 @@ const {
 } = useConnectionProfileStore()
 
 hydrateFormFromStore()
-hydrateAppConfigFormFromStore()
 
 function hydrateFormFromStore() {
   const draft = buildDraftProfile()
@@ -62,19 +41,6 @@ function hydrateFormFromStore() {
   }
 }
 
-function hydrateAppConfigFormFromStore() {
-  const draft = buildEditableAppConfigDraft()
-  appConfigForm.value = {
-    language: draft.language || 'de',
-    languageMode: draft.languageMode || 'single',
-    githubRepo: draft.githubRepo || '',
-    primaryColor: draft.primaryColor || '#0066CC',
-    connectionMode: draft.connectionMode || 'switchable',
-    dataInspectionMode: Boolean(draft.dataInspectionMode),
-    defaultConnectionProfile: draft.defaultConnectionProfile || '',
-  }
-}
-
 function setStatus(type, message) {
   statusType.value = type
   statusMessage.value = message
@@ -82,10 +48,6 @@ function setStatus(type, message) {
 
 function triggerUpload() {
   fileInput.value?.click()
-}
-
-function triggerAppConfigUpload() {
-  appConfigFileInput.value?.click()
 }
 
 function onSave() {
@@ -151,35 +113,8 @@ async function onUploadFileChange(event) {
   setStatus('success', t('dbConnectionImportSuccess', 'Connection profile imported.'))
 }
 
-function onSaveAppConfig() {
-  const result = saveEditableAppConfig(appConfigForm.value)
-  if (!result.ok) {
-    setStatus('error', result.error || t('appSettingsSaveFailed', 'App settings could not be saved.'))
-    return
-  }
-
-  hydrateAppConfigFormFromStore()
-  setStatus('success', t('appSettingsSaveSuccess', 'App settings saved.'))
-}
-
-function onResetAppConfigForm() {
-  hydrateAppConfigFormFromStore()
-  setStatus('neutral', t('appSettingsResetForm', 'App settings form reset.'))
-}
-
-function onClearSavedAppConfig() {
-  clearEditableAppConfig()
-  hydrateAppConfigFormFromStore()
-  setStatus('neutral', t('appSettingsCleared', 'Saved app settings removed.'))
-}
-
-function onDownloadAppConfig() {
-  const jsonText = exportEditableAppConfigAsJson()
-  if (!jsonText) {
-    setStatus('error', t('appSettingsNoSavedConfig', 'No app settings available.'))
-    return
-  }
-
+function onDownloadBasicConfig() {
+  const jsonText = exportBasicConfigAsJson()
   const blob = new Blob([jsonText], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -189,23 +124,7 @@ function onDownloadAppConfig() {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
-  setStatus('success', t('appSettingsDownloadSuccess', 'App settings downloaded.'))
-}
-
-async function onUploadAppConfigFileChange(event) {
-  const file = event.target.files?.[0]
-  event.target.value = ''
-  if (!file) return
-
-  const text = await file.text()
-  const result = importEditableAppConfigFromJsonText(text)
-  if (!result.ok) {
-    setStatus('error', result.error || t('appSettingsImportFailed', 'App settings import failed.'))
-    return
-  }
-
-  hydrateAppConfigFormFromStore()
-  setStatus('success', t('appSettingsImportSuccess', 'App settings imported.'))
+  setStatus('success', t('appSettingsDownloadSuccess', 'Basic config downloaded.'))
 }
 
 async function onTestConnection() {
@@ -335,114 +254,32 @@ async function onCheckDataModel() {
         {{
           t(
             'appSettingsDescription',
-            'Edit runtime app settings and persist them as JSON/localStorage (wording handles excluded).',
+            'Basic config of this deployment from /public/app-config.',
           )
         }}
       </p>
     </header>
 
-    <div class="connection-form-grid">
-      <label class="field">
-        <span>{{ t('appSettingsLanguageField', 'Default language') }}</span>
-        <select v-model="appConfigForm.language">
-          <option value="de">DE</option>
-          <option value="en">EN</option>
-        </select>
-      </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsLanguageModeField', 'Language mode') }}</span>
-        <select v-model="appConfigForm.languageMode">
-          <option value="single">single</option>
-          <option value="multi">multi</option>
-        </select>
-      </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsGithubRepoField', 'GitHub repository URL (optional)') }}</span>
-        <input v-model="appConfigForm.githubRepo" type="url" placeholder="https://github.com/org/repo" />
-      </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</span>
-        <div class="color-row">
-          <input v-model="appConfigForm.primaryColor" type="text" placeholder="#0066CC" />
-          <input v-model="appConfigForm.primaryColor" type="color" />
-        </div>
-      </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</span>
-        <select v-model="appConfigForm.connectionMode">
-          <option value="switchable">switchable</option>
-          <option value="offline">offline</option>
-          <option value="online">online</option>
-        </select>
-      </label>
-
-      <label class="field field-checkbox">
-        <span>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</span>
-        <input v-model="appConfigForm.dataInspectionMode" type="checkbox" />
-      </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsDefaultConnectionProfileField', 'Default connection profile') }}</span>
-        <input
-          v-model="appConfigForm.defaultConnectionProfile"
-          type="text"
-          placeholder="viewer-editor-connection-profile.v1.json"
-        />
-      </label>
-    </div>
+    <dl class="connection-form-grid settings-readout">
+      <div><dt>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</dt><dd>{{ basicConfig.connectionMode }}</dd></div>
+      <div><dt>{{ t('appSettingsLanguageField', 'Default language') }}</dt><dd>{{ basicConfig.language }}</dd></div>
+      <div><dt>{{ t('appSettingsLanguageModeField', 'Language mode') }}</dt><dd>{{ basicConfig.languageMode }}</dd></div>
+      <div><dt>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</dt><dd>{{ basicConfig.primaryColor }}</dd></div>
+      <div><dt>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</dt><dd>{{ basicConfig.dataInspectionMode }}</dd></div>
+    </dl>
 
     <div class="connection-actions">
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="onSaveAppConfig">
-        {{ t('appSettingsSave', 'Save app settings') }}
+      <button type="button" class="transfer-btn transfer-btn-mode" @click="onDownloadBasicConfig">
+        {{ t('appSettingsDownload', 'Download basic config JSON') }}
       </button>
-      <button
-        type="button"
-        class="transfer-btn transfer-btn-mode"
-        :disabled="!hasSavedEditableAppConfig"
-        @click="onDownloadAppConfig"
-      >
-        {{ t('appSettingsDownload', 'Download app settings JSON') }}
-      </button>
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerAppConfigUpload">
-        {{ t('appSettingsUpload', 'Import app settings JSON') }}
-      </button>
-      <button type="button" class="transfer-btn transfer-btn-reset" @click="onResetAppConfigForm">
-        {{ t('appSettingsResetFormButton', 'Reset app settings form') }}
-      </button>
-      <button
-        type="button"
-        class="transfer-btn transfer-btn-reset"
-        :disabled="!hasSavedEditableAppConfig"
-        @click="onClearSavedAppConfig"
-      >
-        {{ t('appSettingsClearSaved', 'Clear saved app settings') }}
-      </button>
-      <input ref="appConfigFileInput" type="file" accept=".json,application/json" @change="onUploadAppConfigFileChange" />
     </div>
 
     <p class="saved-meta">
       {{
-        appConfigSource === 'default'
-          ? t('appSettingsSourceDefaultFile', 'Base: bundled default app config from /public/app-config.')
-          : t('appSettingsSourceBuild', 'Base: config/app.config.js (no default file loaded).')
+        basicConfigSource === 'file'
+          ? t('appSettingsSourceBasicFile', 'Source: basic config from /public/app-config.')
+          : t('appSettingsSourceDefaults', 'Source: built-in defaults (no basic config file loaded).')
       }}
-    </p>
-
-    <p v-if="hasSavedEditableAppConfig" class="saved-meta">
-      {{
-        t(
-          'appSettingsSourceOverridden',
-          'Locally saved app settings are active and take precedence over the base. Use "Clear saved app settings" to fall back to the base.',
-        )
-      }}
-    </p>
-
-    <p v-if="editableAppConfig?.updatedAt" class="saved-meta">
-      {{ t('appSettingsLastSaved', 'Last saved') }}: {{ editableAppConfig.updatedAt }}
     </p>
 
     <p v-if="statusMessage" class="status" :class="`status-${statusType}`">

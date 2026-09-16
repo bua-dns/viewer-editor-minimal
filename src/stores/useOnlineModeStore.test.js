@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'vitest'
-import appConfig from '../../config/app.config'
+import { useAppConfigStore } from './useAppConfigStore'
 import { useOnlineModeStore } from './useOnlineModeStore'
 
 function createLocalStorageMock() {
@@ -18,7 +18,7 @@ function createLocalStorageMock() {
 }
 
 describe('useOnlineModeStore', () => {
-  const configuredMode = appConfig.connectionMode
+  const configuredMode = useAppConfigStore().connectionMode.value
   const isSwitchable = configuredMode !== 'offline' && configuredMode !== 'online'
   const fixedMode = configuredMode === 'offline' || configuredMode === 'online' ? configuredMode : null
 

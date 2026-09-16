@@ -62,9 +62,6 @@ const {
   primaryColor,
   dataInspectionMode,
   showLanguageSwitch,
-  defaultConnectionProfile,
-  defaultAppConfigFile,
-  loadEditableAppConfigFromDefault,
   language,
   setLanguage,
   t,
@@ -777,18 +774,12 @@ onMounted(async () => {
     updateStickyMeasurements()
   })
 
-  // Reihenfolge ist bindend: die Default-App-Config kann `defaultConnectionProfile`
-  // und `connectionMode` liefern, die unmittelbar danach gelesen werden.
-  const appConfigLoadResult = await loadEditableAppConfigFromDefault(defaultAppConfigFile)
-  if (!appConfigLoadResult?.ok) {
-    console.warn('Default app config load failed:', appConfigLoadResult)
-  }
-
+  // The basic config is already loaded (main.js), so `connectionMode` is known here.
   loadDataModeFromSession()
   loadAppModeFromStorage()
   loadOnlineConfigOnlyFromStorage()
 
-  const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile.value)
+  const connectionProfileLoadResult = await loadConnectionProfileFromDefault('')
   if (!connectionProfileLoadResult?.ok) {
     console.warn('Default connection profile load failed:', connectionProfileLoadResult)
   }

@@ -1,24 +1,12 @@
 <script setup>
-import githubLogo from '../../assets/logos/Octicons-mark-github.svg'
 import buaLogo from '../../assets/logos/dns-v1.svg'
 import { useAppConfigStore } from '../../stores/useAppConfigStore'
 
-const { t, githubRepoUrl } = useAppConfigStore()
+const { t } = useAppConfigStore()
 </script>
 
 <template>
   <div class="footer-identity">
-    <a
-      v-if="githubRepoUrl"
-      class="identity-link"
-      :href="githubRepoUrl"
-      target="_blank"
-      rel="noopener noreferrer"
-      :aria-label="t('footerGithubAria', 'GitHub repository')"
-    >
-      <img class="identity-logo identity-logo-github" :src="githubLogo" alt="GitHub" />
-    </a>
-
     <span class="identity-credit" v-html="t('footerIdentityCredit', 'A tool by the Digital Network for Collections, Berlin University Alliance')" />
 
     <a
@@ -58,11 +46,6 @@ const { t, githubRepoUrl } = useAppConfigStore()
 
 .identity-logo {
   display: block;
-}
-
-.identity-logo-github {
-  width: 2rem;
-  height: 2rem;
 }
 
 .identity-logo-bua {

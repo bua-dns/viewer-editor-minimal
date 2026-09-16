@@ -1,26 +1,29 @@
 import { computed, ref } from 'vue'
-import appConfig from '../../config/app.config'
+import { validateConnectionProfile } from '../composables/connectionProfile'
 import { fetchFirstAvailableConfigText, resolvePublicConfigUrls } from '../composables/publicConfigUrls'
 
-const APP_CONFIG_STORAGE_KEY = 'viewerEditor.appConfig.v1'
+// Basic config: the one file a deployment ships next to the build. Without it the
+// normalisers below supply the defaults. Config that belongs to a data set lives with
+// the data source (JSON file offline, Strapi settings online), not here.
+export const BASIC_CONFIG_FILE = 'viewer-editor-app-config.v1.json'
+export const WORDING_FILE = 'wording.json'
+const PUBLIC_CONFIG_FOLDER = 'app-config'
 
-const language = ref(appConfig.language || 'de')
-const onlineWording = ref({})
+// Browser snapshot of the app settings from before the basic config existed. It is no
+// longer read and gets removed on load.
+const LEGACY_APP_CONFIG_STORAGE_KEY = 'viewerEditor.appConfig.v1'
+
 const localWordingOverrideKeys = new Set(['tabDatabaseConnection', 'dbConnectionOpenTab'])
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
 
 function normalizeLanguageMode(value) {
   const normalized = String(value || '')
     .trim()
     .toLowerCase()
   return normalized === 'single' ? 'single' : 'multi'
-}
-
-function normalizeGithubRepoUrl(value) {
-  return String(value || '').trim()
-}
-
-function normalizeDefaultConnectionProfile(value) {
-  return String(value || '').trim()
 }
 
 function normalizeConnectionMode(value) {
@@ -42,25 +45,22 @@ function normalizeLanguage(value) {
   return normalized || 'de'
 }
 
-function normalizeAppConfigInput(input = {}) {
-  const source = isPlainObject(input) ? input : {}
-  return {
-    language: normalizeLanguage(source.language),
-    languageMode: normalizeLanguageMode(source.languageMode),
-    githubRepo: normalizeGithubRepoUrl(source.githubRepo),
-    primaryColor: normalizePrimaryColor(source.primaryColor),
-    connectionMode: normalizeConnectionMode(source.connectionMode),
-    dataInspectionMode: Boolean(source.dataInspectionMode),
-    defaultConnectionProfile: normalizeDefaultConnectionProfile(source.defaultConnectionProfile),
-  }
+function normalizeBasicConnectionProfile(value) {
+  if (!isPlainObject(value)) return null
+  const validation = validateConnectionProfile({ version: 1, ...value })
+  return validation.ok ? validation.profile : null
 }
 
-function createEditableConfigSnapshot(input = {}) {
-  const normalized = normalizeAppConfigInput(input)
+export function normalizeBasicConfig(input = {}) {
+  const source = isPlainObject(input) ? input : {}
   return {
     version: 1,
-    ...normalized,
-    updatedAt: new Date().toISOString(),
+    connectionMode: normalizeConnectionMode(source.connectionMode),
+    connectionProfile: normalizeBasicConnectionProfile(source.connectionProfile),
+    language: normalizeLanguage(source.language),
+    languageMode: normalizeLanguageMode(source.languageMode),
+    primaryColor: normalizePrimaryColor(source.primaryColor),
+    dataInspectionMode: Boolean(source.dataInspectionMode),
   }
 }
 
@@ -70,193 +70,6 @@ function getLocalStorageSafe() {
   } catch {
     return null
   }
-}
-
-// Basisebene der App-Settings. Start ist `config/app.config.js`; liegt eine
-// Default-Datei in `public/app-config/`, ersetzt diese die Basis (siehe
-// loadEditableAppConfigFromDefault). Ein im Tab `Einstellungen` gespeicherter
-// Snapshot in localStorage gewinnt weiterhin ueber beides.
-const buildDefaultConfig = normalizeAppConfigInput(appConfig)
-// Build-only: bestimmt, woher die Default-App-Config geladen wird, und kann daher
-// nicht selbst aus ihr stammen. Nicht Teil von normalizeAppConfigInput, damit der
-// Schluessel weder im Tab `Einstellungen` editierbar noch Teil des Exports ist.
-const defaultAppConfigFile = String(appConfig.defaultAppConfig || '').trim()
-const baseConfig = ref({ ...buildDefaultConfig })
-const lastAppConfigLoadError = ref(null)
-const appConfigSource = ref('build')
-
-const editableConfig = ref({
-  ...baseConfig.value,
-  updatedAt: '',
-})
-
-function applyEditableConfigSnapshot(input = {}) {
-  const normalized = normalizeAppConfigInput(input)
-  editableConfig.value = {
-    ...editableConfig.value,
-    ...normalized,
-    updatedAt: String(input.updatedAt || editableConfig.value.updatedAt || '').trim(),
-  }
-  language.value = normalized.language
-}
-
-function loadEditableAppConfigFromStorage() {
-  const storage = getLocalStorageSafe()
-  if (!storage) {
-    return { ok: false, reason: 'storage-unavailable' }
-  }
-
-  const raw = storage.getItem(APP_CONFIG_STORAGE_KEY)
-  if (!raw) {
-    applyEditableConfigSnapshot(baseConfig.value)
-    return { ok: true, hasConfig: false }
-  }
-
-  try {
-    const parsed = JSON.parse(raw)
-    applyEditableConfigSnapshot(parsed)
-    return { ok: true, hasConfig: true, config: editableConfig.value }
-  } catch {
-    applyEditableConfigSnapshot(baseConfig.value)
-    return { ok: false, reason: 'invalid-json' }
-  }
-}
-
-function hasSavedAppConfigInStorage() {
-  const storage = getLocalStorageSafe()
-  if (!storage) return false
-  return Boolean(storage.getItem(APP_CONFIG_STORAGE_KEY))
-}
-
-// Laedt die Default-App-Config aus `public/app-config/`. Sie ersetzt nur die
-// Basisebene: ein lokal gespeicherter Snapshot bleibt vorrangig und wird hier
-// weder ueberschrieben noch geloescht. Schlaegt das Laden fehl, bleibt
-// `config/app.config.js` die Basis - die App startet also immer.
-async function loadEditableAppConfigFromDefault(defaultAppConfigPath = '') {
-  const configUrls = resolvePublicConfigUrls(defaultAppConfigPath, 'app-config')
-  if (!configUrls.length) {
-    lastAppConfigLoadError.value = null
-    appConfigSource.value = 'build'
-    return { ok: true, hasDefault: false, source: 'build' }
-  }
-
-  const fetched = await fetchFirstAvailableConfigText(configUrls)
-  if (!fetched.ok) {
-    const error =
-      fetched.reason === 'fetch-unavailable' ? fetched.error : 'Could not load default app config.'
-    lastAppConfigLoadError.value = {
-      source: 'default',
-      reason: fetched.reason,
-      error,
-      attemptedUrls: configUrls,
-    }
-    return { ok: false, reason: fetched.reason, error }
-  }
-
-  let parsed = null
-  try {
-    parsed = JSON.parse(fetched.text)
-  } catch {
-    lastAppConfigLoadError.value = {
-      source: 'default',
-      reason: 'invalid-json',
-      error: 'Invalid JSON.',
-      configUrl: fetched.url,
-    }
-    return { ok: false, reason: 'invalid-json', error: 'Invalid JSON.', configUrl: fetched.url }
-  }
-
-  if (!isPlainObject(parsed)) {
-    lastAppConfigLoadError.value = {
-      source: 'default',
-      reason: 'invalid-config',
-      error: 'App config JSON must be an object.',
-      configUrl: fetched.url,
-    }
-    return {
-      ok: false,
-      reason: 'invalid-config',
-      error: 'App config JSON must be an object.',
-      configUrl: fetched.url,
-    }
-  }
-
-  baseConfig.value = normalizeAppConfigInput(parsed)
-  lastAppConfigLoadError.value = null
-  appConfigSource.value = 'default'
-
-  // Nur ohne gespeicherten Snapshot durchschlagen lassen; sonst gewinnt localStorage.
-  if (!hasSavedAppConfigInStorage()) {
-    applyEditableConfigSnapshot(baseConfig.value)
-  }
-
-  return {
-    ok: true,
-    hasDefault: true,
-    source: 'default',
-    configUrl: fetched.url,
-    config: baseConfig.value,
-    overriddenByStorage: hasSavedAppConfigInStorage(),
-  }
-}
-
-function saveEditableAppConfig(input = {}) {
-  const storage = getLocalStorageSafe()
-  if (!storage) {
-    return { ok: false, error: 'Local storage is not available.' }
-  }
-
-  const snapshot = createEditableConfigSnapshot(input)
-  storage.setItem(APP_CONFIG_STORAGE_KEY, JSON.stringify(snapshot))
-  applyEditableConfigSnapshot(snapshot)
-  return { ok: true, config: editableConfig.value }
-}
-
-function clearEditableAppConfig() {
-  const storage = getLocalStorageSafe()
-  if (storage) {
-    storage.removeItem(APP_CONFIG_STORAGE_KEY)
-  }
-  applyEditableConfigSnapshot(baseConfig.value)
-}
-
-function importEditableAppConfigFromJsonText(jsonText) {
-  let parsed = null
-  try {
-    parsed = JSON.parse(String(jsonText || ''))
-  } catch {
-    return { ok: false, error: 'Invalid JSON.' }
-  }
-
-  if (!isPlainObject(parsed)) {
-    return { ok: false, error: 'App config JSON must be an object.' }
-  }
-
-  return saveEditableAppConfig(parsed)
-}
-
-function exportEditableAppConfigAsJson() {
-  const snapshot = createEditableConfigSnapshot(editableConfig.value)
-  return JSON.stringify(snapshot, null, 2)
-}
-
-function buildEditableAppConfigDraft() {
-  return {
-    ...editableConfig.value,
-  }
-}
-
-loadEditableAppConfigFromStorage()
-
-const languageMode = computed(() => editableConfig.value.languageMode)
-const githubRepoUrl = computed(() => editableConfig.value.githubRepo)
-const defaultConnectionProfile = computed(() => editableConfig.value.defaultConnectionProfile)
-const connectionMode = computed(() => editableConfig.value.connectionMode)
-const primaryColor = computed(() => editableConfig.value.primaryColor)
-const dataInspectionMode = computed(() => Boolean(editableConfig.value.dataInspectionMode))
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function normalizeWordingDictionary(source) {
@@ -274,17 +87,100 @@ function normalizeWordingDictionary(source) {
   return normalized
 }
 
-const localWording = normalizeWordingDictionary(appConfig.wording)
+const basicConfig = ref(normalizeBasicConfig({}))
+const basicConfigSource = ref('defaults')
+const lastBasicConfigLoadError = ref(null)
+const language = ref(basicConfig.value.language)
+const localWording = ref({})
+const onlineWording = ref({})
+
+async function fetchPublicJson(fileName) {
+  const urls = resolvePublicConfigUrls(fileName, PUBLIC_CONFIG_FOLDER)
+  const fetched = await fetchFirstAvailableConfigText(urls)
+  if (!fetched.ok) {
+    return { ok: false, reason: fetched.reason, error: fetched.error, attemptedUrls: urls }
+  }
+
+  let parsed = null
+  try {
+    parsed = JSON.parse(fetched.text)
+  } catch {
+    return { ok: false, reason: 'invalid-json', error: 'Invalid JSON.', url: fetched.url }
+  }
+
+  if (!isPlainObject(parsed)) {
+    return { ok: false, reason: 'invalid-config', error: 'JSON must be an object.', url: fetched.url }
+  }
+
+  return { ok: true, value: parsed, url: fetched.url }
+}
+
+function removeLegacyAppConfigSnapshot() {
+  const storage = getLocalStorageSafe()
+  if (!storage) return
+  try {
+    storage.removeItem(LEGACY_APP_CONFIG_STORAGE_KEY)
+  } catch {
+    // storage not writable: nothing to clean up
+  }
+}
+
+function applyBasicConfig(input) {
+  basicConfig.value = normalizeBasicConfig(input)
+  language.value = basicConfig.value.language
+}
+
+// Loads the basic config and the local wording in parallel. Called once before the app
+// mounts. A failed load keeps the hard-coded defaults, so the app always starts.
+async function loadBasicConfig() {
+  removeLegacyAppConfigSnapshot()
+
+  const [configResult, wordingResult] = await Promise.all([
+    fetchPublicJson(BASIC_CONFIG_FILE),
+    fetchPublicJson(WORDING_FILE),
+  ])
+
+  if (configResult.ok) {
+    if (isPlainObject(configResult.value.connectionProfile) && !normalizeBasicConnectionProfile(configResult.value.connectionProfile)) {
+      console.warn('Basic config: connectionProfile is invalid and was ignored.')
+    }
+    applyBasicConfig(configResult.value)
+    basicConfigSource.value = 'file'
+    lastBasicConfigLoadError.value = null
+  } else {
+    applyBasicConfig({})
+    basicConfigSource.value = 'defaults'
+    lastBasicConfigLoadError.value = configResult
+  }
+
+  localWording.value = wordingResult.ok ? normalizeWordingDictionary(wordingResult.value) : {}
+
+  return {
+    ok: configResult.ok && wordingResult.ok,
+    config: configResult,
+    wording: wordingResult,
+  }
+}
+
+function exportBasicConfigAsJson() {
+  return JSON.stringify(basicConfig.value, null, 2)
+}
+
+const connectionMode = computed(() => basicConfig.value.connectionMode)
+const basicConnectionProfile = computed(() => basicConfig.value.connectionProfile)
+const languageMode = computed(() => basicConfig.value.languageMode)
+const primaryColor = computed(() => basicConfig.value.primaryColor)
+const dataInspectionMode = computed(() => basicConfig.value.dataInspectionMode)
 
 const mergedWording = computed(() => {
   const backend = normalizeWordingDictionary(onlineWording.value)
-  const merged = { ...localWording }
+  const merged = { ...localWording.value }
 
   Object.entries(backend).forEach(([key, backendEntry]) => {
     if (localWordingOverrideKeys.has(key)) {
       return
     }
-    const localEntry = isPlainObject(localWording[key]) ? localWording[key] : {}
+    const localEntry = isPlainObject(localWording.value[key]) ? localWording.value[key] : {}
     merged[key] = {
       ...localEntry,
       ...backendEntry,
@@ -296,6 +192,10 @@ const mergedWording = computed(() => {
 
 function setLanguage(nextLanguage) {
   language.value = normalizeLanguage(nextLanguage)
+}
+
+function setLocalWording(nextWording) {
+  localWording.value = normalizeWordingDictionary(nextWording)
 }
 
 function setOnlineWording(nextWording) {
@@ -337,28 +237,22 @@ function t(key, fallback = '') {
 
 export function useAppConfigStore() {
   return {
+    basicConfig,
+    basicConfigSource,
+    lastBasicConfigLoadError,
+    loadBasicConfig,
+    applyBasicConfig,
+    exportBasicConfigAsJson,
+    connectionMode,
+    basicConnectionProfile,
     primaryColor,
     dataInspectionMode,
     languageMode,
     showLanguageSwitch: computed(() => languageMode.value === 'multi'),
-    githubRepoUrl,
-    defaultConnectionProfile,
-    connectionMode,
-    editableAppConfig: editableConfig,
-    hasSavedEditableAppConfig: computed(() => Boolean(editableConfig.value.updatedAt)),
     language,
     supportedLanguages,
     setLanguage,
-    loadEditableAppConfigFromStorage,
-    loadEditableAppConfigFromDefault,
-    defaultAppConfigFile,
-    lastAppConfigLoadError,
-    appConfigSource,
-    saveEditableAppConfig,
-    clearEditableAppConfig,
-    importEditableAppConfigFromJsonText,
-    exportEditableAppConfigAsJson,
-    buildEditableAppConfigDraft,
+    setLocalWording,
     setOnlineWording,
     clearOnlineWording,
     t,

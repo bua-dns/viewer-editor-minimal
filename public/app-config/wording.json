@@ -456,8 +456,8 @@
     "en": "App settings"
   },
   "appSettingsDescription": {
-    "de": "Laufzeit-App-Einstellungen bearbeiten und als JSON/localStorage persistieren (ohne Wording-Handles).",
-    "en": "Edit runtime app settings and persist them as JSON/localStorage (without wording handles)."
+    "de": "Grundkonfiguration dieser Installation aus /public/app-config.",
+    "en": "Basic config of this deployment from /public/app-config."
   },
   "appSettingsLanguageField": {
     "de": "Standard-Sprache",
@@ -466,10 +466,6 @@
   "appSettingsLanguageModeField": {
     "de": "Sprachmodus",
     "en": "Language mode"
-  },
-  "appSettingsGithubRepoField": {
-    "de": "GitHub-Repository-URL (optional)",
-    "en": "GitHub repository URL (optional)"
   },
   "appSettingsPrimaryColorField": {
     "de": "Primärfarbe",
@@ -483,77 +479,13 @@
     "de": "Data-Inspection-Modus",
     "en": "Data inspection mode"
   },
-  "appSettingsDefaultConnectionProfileField": {
-    "de": "Default-Verbindungsprofil",
-    "en": "Default connection profile"
-  },
-  "appSettingsSave": {
-    "de": "App-Einstellungen speichern",
-    "en": "Save app settings"
-  },
   "appSettingsDownload": {
-    "de": "App-Einstellungen als JSON herunterladen",
-    "en": "Download app settings JSON"
-  },
-  "appSettingsUpload": {
-    "de": "App-Einstellungen-JSON importieren",
-    "en": "Import app settings JSON"
-  },
-  "appSettingsResetFormButton": {
-    "de": "App-Formular zurücksetzen",
-    "en": "Reset app settings form"
-  },
-  "appSettingsClearSaved": {
-    "de": "Gespeicherte App-Einstellungen löschen",
-    "en": "Clear saved app settings"
-  },
-  "appSettingsSaveSuccess": {
-    "de": "App-Einstellungen gespeichert.",
-    "en": "App settings saved."
-  },
-  "appSettingsSaveFailed": {
-    "de": "App-Einstellungen konnten nicht gespeichert werden.",
-    "en": "App settings could not be saved."
-  },
-  "appSettingsResetForm": {
-    "de": "App-Formular auf gespeicherten Stand zurückgesetzt.",
-    "en": "App settings form reset."
-  },
-  "appSettingsCleared": {
-    "de": "Gespeicherte App-Einstellungen entfernt.",
-    "en": "Saved app settings removed."
-  },
-  "appSettingsNoSavedConfig": {
-    "de": "Keine App-Einstellungen verfügbar.",
-    "en": "No app settings available."
+    "de": "Grundkonfiguration als JSON herunterladen",
+    "en": "Download basic config JSON"
   },
   "appSettingsDownloadSuccess": {
-    "de": "App-Einstellungen heruntergeladen.",
-    "en": "App settings downloaded."
-  },
-  "appSettingsImportSuccess": {
-    "de": "App-Einstellungen importiert.",
-    "en": "App settings imported."
-  },
-  "appSettingsImportFailed": {
-    "de": "Import der App-Einstellungen fehlgeschlagen.",
-    "en": "App settings import failed."
-  },
-  "appSettingsLastSaved": {
-    "de": "Zuletzt gespeichert",
-    "en": "Last saved"
-  },
-  "appSettingsSourceDefaultFile": {
-    "de": "Basis: mitgelieferte Default-App-Config aus /public/app-config.",
-    "en": "Base: bundled default app config from /public/app-config."
-  },
-  "appSettingsSourceBuild": {
-    "de": "Basis: config/app.config.js (keine Default-Datei geladen).",
-    "en": "Base: config/app.config.js (no default file loaded)."
-  },
-  "appSettingsSourceOverridden": {
-    "de": "Lokal gespeicherte App-Einstellungen sind aktiv und haben Vorrang vor der Basis. Zum Zuruecksetzen auf die Basis: \"Gespeicherte App-Einstellungen loeschen\".",
-    "en": "Locally saved app settings are active and take precedence over the base. Use \"Clear saved app settings\" to fall back to the base."
+    "de": "Grundkonfiguration heruntergeladen.",
+    "en": "Basic config downloaded."
   },
   "field_label": {
     "de": "Feld",
@@ -995,12 +927,16 @@
     "de": "Ein Tool von Digitales Netzwerk Sammlungen<br>Berlin University Alliance",
     "en": "A tool by the Digital Network for Collections<br>Berlin University Alliance"
   },
-  "footerGithubAria": {
-    "de": "GitHub-Repository",
-    "en": "GitHub repository"
-  },
   "footerBucAria": {
     "de": "Berlin University Collections",
     "en": "Berlin University Collections"
+  },
+  "appSettingsSourceBasicFile": {
+    "de": "Quelle: Grundkonfiguration aus /public/app-config.",
+    "en": "Source: basic config from /public/app-config."
+  },
+  "appSettingsSourceDefaults": {
+    "de": "Quelle: eingebaute Standardwerte (keine Grundkonfiguration geladen).",
+    "en": "Source: built-in defaults (no basic config file loaded)."
   }
 }
