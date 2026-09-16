@@ -938,5 +938,13 @@
   "appSettingsSourceDefaults": {
     "de": "Quelle: eingebaute Standardwerte (keine Grundkonfiguration geladen).",
     "en": "Source: built-in defaults (no basic config file loaded)."
+  },
+  "dbConnectionSaveTestFailed": {
+    "de": "Der Verbindungstest ist fehlgeschlagen:",
+    "en": "The connection test failed:"
+  },
+  "dbConnectionFixedNote": {
+    "de": "Diese Verbindung ist in der Grundkonfiguration dieser Installation festgelegt und kann hier nicht geändert werden.",
+    "en": "This connection is set by the basic config of this deployment and cannot be changed here."
   }
 }

@@ -14,6 +14,7 @@ const fieldErrors = ref({})
 const statusMessage = ref('')
 const statusType = ref('neutral')
 const isTesting = ref(false)
+const isSaving = ref(false)
 const isCheckingDataModel = ref(false)
 
 const { t, basicConfig, basicConfigSource, exportBasicConfigAsJson } = useAppConfigStore()
@@ -21,6 +22,7 @@ const { token } = useAuthStore()
 const {
   connectionProfile,
   hasConnectionProfile,
+  isProfileFixed,
   saveConnectionProfile,
   clearConnectionProfile,
   importConnectionProfileFromJsonText,
@@ -50,12 +52,19 @@ function triggerUpload() {
   fileInput.value?.click()
 }
 
-function onSave() {
+// Saving runs the connection test first; a profile that fails it is not stored.
+async function onSave() {
   fieldErrors.value = {}
-  const result = saveConnectionProfile(form.value)
+  isSaving.value = true
+  const result = await saveConnectionProfile(form.value)
+  isSaving.value = false
   if (!result.ok) {
     fieldErrors.value = result.errors || {}
-    setStatus('error', t('dbConnectionSaveFailed', 'Connection profile could not be saved.'))
+    const reason =
+      result.reason === 'connection-test-failed'
+        ? ` ${t('dbConnectionSaveTestFailed', 'The connection test failed:')} ${result.error || ''}`
+        : ''
+    setStatus('error', `${t('dbConnectionSaveFailed', 'Connection profile could not be saved.')}${reason}`)
     return
   }
 
@@ -101,7 +110,9 @@ async function onUploadFileChange(event) {
   if (!file) return
 
   const text = await file.text()
-  const result = importConnectionProfileFromJsonText(text)
+  isSaving.value = true
+  const result = await importConnectionProfileFromJsonText(text)
+  isSaving.value = false
   if (!result.ok) {
     fieldErrors.value = result.errors || {}
     setStatus('error', result.error || t('dbConnectionImportFailed', 'Connection profile import failed.'))
@@ -193,31 +204,34 @@ async function onCheckDataModel() {
     <header class="connection-header">
       <h2>{{ t('dbConnectionTitle', 'Database Connection') }}</h2>
       <p>{{ t('dbConnectionDescription', 'Configure Strapi backend connection without hardcoding app endpoints.') }}</p>
+      <p v-if="isProfileFixed" class="saved-meta">
+        {{ t('dbConnectionFixedNote', 'This connection is set by the basic config of this deployment and cannot be changed here.') }}
+      </p>
     </header>
 
     <div class="connection-form-grid">
       <label class="field">
         <span>{{ t('dbConnectionLabelField', 'Profile label (optional)') }}</span>
-        <input v-model="form.label" type="text" maxlength="120" :placeholder="t('dbConnectionLabelPlaceholder', 'My Strapi Instance')" />
+        <input v-model="form.label" :readonly="isProfileFixed" type="text" maxlength="120" :placeholder="t('dbConnectionLabelPlaceholder', 'My Strapi Instance')" />
         <small v-if="fieldErrors.label" class="field-error">{{ fieldErrors.label }}</small>
       </label>
 
       <label class="field">
         <span>{{ t('dbConnectionBaseUrlField', 'Base URL (Strapi)') }}</span>
-        <input v-model="form.baseUrl" type="url" placeholder="https://cms.example.org/project" />
+        <input v-model="form.baseUrl" :readonly="isProfileFixed" type="url" placeholder="https://cms.example.org/project" />
         <small v-if="fieldErrors.baseUrl" class="field-error">{{ fieldErrors.baseUrl }}</small>
       </label>
 
       <label class="field">
         <span>{{ t('dbConnectionConfigPathField', 'Config endpoint path') }}</span>
-        <input v-model="form.configPath" type="text" placeholder="/api/viewer-setting" />
+        <input v-model="form.configPath" :readonly="isProfileFixed" type="text" placeholder="/api/viewer-setting" />
         <small v-if="fieldErrors.configPath" class="field-error">{{ fieldErrors.configPath }}</small>
       </label>
     </div>
 
     <div class="connection-actions">
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="onSave">
-        {{ t('dbConnectionSave', 'Save profile') }}
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-mode" :disabled="isSaving" @click="onSave">
+        {{ isSaving ? t('dbConnectionTesting', 'Testing...') : t('dbConnectionSave', 'Save profile') }}
       </button>
       <button type="button" class="transfer-btn transfer-btn-mode" :disabled="isTesting" @click="onTestConnection">
         {{ isTesting ? t('dbConnectionTesting', 'Testing...') : t('dbConnectionTest', 'Test connection') }}
@@ -232,13 +246,13 @@ async function onCheckDataModel() {
       <button type="button" class="transfer-btn transfer-btn-mode" :disabled="!hasConnectionProfile" @click="onDownloadProfile">
         {{ t('dbConnectionDownload', 'Download profile JSON') }}
       </button>
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerUpload">
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-mode" :disabled="isSaving" @click="triggerUpload">
         {{ t('dbConnectionUpload', 'Import profile JSON') }}
       </button>
-      <button type="button" class="transfer-btn transfer-btn-reset" @click="onResetToSaved">
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-reset" @click="onResetToSaved">
         {{ t('dbConnectionResetFormButton', 'Reset form') }}
       </button>
-      <button type="button" class="transfer-btn transfer-btn-reset" :disabled="!hasConnectionProfile" @click="onClearSaved">
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-reset" :disabled="!hasConnectionProfile" @click="onClearSaved">
         {{ t('dbConnectionClearSaved', 'Clear saved profile') }}
       </button>
       <input ref="fileInput" type="file" accept=".json,application/json" @change="onUploadFileChange" />

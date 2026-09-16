@@ -29,10 +29,11 @@ describe('useOnlineItemsStore', () => {
     authStore.logout()
     itemsStore.clearOnlineItems()
 
-    connectionStore.saveConnectionProfile({
+    connectionStore.connectionProfile.value = {
+      version: 1,
       baseUrl: 'https://cms.example.org/project',
       configPath: '/api/viewer-setting',
-    })
+    }
     authStore.token.value = 'token-1'
   })
 

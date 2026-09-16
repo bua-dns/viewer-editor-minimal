@@ -69,7 +69,7 @@ const {
   clearOnlineWording,
 } =
   useAppConfigStore()
-const { connectionProfile, loadConnectionProfileFromDefault } = useConnectionProfileStore()
+const { connectionProfile, initializeConnectionProfile } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
 const {
@@ -753,13 +753,11 @@ function updateTopbarCondensedState() {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   document.documentElement.style.setProperty('--color-primary', primaryColor.value)
 
-  // Muss vor dem await stehen: die Sticky-Offsets der Topbar/Tab-Reihe/Edit-Kopfzeile
-  // haengen an den hier gesetzten CSS-Variablen. Wuerde die Verdrahtung auf das
-  // Laden des Verbindungsprofils warten, blieben die Offsets bei einer langsamen
-  // oder fehlschlagenden Anfrage ungesetzt und die Sticky-Ebenen ueberlappen.
+  // Die Sticky-Offsets der Topbar/Tab-Reihe/Edit-Kopfzeile haengen an den hier
+  // gesetzten CSS-Variablen.
   window.addEventListener('resize', updateStickyMeasurements)
   window.addEventListener('scroll', updateTopbarCondensedState, { passive: true })
   stickyResizeObserver = new ResizeObserver(() => {
@@ -774,14 +772,15 @@ onMounted(async () => {
     updateStickyMeasurements()
   })
 
-  // The basic config is already loaded (main.js), so `connectionMode` is known here.
+  // The basic config is already loaded (main.js). The profile comes first: the stored app
+  // mode only counts as `online` when a profile exists.
+  initializeConnectionProfile()
   loadDataModeFromSession()
   loadAppModeFromStorage()
   loadOnlineConfigOnlyFromStorage()
 
-  const connectionProfileLoadResult = await loadConnectionProfileFromDefault('')
-  if (!connectionProfileLoadResult?.ok) {
-    console.warn('Default connection profile load failed:', connectionProfileLoadResult)
+  if (appMode.value === 'online' && !connectionProfile.value) {
+    openDatabaseConnectionTab()
   }
   restoreSession()
   window.addEventListener('beforeunload', beforeUnloadListener)

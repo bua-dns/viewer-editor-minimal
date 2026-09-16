@@ -29,10 +29,11 @@ describe('useOnlineSettingsStore', () => {
     connectionStore.clearConnectionProfile()
     settingsStore.clearOnlineSettings()
 
-    connectionStore.saveConnectionProfile({
+    connectionStore.connectionProfile.value = {
+      version: 1,
       baseUrl: 'https://cms.example.org/project',
       configPath: '/api/viewer-setting',
-    })
+    }
   })
 
   test('loads settings from response.data.settings', async () => {
