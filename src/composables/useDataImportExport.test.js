@@ -29,7 +29,6 @@ function createModel({ dataMode = 'json', hasUnapplied = false, log = [], overri
     setModeErrorMessage: vi.fn(),
     importFromCsvText: vi.fn(),
     importFromJsonText: vi.fn(),
-    clearUserConfigSession: vi.fn(),
     initializeUserConfigForCurrentData: vi.fn(),
     importedConfig: ref(null),
     applyImportedConfigPayload: vi.fn(() => ({ ok: true })),

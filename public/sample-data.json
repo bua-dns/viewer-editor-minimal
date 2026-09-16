@@ -1,26 +1,83 @@
-[
-    {
-        "inventory_number": "",
-        "species": "",
-        "collector": "",
-        "location": "",
-        "date": "",
-        "scan": "/sample-card-1.jpg"
-    },
-    {
-        "inventory_number": "",
-        "species": "",
-        "collector": "",
-        "location": "",
-        "date": "",
-        "scan": "/sample-card-2.jpg"
-    },
-    {
-        "inventory_number": "",
-        "species": "",
-        "collector": "",
-        "location": "",
-        "date": "",
-        "scan": "/sample-card-3.jpg"
+{
+    "data": [
+        {
+            "inventory_number": "",
+            "species": "",
+            "collector": "",
+            "location": "",
+            "date": "",
+            "scan": "/sample-card-1.jpg"
+        },
+        {
+            "inventory_number": "",
+            "species": "",
+            "collector": "",
+            "location": "",
+            "date": "",
+            "scan": "/sample-card-2.jpg"
+        },
+        {
+            "inventory_number": "",
+            "species": "",
+            "collector": "",
+            "location": "",
+            "date": "",
+            "scan": "/sample-card-3.jpg"
+        }
+    ],
+    "config": {
+        "version": 1,
+        "fields": {
+            "inventory_number": {
+                "type": "normal",
+                "label": "",
+                "placeholder": "",
+                "hint": "",
+                "fieldWidth": "100%",
+                "readOnly": false,
+                "order": 0
+            },
+            "species": {
+                "type": "normal",
+                "label": "",
+                "placeholder": "",
+                "hint": "",
+                "fieldWidth": "100%",
+                "readOnly": false,
+                "order": 1
+            },
+            "collector": {
+                "type": "normal",
+                "label": "",
+                "placeholder": "",
+                "hint": "",
+                "fieldWidth": "100%",
+                "readOnly": false,
+                "order": 2
+            },
+            "location": {
+                "type": "normal",
+                "label": "",
+                "placeholder": "",
+                "hint": "",
+                "fieldWidth": "50%",
+                "readOnly": false,
+                "order": 3
+            },
+            "date": {
+                "type": "normal",
+                "label": "",
+                "placeholder": "",
+                "hint": "",
+                "fieldWidth": "50%",
+                "readOnly": false,
+                "order": 4
+            }
+        },
+        "itemLabelField": "species",
+        "markAsEditedBasis": "",
+        "showOnlyNonEmptyFields": false,
+        "hierarchyFields": [],
+        "firstLevelStaticList": []
     }
-]
+}

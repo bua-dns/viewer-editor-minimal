@@ -6,7 +6,6 @@ import {
   normalizeValueForConfiguredType,
 } from '../fields/fieldRegistry'
 
-const USER_CONFIG_SESSION_KEY = 'viewerEditor.userConfig.v1'
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
 const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
 
@@ -27,6 +26,13 @@ const draggedFieldKey = ref('')
 const isUserConfigOpen = ref(false)
 const newFieldName = ref('')
 const addFieldError = ref('')
+
+// Field config used to be mirrored to the session storage. It is no longer read; remove the leftover.
+try {
+  globalThis.sessionStorage?.removeItem('viewerEditor.userConfig.v1')
+} catch {
+  // storage not available: nothing to clean up
+}
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -246,177 +252,36 @@ const hasUnappliedUserConfigChanges = computed(
     ) !== appliedUserConfigSnapshot.value,
 )
 
-function loadUserConfigFromSession() {
-  try {
-    const raw = sessionStorage.getItem(USER_CONFIG_SESSION_KEY)
-    if (!raw) {
-      return {
-        fields: {},
-        appliedFields: {},
-        itemLabelField: '',
-        appliedItemLabelField: '',
-        markAsEditedBasis: '',
-        appliedMarkAsEditedBasis: '',
-        showOnlyNonEmptyFields: false,
-        appliedShowOnlyNonEmptyFields: false,
-        hierarchyFields: [],
-        appliedHierarchyFields: [],
-        firstLevelStaticList: [],
-        appliedFirstLevelStaticList: [],
-      }
-    }
-    const parsed = JSON.parse(raw)
-    return {
-      fields: parsed?.fields && typeof parsed.fields === 'object' ? parsed.fields : {},
-      appliedFields:
-        parsed?.appliedFields && typeof parsed.appliedFields === 'object' ? parsed.appliedFields : {},
-      itemLabelField: typeof parsed?.itemLabelField === 'string' ? parsed.itemLabelField : '',
-      appliedItemLabelField:
-        typeof parsed?.appliedItemLabelField === 'string'
-          ? parsed.appliedItemLabelField
-          : typeof parsed?.itemLabelField === 'string'
-            ? parsed.itemLabelField
-            : '',
-      markAsEditedBasis: typeof parsed?.markAsEditedBasis === 'string' ? parsed.markAsEditedBasis : '',
-      appliedMarkAsEditedBasis:
-        typeof parsed?.appliedMarkAsEditedBasis === 'string'
-          ? parsed.appliedMarkAsEditedBasis
-          : typeof parsed?.markAsEditedBasis === 'string'
-            ? parsed.markAsEditedBasis
-            : '',
-      showOnlyNonEmptyFields: Boolean(parsed?.showOnlyNonEmptyFields),
-      appliedShowOnlyNonEmptyFields:
-        typeof parsed?.appliedShowOnlyNonEmptyFields === 'boolean'
-          ? parsed.appliedShowOnlyNonEmptyFields
-          : Boolean(parsed?.showOnlyNonEmptyFields),
-      hierarchyFields: normalizeStringArrayUnique(parsed?.hierarchyFields),
-      appliedHierarchyFields: normalizeStringArrayUnique(
-        Array.isArray(parsed?.appliedHierarchyFields) ? parsed.appliedHierarchyFields : parsed?.hierarchyFields,
-      ),
-      firstLevelStaticList: normalizeStringArrayUnique(parsed?.firstLevelStaticList),
-      appliedFirstLevelStaticList: normalizeStringArrayUnique(
-        Array.isArray(parsed?.appliedFirstLevelStaticList)
-          ? parsed.appliedFirstLevelStaticList
-          : parsed?.firstLevelStaticList,
-      ),
-    }
-  } catch {
-    return {
-      fields: {},
-      appliedFields: {},
-      itemLabelField: '',
-      appliedItemLabelField: '',
-      markAsEditedBasis: '',
-      appliedMarkAsEditedBasis: '',
-      showOnlyNonEmptyFields: false,
-      appliedShowOnlyNonEmptyFields: false,
-      hierarchyFields: [],
-      appliedHierarchyFields: [],
-      firstLevelStaticList: [],
-      appliedFirstLevelStaticList: [],
-    }
-  }
+// Field config has no default: it always comes from the data source. Every newly opened
+// data source starts empty until its config is applied or the user builds one.
+function initializeUserConfig() {
+  userConfigFields.value = {}
+  appliedUserConfigFields.value = {}
+  itemLabelField.value = ''
+  appliedItemLabelField.value = ''
+  markAsEditedBasis.value = ''
+  appliedMarkAsEditedBasis.value = ''
+  showOnlyNonEmptyFields.value = false
+  appliedShowOnlyNonEmptyFields.value = false
+  hierarchyFields.value = []
+  appliedHierarchyFields.value = []
+  firstLevelStaticList.value = []
+  appliedFirstLevelStaticList.value = []
+  appliedUserConfigSnapshot.value = serializeUserConfigState({}, '', '', false, [], [])
 }
 
-function persistUserConfigToSession() {
-  const payload = {
-    fields: userConfigFields.value,
-    appliedFields: appliedUserConfigFields.value,
-    itemLabelField: itemLabelField.value,
-    appliedItemLabelField: appliedItemLabelField.value,
-    markAsEditedBasis: markAsEditedBasis.value,
-    appliedMarkAsEditedBasis: appliedMarkAsEditedBasis.value,
-    showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
-    appliedShowOnlyNonEmptyFields: appliedShowOnlyNonEmptyFields.value,
-    hierarchyFields: hierarchyFields.value,
-    appliedHierarchyFields: appliedHierarchyFields.value,
-    firstLevelStaticList: firstLevelStaticList.value,
-    appliedFirstLevelStaticList: appliedFirstLevelStaticList.value,
-  }
-  sessionStorage.setItem(USER_CONFIG_SESSION_KEY, JSON.stringify(payload))
-}
-
-function clearUserConfigSession() {
-  sessionStorage.removeItem(USER_CONFIG_SESSION_KEY)
-}
-
-function initializeUserConfig(availableFieldKeys, hasData) {
-  if (!hasData) {
-    userConfigFields.value = {}
-    appliedUserConfigFields.value = {}
-    itemLabelField.value = ''
-    appliedItemLabelField.value = ''
-    markAsEditedBasis.value = ''
-    appliedMarkAsEditedBasis.value = ''
-    showOnlyNonEmptyFields.value = false
-    appliedShowOnlyNonEmptyFields.value = false
-    hierarchyFields.value = []
-    appliedHierarchyFields.value = []
-    firstLevelStaticList.value = []
-    appliedFirstLevelStaticList.value = []
-    appliedUserConfigSnapshot.value = ''
-    return
-  }
-
-  const defaults = {}
-  availableFieldKeys.forEach((key, index) => {
+// Adds keys found in the data as `normal` fields. Reserved and already configured keys are
+// skipped. Returns the keys that were added.
+function addUserConfigFieldsFromDataKeys(dataKeys = []) {
+  const added = []
+  dataKeys.forEach((rawKey) => {
+    const key = String(rawKey || '').trim()
     if (!isConfigFieldAllowed(key)) return
-    defaults[key] = normalizeUserConfigField({}, index)
+    if (Object.prototype.hasOwnProperty.call(userConfigFields.value, key)) return
+    userConfigFields.value[key] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
+    added.push(key)
   })
-
-  const persisted = loadUserConfigFromSession()
-  const nextFields = {}
-  const nextAppliedFields = {}
-  const allKeys = new Set([
-    ...Object.keys(defaults),
-    ...Object.keys(persisted.fields || {}),
-    ...Object.keys(persisted.appliedFields || {}),
-  ])
-
-  Array.from(allKeys).forEach((key) => {
-    if (!isConfigFieldAllowed(key)) return
-    const defaultField = defaults[key] || normalizeUserConfigField({}, Object.keys(nextFields).length)
-    nextFields[key] = normalizeUserConfigField(
-      { ...defaultField, ...(persisted.fields[key] || {}) },
-      defaultField.order,
-    )
-    nextAppliedFields[key] = normalizeUserConfigField(
-      { ...defaultField, ...(persisted.appliedFields[key] || persisted.fields[key] || {}) },
-      defaultField.order,
-    )
-  })
-
-  userConfigFields.value = nextFields
-  appliedUserConfigFields.value = nextAppliedFields
-  normalizeCandidateTargets(userConfigFields.value)
-  normalizeCandidateTargets(appliedUserConfigFields.value)
-  const hasLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.itemLabelField)
-  const hasAppliedLabelField = Object.prototype.hasOwnProperty.call(nextFields, persisted.appliedItemLabelField)
-  const hasEditedBasisField = Object.prototype.hasOwnProperty.call(nextFields, persisted.markAsEditedBasis)
-  const hasAppliedEditedBasisField = Object.prototype.hasOwnProperty.call(
-    nextFields,
-    persisted.appliedMarkAsEditedBasis,
-  )
-  itemLabelField.value = hasLabelField ? persisted.itemLabelField : ''
-  appliedItemLabelField.value = hasAppliedLabelField ? persisted.appliedItemLabelField : itemLabelField.value
-  markAsEditedBasis.value = hasEditedBasisField ? persisted.markAsEditedBasis : ''
-  appliedMarkAsEditedBasis.value = hasAppliedEditedBasisField
-    ? persisted.appliedMarkAsEditedBasis
-    : markAsEditedBasis.value
-  showOnlyNonEmptyFields.value = persisted.showOnlyNonEmptyFields
-  appliedShowOnlyNonEmptyFields.value = persisted.appliedShowOnlyNonEmptyFields
-  hierarchyFields.value = normalizeStringArrayUnique(persisted.hierarchyFields)
-  appliedHierarchyFields.value = normalizeStringArrayUnique(persisted.appliedHierarchyFields)
-  firstLevelStaticList.value = normalizeStringArrayUnique(persisted.firstLevelStaticList)
-  appliedFirstLevelStaticList.value = normalizeStringArrayUnique(persisted.appliedFirstLevelStaticList)
-  appliedUserConfigSnapshot.value = serializeUserConfigState(
-    nextAppliedFields,
-    appliedItemLabelField.value,
-    appliedMarkAsEditedBasis.value,
-    appliedShowOnlyNonEmptyFields.value,
-    appliedHierarchyFields.value,
-    appliedFirstLevelStaticList.value,
-  )
+  return added
 }
 
 function normalizeConfigOrder() {
@@ -471,17 +336,14 @@ function applyUserConfigToRawItems(rawItems) {
     appliedHierarchyFields.value,
     appliedFirstLevelStaticList.value,
   )
-  persistUserConfigToSession()
 }
 
 function setShowOnlyNonEmptyFields(nextValue) {
   showOnlyNonEmptyFields.value = Boolean(nextValue)
-  persistUserConfigToSession()
 }
 
 function addHierarchyField() {
   hierarchyFields.value = [...hierarchyFields.value, '']
-  persistUserConfigToSession()
 }
 
 function updateHierarchyFieldAt(index, nextValue) {
@@ -489,14 +351,12 @@ function updateHierarchyFieldAt(index, nextValue) {
   const nextHierarchyFields = [...hierarchyFields.value]
   nextHierarchyFields[index] = String(nextValue || '').trim()
   hierarchyFields.value = nextHierarchyFields
-  persistUserConfigToSession()
   return true
 }
 
 function removeHierarchyFieldAt(index) {
   if (!Number.isInteger(index) || index < 0 || index >= hierarchyFields.value.length) return false
   hierarchyFields.value = hierarchyFields.value.filter((_, currentIndex) => currentIndex !== index)
-  persistUserConfigToSession()
   return true
 }
 
@@ -506,7 +366,6 @@ function setFirstLevelStaticListFromText(nextValue) {
     .map((entry) => String(entry || '').trim())
     .filter(Boolean)
   firstLevelStaticList.value = normalizeStringArrayUnique(tokens)
-  persistUserConfigToSession()
 }
 
 function sanitizeFieldName(name) {
@@ -531,7 +390,6 @@ function addUserConfigField(t) {
 
   userConfigFields.value[nextKey] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
   newFieldName.value = ''
-  persistUserConfigToSession()
 }
 
 function removeUserConfigField(fieldKey) {
@@ -550,14 +408,12 @@ function removeUserConfigField(fieldKey) {
     appliedMarkAsEditedBasis.value = ''
   }
   normalizeCandidateTargets(userConfigFields.value)
-  persistUserConfigToSession()
 }
 
 function setItemLabelField(nextFieldKey) {
   const normalized = String(nextFieldKey || '').trim()
   if (!normalized) {
     itemLabelField.value = ''
-    persistUserConfigToSession()
     return true
   }
 
@@ -566,7 +422,6 @@ function setItemLabelField(nextFieldKey) {
   }
 
   itemLabelField.value = normalized
-  persistUserConfigToSession()
   return true
 }
 
@@ -574,7 +429,6 @@ function setMarkAsEditedBasis(nextFieldKey) {
   const normalized = String(nextFieldKey || '').trim()
   if (!normalized) {
     markAsEditedBasis.value = ''
-    persistUserConfigToSession()
     return true
   }
 
@@ -583,7 +437,6 @@ function setMarkAsEditedBasis(nextFieldKey) {
   }
 
   markAsEditedBasis.value = normalized
-  persistUserConfigToSession()
   return true
 }
 
@@ -603,7 +456,6 @@ function dropAt(targetFieldKey) {
     userConfigFields.value[key].order = index
   })
   draggedFieldKey.value = ''
-  persistUserConfigToSession()
 }
 
 function endDrag() {
@@ -658,7 +510,6 @@ function setFieldType(fieldKey, nextType) {
   }
 
   normalizeCandidateTargets(userConfigFields.value)
-  persistUserConfigToSession()
   return true
 }
 
@@ -684,7 +535,6 @@ function updateFieldCandidateConfig(fieldKey, nextCandidateConfig) {
     inputType: normalizedInputType,
   }
 
-  persistUserConfigToSession()
   return true
 }
 
@@ -694,7 +544,6 @@ function updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig) {
   if (!isPlainObject(nextAutosuggestConfig)) return false
 
   field.autosuggest = cloneValue(nextAutosuggestConfig)
-  persistUserConfigToSession()
   return true
 }
 
@@ -751,7 +600,6 @@ function applyImportedConfigPayload(configPayload) {
     appliedHierarchyFields.value,
     appliedFirstLevelStaticList.value,
   )
-  persistUserConfigToSession()
 
   return { ok: true }
 }
@@ -777,7 +625,7 @@ export function useUserConfigStore() {
     newFieldName,
     addFieldError,
     initializeUserConfig,
-    clearUserConfigSession,
+    addUserConfigFieldsFromDataKeys,
     applyUserConfigToRawItems,
     addUserConfigField,
     setFieldType,

@@ -106,7 +106,6 @@ const {
 
 const {
   initializeUserConfig,
-  clearUserConfigSession,
   applyUserConfigToRawItems,
   createUserConfigPayload,
   applyImportedConfigPayload,
@@ -337,19 +336,6 @@ const isSidebarSuspendEditingChecked = computed(() => {
   return suspendedItemIndices.value.includes(selectedIndex)
 })
 
-function initializeUserConfigForCurrentData() {
-  if (hasData.value) {
-    initializeUserConfig(availableFieldKeys.value, true)
-    return
-  }
-  initializeUserConfig([], false)
-}
-
-function onDataModeChanged() {
-  clearUserConfigSession()
-  initializeUserConfigForCurrentData()
-}
-
 function onFieldChange(key, value, configuredType) {
   const selectedIndex = selectedViewItem.value?._index
   const changed = updateField(key, value, configuredType)
@@ -380,13 +366,8 @@ const canCreateOnlineItem = computed(
 function onCreateOnlineItem() {
   if (!canCreateOnlineItem.value) return
 
-  const configuredFields = appliedUserConfigFields.value || {}
-  const fieldConfigs = Object.keys(configuredFields).length
-    ? configuredFields
-    : Object.fromEntries(availableFieldKeys.value.map((key) => [key, { type: 'normal' }]))
-
   const nextUid = appendOnlineDraftItem({
-    fieldConfigs,
+    fieldConfigs: appliedUserConfigFields.value || {},
     itemsPath: activeItemsPath.value,
     includeScan: hasScanField.value,
   })
@@ -684,8 +665,7 @@ const {
   setModeErrorMessage,
   importFromCsvText,
   importFromJsonText,
-  clearUserConfigSession,
-  initializeUserConfigForCurrentData,
+  initializeUserConfigForCurrentData: initializeUserConfig,
   importedConfig,
   applyImportedConfigPayload,
   applyUserConfigToRawItems,
@@ -855,10 +835,6 @@ watch(
     hasSelectedHierarchyLevel1.value = false
     selectedHierarchyLevel1.value = ''
     expandedHierarchyLevel2Values.value = []
-    if (appMode.value === 'online' && isAuthenticated.value && onlineSettings.value) {
-      return
-    }
-    initializeUserConfigForCurrentData()
   },
 )
 
@@ -890,14 +866,6 @@ watch(
     if (!Number.isInteger(nextSelectedIndex)) return
     if (!suspendedItemIndices.value.includes(nextSelectedIndex)) return
     toggleSuspendEditingByUid(nextSelectedUid, false)
-  },
-)
-
-watch(
-  () => availableFieldKeys.value.join('|'),
-  () => {
-    if (appMode.value === 'online' && isAuthenticated.value) return
-    initializeUserConfigForCurrentData()
   },
 )
 
@@ -1092,7 +1060,7 @@ watch(
           :app-mode="appMode"
           :show-sample-data-button="showSampleDataButton" :show-start-from-scratch-button="showStartFromScratchButton"
           @file-selected="onDataFileSelected" @download="onDownload" @start-from-scratch="onStartFromScratchOpen"
-          @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
+          @reset="onReset" @load-sample-data="onLoadSampleData" />
       </div>
     </header>
     <section class="app-tab-sheet" :class="{ 'edit-active': activeTab === 'edit' }">
@@ -1287,7 +1255,8 @@ watch(
 
         <section v-if="activeTab === 'configuration'" id="panel-configuration"
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
-          <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData" @apply="onApplyUserConfig" />
+          <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
+            :data-field-keys="availableFieldKeys" @apply="onApplyUserConfig" />
         </section>
 
         <section v-if="activeTab === 'replacements'" id="panel-replacements"

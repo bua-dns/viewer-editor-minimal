@@ -982,5 +982,17 @@
   "viewerSettingsSourceBasic": {
     "de": "Quelle: Grundkonfiguration (die Datenquelle setzt keinen dieser Werte).",
     "en": "Source: basic config (the data source sets none of these values)."
+  },
+  "dataKeysWithoutConfigLabel": {
+    "de": "Schlüssel in den Daten ohne Konfiguration",
+    "en": "Keys in the data without configuration"
+  },
+  "dataKeysAddAll": {
+    "de": "Alle hinzufügen",
+    "en": "Add all"
+  },
+  "dataKeysNoConfigNote": {
+    "de": "Diese Datenquelle hat noch keine Feldkonfiguration. Fügen Sie die Felder hinzu, die Sie bearbeiten möchten, und wenden Sie die Konfiguration an.",
+    "en": "This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration."
   }
 }
