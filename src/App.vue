@@ -30,6 +30,14 @@ import { useOnlineSettingsStore } from './stores/useOnlineSettingsStore'
 import { useOnlineItemsStore } from './stores/useOnlineItemsStore'
 import { useOnlineUpdatesStore } from './stores/useOnlineUpdatesStore'
 import { resolveItemsPathFromSettings } from './services/strapiApi'
+import {
+  buildHierarchyLevel1Options,
+  buildHierarchyLevel2Options,
+  isItemInHierarchyLevel1,
+  normalizeHierarchyFieldList,
+  normalizeHierarchyValue,
+  resolveHierarchyFieldsFromSettings,
+} from './composables/hierarchyConfig'
 
 const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
@@ -108,6 +116,8 @@ const {
   userConfigFields,
   appliedItemLabelField,
   appliedMarkAsEditedBasis,
+  appliedHierarchyFields,
+  appliedFirstLevelStaticList,
 } = useUserConfigStore()
 
 const editedItemsFirst = ref(false)
@@ -200,110 +210,14 @@ const offlineSelectedHierarchyLevel1Value = ref('')
 const hasSelectedHierarchyLevel1 = ref(false)
 const expandedHierarchyLevel2Values = ref([])
 
-function normalizeHierarchyValue(value) {
-  if (value == null) return ''
-  return String(value).trim()
-}
-
-function normalizeHierarchyFields(rawFields) {
-  if (Array.isArray(rawFields)) {
-    return Array.from(new Set(rawFields.map((entry) => String(entry || '').trim()).filter(Boolean)))
-  }
-
-  if (typeof rawFields === 'string' && rawFields.trim()) {
-    return Array.from(
-      new Set(
-        rawFields
-          .split(',')
-          .map((entry) => String(entry || '').trim())
-          .filter(Boolean),
-      ),
-    )
-  }
-
-  return []
-}
-
-function buildHierarchyLevel1OptionsFromRawItems(items, level1FieldKey) {
-  const countsByValue = new Map()
-  ;(Array.isArray(items) ? items : []).forEach((item) => {
-    const normalized = normalizeHierarchyValue(item?.[level1FieldKey])
-    countsByValue.set(normalized, (countsByValue.get(normalized) || 0) + 1)
-  })
-
-  const assigned = []
-  let unassignedCount = 0
-  countsByValue.forEach((count, value) => {
-    if (!value) {
-      unassignedCount += count
-      return
-    }
-    assigned.push({ value, count, isUnassigned: false })
-  })
-
-  assigned.sort((left, right) => left.value.localeCompare(right.value))
-  if (unassignedCount > 0) {
-    assigned.push({ value: '', count: unassignedCount, isUnassigned: true })
-  }
-
-  return assigned
-}
-
-function buildHierarchyLevel2OptionsFromRawItems(items, level1FieldKey, level2FieldKey, selectedLevel1Value) {
-  const normalizedSelectedLevel1 = normalizeHierarchyValue(selectedLevel1Value)
-  const countsByValue = new Map()
-
-  ;(Array.isArray(items) ? items : []).forEach((item) => {
-    const level1Value = normalizeHierarchyValue(item?.[level1FieldKey])
-    if (level1Value !== normalizedSelectedLevel1) return
-    const level2Value = normalizeHierarchyValue(item?.[level2FieldKey])
-    countsByValue.set(level2Value, (countsByValue.get(level2Value) || 0) + 1)
-  })
-
-  const assigned = []
-  let unassignedCount = 0
-  countsByValue.forEach((count, value) => {
-    if (!value) {
-      unassignedCount += count
-      return
-    }
-    assigned.push({ value, count, isUnassigned: false })
-  })
-
-  assigned.sort((left, right) => left.value.localeCompare(right.value))
-  if (unassignedCount > 0) {
-    assigned.push({ value: '', count: unassignedCount, isUnassigned: true })
-  }
-
-  return assigned
-}
-
+// Online: the hierarchy comes from the Strapi settings and level-1 buckets are loaded on demand.
+// Offline: it comes from the applied user config (imported file or Configuration tab) and all
+// items are already in memory, so boxes and groups are counted from `rawItems`.
 const hierarchicalFields = computed(() => {
-  const settings = onlineSettings.value
-  const direct = normalizeHierarchyFields(
-    settings?.hierarchyFields || settings?.hierarchy_fields || settings?.hierarchicalFields,
-  )
-  if (direct.length >= 2) return direct
-
-  const nested = normalizeHierarchyFields(settings?.hierarchy?.fields || settings?.config?.hierarchyFields)
-  if (nested.length >= 2) return nested
-
-  const hierarchyObject = settings?.hierarchy
-  if (hierarchyObject && typeof hierarchyObject === 'object' && !Array.isArray(hierarchyObject)) {
-    const level1 = String(hierarchyObject.level1 || hierarchyObject.level_1 || '').trim()
-    const level2 = String(hierarchyObject.level2 || hierarchyObject.level_2 || '').trim()
-    if (level1 && level2) return [level1, level2]
+  if (appMode.value === 'online' && isAuthenticated.value) {
+    return resolveHierarchyFieldsFromSettings(onlineSettings.value)
   }
-
-  const fields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
-  if (Object.prototype.hasOwnProperty.call(fields, 'level_1') && Object.prototype.hasOwnProperty.call(fields, 'level_2')) {
-    return ['level_1', 'level_2']
-  }
-  if (Object.prototype.hasOwnProperty.call(fields, 'level1') && Object.prototype.hasOwnProperty.call(fields, 'level2')) {
-    return ['level1', 'level2']
-  }
-
-  return []
+  return normalizeHierarchyFieldList(appliedHierarchyFields.value)
 })
 const hierarchyLevel1FieldKey = computed(() => hierarchicalFields.value[0] || '')
 const hierarchyLevel2FieldKey = computed(() => hierarchicalFields.value[1] || '')
@@ -314,7 +228,11 @@ const hierarchyLevel1Options = computed(() => {
   if (appMode.value === 'online' && isAuthenticated.value) {
     return onlineHierarchyLevel1Options.value
   }
-  return buildHierarchyLevel1OptionsFromRawItems(rawItems.value, hierarchyLevel1FieldKey.value)
+  return buildHierarchyLevel1Options(
+    rawItems.value,
+    hierarchyLevel1FieldKey.value,
+    appliedFirstLevelStaticList.value,
+  )
 })
 
 const selectedHierarchyLevel1 = computed({
@@ -332,6 +250,20 @@ const selectedHierarchyLevel1 = computed({
     }
     offlineSelectedHierarchyLevel1Value.value = normalized
   },
+})
+
+// Items reachable by prev/next and the suspend auto-advance: with an active level-1 selection only
+// that category, as the list shows. Offline `rawItems` hold every category; online they already
+// hold only the loaded bucket, so the filter changes nothing there.
+const navigableViewItems = computed(() => {
+  if (!hierarchyEnabled.value || !hasSelectedHierarchyLevel1.value) return filteredViewItems.value
+  return filteredViewItems.value.filter((viewItem) =>
+    isItemInHierarchyLevel1(
+      rawItems.value[viewItem._index],
+      hierarchyLevel1FieldKey.value,
+      selectedHierarchyLevel1.value,
+    ),
+  )
 })
 
 function initializeExpandedHierarchyLevel2(nextSelectedLevel1 = selectedHierarchyLevel1.value) {
@@ -356,7 +288,7 @@ function initializeExpandedHierarchyLevel2(nextSelectedLevel1 = selectedHierarch
     return
   }
 
-  const level2Options = buildHierarchyLevel2OptionsFromRawItems(
+  const level2Options = buildHierarchyLevel2Options(
     rawItems.value,
     hierarchyLevel1FieldKey.value,
     hierarchyLevel2FieldKey.value,
@@ -570,9 +502,9 @@ function onSuspendEditingToggle({ uid, checked }) {
   let nextUid = null
 
   if (shouldAutoSelectNext) {
-    const currentIndex = filteredViewItems.value.findIndex((item) => item._uid === uid)
-    if (currentIndex !== -1 && currentIndex < filteredViewItems.value.length - 1) {
-      nextUid = filteredViewItems.value[currentIndex + 1]?._uid || null
+    const currentIndex = navigableViewItems.value.findIndex((item) => item._uid === uid)
+    if (currentIndex !== -1 && currentIndex < navigableViewItems.value.length - 1) {
+      nextUid = navigableViewItems.value[currentIndex + 1]?._uid || null
     }
   }
 
@@ -699,7 +631,7 @@ const {
   selectNextItem,
   clearSelection,
 } = useSelectionNavigation({
-  filteredViewItems,
+  filteredViewItems: navigableViewItems,
   selectedViewItem,
   selectItem,
 })
@@ -993,7 +925,7 @@ watch(
     }
     if (!selectedHierarchyLevel1.value && selectedHierarchyLevel1.value !== '') return
 
-    const availableLevel2Values = buildHierarchyLevel2OptionsFromRawItems(
+    const availableLevel2Values = buildHierarchyLevel2Options(
       rawItems.value,
       hierarchyLevel1FieldKey.value,
       hierarchyLevel2FieldKey.value,
@@ -1238,14 +1170,14 @@ watch(
 
           <aside v-if="selectedRawItem" class="sidebar-panel">
             <div class="sidebar-head">
-              <div class="sidebar-nav" v-if="filteredViewItems.length > 1">
+              <div class="sidebar-nav" v-if="navigableViewItems.length > 1">
                 <button type="button" :disabled="!canGoPrevious" @click="selectPreviousItem"
                   :aria-label="t('sidebarPreviousItemAria', 'Vorheriges Item')">
                   ←
                 </button>
                 <span class="scan-nav-index">{{ t('sidebarScanCounterPrefix', 'Scan') }} {{ selectedFilteredIndex + 1 }}
                   /
-                  {{ filteredViewItems.length }}</span>
+                  {{ navigableViewItems.length }}</span>
                 <button type="button" :disabled="!canGoNext" @click="selectNextItem"
                   :aria-label="t('sidebarNextItemAria', 'Naechstes Item')">
                   →

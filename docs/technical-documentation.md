@@ -141,6 +141,7 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `useDataImportExport.js` - Datei-Import/Export-Flow, Beispieldaten, Start-from-Scratch, Reset
 - `useFieldMapping.js` - Label-/Placeholder-/Hint-/Sortier-Mapping und Binding an die Feld-Registry
 - `useSelectionNavigation.js` - Auswahlindex, Vor/Zurück-Navigation, Auswahl aufheben
+- `hierarchyConfig.js` - reine Hierarchie-Helfer: Feldlisten normalisieren, Hierarchie-Felder aus Settings auflösen, Level-1-/Level-2-Optionen aus Items zählen
 - `useModalKeyboard.js` - gemeinsames Escape-Handling für Modals
 - `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
 - `useReplacementsApply.js` - Orchestrierung eines Ersetzungslaufs (lokal bzw. über die ganze Collection)
@@ -417,7 +418,10 @@ Zusätzlich können Felder manuell angelegt und wieder entfernt werden.
 - `showOnlyNonEmptyFields` - blendet in der Sidebar pro Item alle leeren Felder aus. Ausnahme:
   leere `wikidata-autosuggest`-Felder und Felder von Online-Entwürfen bleiben sichtbar, damit sie
   überhaupt befüllt werden können.
-- `hierarchyFields` - frei editierbare Liste von Feldschlüsseln für die Hierarchie
+- `hierarchyFields` - frei editierbare Liste von Feldschlüsseln für die Hierarchie. Die ersten zwei
+  Einträge bilden Level 1 und Level 2; ab zwei Schlüsseln ist die Hierarchie-Ansicht im Edit-Tab aktiv.
+  Im Offline-Modus wirkt die **angewendete** Liste direkt (siehe [12.5](#125-hierarchie-und-level-1-buckets)),
+  im Online-Modus bestimmen die Strapi-Settings die Hierarchie.
 - `firstLevelStaticList` - Preset-Liste für Level-1-Werte (newline-/kommagetrennte Eingabe)
 
 ### 7.3 Zusatzoptionen für `wikidata-autosuggest`
@@ -813,6 +817,20 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
   Level-1-Wert behalten.
 - Die Level-1-Boxen werden im Hierarchie-Modus sofort gerendert, auch wenn noch keine Item-Karten geladen sind.
 
+**Offline-Modus (lokale JSON-Datei).** Die Hierarchie kommt aus der angewendeten User-Config
+(`appliedHierarchyFields`, also aus der `config` der importierten Datei oder aus `Konfiguration anwenden`).
+Da alle Items im Speicher liegen, gibt es keine Nachlade-Requests; die reinen Funktionen in
+`src/composables/hierarchyConfig.js` zählen Boxen und Gruppen direkt aus `rawItems`:
+
+- Ohne `firstLevelStaticList`: alle gefundenen Level-1-Werte alphabetisch mit Trefferzahl, der
+  `isUnassigned`-Bucket am Ende.
+- Mit `firstLevelStaticList`: zuerst die Listeneinträge in Listenreihenfolge (Trefferzahl `0`, wenn kein
+  Item den Wert trägt), danach alphabetisch die Werte aus den Daten, die in der Liste fehlen - damit
+  bleibt kein Item unerreichbar -, der `isUnassigned`-Bucket zuletzt.
+- Vor/Zurück in der Sidebar und das automatische Weiterschalten beim Aussetzen bleiben innerhalb der
+  gewählten Level-1-Kategorie (`navigableViewItems` in `App.vue`). Online ist das ohne Wirkung, weil dort
+  nur der geladene Bucket im Speicher liegt.
+
 ### 12.6 Item-Normalisierung und Wikidata-Mapping
 
 - `normalizeStrapiItem(row, settingsFields, itemsPath, scanFieldKey)` unterstützt beide Zeilenformen: flach
@@ -979,7 +997,8 @@ Aufbau der Seite:
   `Einstellungen`, `Info`. Interner Tab-Key des Settings-Tabs ist weiterhin `database-connection`.
   Tastatursteuerung: Left/Right (zyklisch), Home/End, Enter/Space.
 - **Edit-Tab:** sticky Header-Stack mit Listenkopf (`Digitalisate` + Suche); bei konfigurierter
-  Hierarchie zuerst die Level-1-Boxen, danach einklappbare Level-2-Gruppen mit eigener Item-Liste.
+  Hierarchie (online aus den Strapi-Settings, offline aus der angewendeten User-Config) zuerst die
+  Level-1-Boxen, danach einklappbare Level-2-Gruppen mit eigener Item-Liste.
 - **Liste:** Kartenansicht der gefilterten Items inkl. Scan-Vorschau; ohne `scan`-Spalte automatische
   Umschaltung auf die textbasierte Listenansicht.
 - **Sidebar:** Felder des selektierten Items und größere Scan-Vorschau (Desktop sticky mit internem
@@ -1076,7 +1095,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand `256758f` + Replacements-Feature: 19 Testdateien, 176 Tests, alle grün.
+Stand Offline-Hierarchie: 20 Testdateien, 192 Tests, alle grün.
 
 ### Composables
 
@@ -1090,6 +1109,7 @@ Stand `256758f` + Replacements-Feature: 19 Testdateien, 176 Tests, alle grün.
 | `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
 | `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
+| `composables/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
 
 ### Fields und Services

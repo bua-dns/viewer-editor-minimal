@@ -43,8 +43,8 @@
 - Optional kann `config.itemLabelField` gesetzt werden (String, muss ein vorhandener Schlüssel in `config.fields` sein).
 - Optional kann `config.markAsEditedBasis` gesetzt werden (String, muss ein vorhandener Schlüssel in `config.fields` sein): Items mit nicht-leerem Wert in diesem Feld gelten als bearbeitet, erhalten in der Liste ein Edit-Icon statt der `suspendEditing`-Checkbox und werden ans Listenende sortiert (umschaltbar im Listenkopf).
 - Optional kann `config.showOnlyNonEmptyFields` gesetzt werden (Boolean): blendet leere Felder im Sidebar-Editor aus.
-- Optional kann `config.hierarchyFields` gesetzt werden (Liste von Feldschlüsseln für hierarchische Navigation, Legacy-Formen bleiben kompatibel).
-- Optional kann `config.firstLevelStaticList` gesetzt werden (Liste fixer Level-1-Werte, nur relevant zusammen mit `hierarchyFields`).
+- Optional kann `config.hierarchyFields` gesetzt werden (Liste von Feldschlüsseln für hierarchische Navigation, Legacy-Formen bleiben kompatibel). Wirkt online wie offline: eine importierte JSON-Datei mit mindestens zwei Hierarchie-Feldern öffnet direkt in der Hierarchie-Ansicht.
+- Optional kann `config.firstLevelStaticList` gesetzt werden (Liste fixer Level-1-Werte, nur relevant zusammen mit `hierarchyFields`). Offline bestimmt sie Reihenfolge und Mindestumfang der Level-1-Boxen; Werte aus den Daten, die nicht in der Liste stehen, werden danach angehängt.
 - Optional kann `scanField` in den Online-Settings gesetzt werden (String, Legacy-Form `scan_field`): Feldschlüssel der Strapi-Collection, dessen Wert beim Laden nach `scan` gemappt wird. Default ist `scan`.
 - Für `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
   - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeinträge bleiben kompatibel)

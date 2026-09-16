@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-09 - Hierarchy view in offline mode
+
+- The hierarchy view (level-1 boxes, collapsible level-2 groups) now works with local JSON files.
+  It follows the applied user config: `hierarchyFields` from the imported file's `config`, or as set
+  and applied in the `Konfiguration` tab. Before, those settings were read and exported but the Edit
+  tab ignored them offline and always showed a flat list. Online mode is unchanged and still takes
+  the hierarchy from the Strapi settings.
+- Offline, boxes and groups are counted from the loaded items, so there are no bucket requests. With
+  `firstLevelStaticList`, its entries come first in list order; values in the data but missing from
+  the list are appended, so no item becomes unreachable.
+- Previous/next in the sidebar and the auto-advance after `Bearbeitung aussetzen` stay inside the
+  selected level-1 category instead of jumping into other categories.
+- New `src/composables/hierarchyConfig.js` holds the hierarchy helpers that `App.vue` used to define
+  inline, as pure functions with their own test file.
+
 ## 2026-09 - Runtime app config from public/app-config
 
 - A JSON app config placed in `public/app-config/` is now loaded at startup and replaces
