@@ -15,6 +15,8 @@
 - The basic config holds `connectionMode` (default `switchable`), an optional inline
   `connectionProfile`, and the defaults of the viewer settings `language`, `languageMode` (default
   `multi`), `primaryColor` and `dataInspectionMode`.
+  The `Einstellungen` tab edits these values: `Anwenden` holds until the next reload, the download produces
+  the file for `public/app-config/` (optionally with the current connection profile).
 - A shipped `connectionProfile` is fixed and shown read-only. Without one, the user enters a profile in
   the `Einstellungen` tab; it is saved to localStorage only after the connection test passes. Choosing
   `Online` without a profile keeps the app offline, opens the tab, and switches once a profile is saved.

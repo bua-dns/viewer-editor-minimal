@@ -24,15 +24,32 @@ const isSaving = ref(false)
 const isCheckingDataModel = ref(false)
 const isApplyingViewerSettings = ref(false)
 const viewerSettingsForm = ref({})
+const basicConfigForm = ref({})
 
 const {
   t,
   basicConfig,
   basicConfigSource,
+  applyBasicConfig,
   dataSourceViewerSettings,
   effectiveViewerSettings,
   exportBasicConfigAsJson,
 } = useAppConfigStore()
+
+// The basic config is a file next to the build, which a browser cannot write. The form applies
+// the values until the next reload; the download produces the file for /public/app-config/.
+function hydrateBasicConfigForm() {
+  basicConfigForm.value = {
+    connectionMode: basicConfig.value.connectionMode,
+    language: basicConfig.value.language,
+    languageMode: basicConfig.value.languageMode,
+    primaryColor: basicConfig.value.primaryColor,
+    dataInspectionMode: basicConfig.value.dataInspectionMode,
+    includeConnectionProfile: Boolean(basicConfig.value.connectionProfile),
+  }
+}
+
+hydrateBasicConfigForm()
 
 const hasViewerSettingsOverrides = computed(() => Object.keys(dataSourceViewerSettings.value).length > 0)
 
@@ -169,8 +186,29 @@ function onUseBasicViewerSettings() {
   return runApplyViewerSettings(null)
 }
 
+function buildBasicConfigDraft() {
+  const { includeConnectionProfile, ...values } = basicConfigForm.value
+  const profile = includeConnectionProfile ? connectionProfile.value : null
+  return {
+    ...values,
+    connectionProfile: profile
+      ? { label: profile.label || '', baseUrl: profile.baseUrl, configPath: profile.configPath }
+      : null,
+  }
+}
+
+function onApplyBasicConfig() {
+  // The connection profile is not switched at runtime: it decides the data source and is read on start.
+  applyBasicConfig({ ...buildBasicConfigDraft(), connectionProfile: basicConfig.value.connectionProfile })
+  hydrateBasicConfigForm()
+  setStatus(
+    'success',
+    t('basicConfigApplySuccess', 'Basic config applied until the next reload. Download the file to keep it.'),
+  )
+}
+
 function onDownloadBasicConfig() {
-  const jsonText = exportBasicConfigAsJson()
+  const jsonText = exportBasicConfigAsJson(buildBasicConfigDraft())
   const blob = new Blob([jsonText], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -395,26 +433,80 @@ async function onCheckDataModel() {
         {{
           t(
             'appSettingsDescription',
-            'Basic config of this deployment from /public/app-config.',
+            'Basic config of this deployment from /public/app-config. It applies wherever the data source sets no values of its own.',
           )
         }}
       </p>
     </header>
 
-    <dl class="connection-form-grid settings-readout">
-      <div v-if="basicConfig.connectionProfile"><dt>{{ t('dbConnectionBaseUrlField', 'Base URL (Strapi)') }}</dt><dd>{{ basicConfig.connectionProfile.baseUrl }}</dd></div>
-      <div><dt>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</dt><dd>{{ basicConfig.connectionMode }}</dd></div>
-      <div><dt>{{ t('appSettingsLanguageField', 'Default language') }}</dt><dd>{{ basicConfig.language }}</dd></div>
-      <div><dt>{{ t('appSettingsLanguageModeField', 'Language mode') }}</dt><dd>{{ basicConfig.languageMode }}</dd></div>
-      <div><dt>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</dt><dd>{{ basicConfig.primaryColor }}</dd></div>
-      <div><dt>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</dt><dd>{{ basicConfig.dataInspectionMode }}</dd></div>
-    </dl>
+    <div class="connection-form-grid">
+      <label class="field">
+        <span>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</span>
+        <select v-model="basicConfigForm.connectionMode">
+          <option value="switchable">switchable</option>
+          <option value="offline">offline</option>
+          <option value="online">online</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('appSettingsLanguageField', 'Default language') }}</span>
+        <select v-model="basicConfigForm.language">
+          <option value="de">DE</option>
+          <option value="en">EN</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('appSettingsLanguageModeField', 'Language mode') }}</span>
+        <select v-model="basicConfigForm.languageMode">
+          <option value="single">single</option>
+          <option value="multi">multi</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</span>
+        <div class="color-row">
+          <input v-model="basicConfigForm.primaryColor" type="text" placeholder="#0066CC" />
+          <input v-model="basicConfigForm.primaryColor" type="color" />
+        </div>
+      </label>
+
+      <label class="field field-checkbox">
+        <span>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</span>
+        <input v-model="basicConfigForm.dataInspectionMode" type="checkbox" />
+      </label>
+
+      <label class="field field-checkbox">
+        <span>
+          {{ t('basicConfigIncludeProfileField', 'Put the connection profile into the file (fixed for this deployment)') }}
+          <template v-if="connectionProfile"> ({{ connectionProfile.baseUrl }})</template>
+        </span>
+        <input v-model="basicConfigForm.includeConnectionProfile" :disabled="!connectionProfile" type="checkbox" />
+      </label>
+    </div>
 
     <div class="connection-actions">
+      <button type="button" class="transfer-btn transfer-btn-mode" @click="onApplyBasicConfig">
+        {{ t('basicConfigApply', 'Apply') }}
+      </button>
+      <button type="button" class="transfer-btn transfer-btn-reset" @click="hydrateBasicConfigForm">
+        {{ t('dbConnectionResetFormButton', 'Reset form') }}
+      </button>
       <button type="button" class="transfer-btn transfer-btn-mode" @click="onDownloadBasicConfig">
         {{ t('appSettingsDownload', 'Download basic config JSON') }}
       </button>
     </div>
+
+    <p class="saved-meta">
+      {{
+        t(
+          'basicConfigEditNote',
+          'The browser cannot change the file on the server. "Apply" is active until the next reload; to keep the values, download the file and place it in /public/app-config/.',
+        )
+      }}
+    </p>
 
     <p class="saved-meta">
       {{
@@ -503,26 +595,6 @@ async function onCheckDataModel() {
 .viewer-settings-form {
   margin: 0;
   min-width: 0;
-}
-
-.settings-readout {
-  margin: 0;
-}
-
-.settings-readout > div {
-  display: grid;
-  grid-template-columns: minmax(10rem, 16rem) 1fr;
-  gap: 0.65rem;
-}
-
-.settings-readout dt {
-  font-weight: 600;
-  color: var(--ve-color-text-default);
-}
-
-.settings-readout dd {
-  margin: 0;
-  overflow-wrap: anywhere;
 }
 
 .connection-actions {

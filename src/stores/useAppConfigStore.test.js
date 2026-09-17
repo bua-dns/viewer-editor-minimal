@@ -283,6 +283,34 @@ describe('useAppConfigStore basic config', () => {
     expect(store.language.value).toBe('en')
   })
 
+  test('exports an edited draft as the file content for public/app-config', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ primaryColor: '#111111' })
+
+    const exported = JSON.parse(
+      store.exportBasicConfigAsJson({
+        connectionMode: 'online',
+        connectionProfile: { label: 'Main', baseUrl: 'https://cms.example.org/', configPath: 'api/viewer-setting' },
+        language: 'en',
+        languageMode: 'single',
+        primaryColor: '#222222',
+        dataInspectionMode: true,
+      }),
+    )
+
+    expect(exported).toEqual({
+      version: 1,
+      connectionMode: 'online',
+      connectionProfile: { label: 'Main', baseUrl: 'https://cms.example.org', configPath: '/api/viewer-setting' },
+      language: 'en',
+      languageMode: 'single',
+      primaryColor: '#222222',
+      dataInspectionMode: true,
+    })
+    // Exporting does not change the basic config in effect.
+    expect(store.primaryColor.value).toBe('#111111')
+  })
+
   test('removes the old app settings snapshot from localStorage', async () => {
     const store = useAppConfigStore()
     globalThis.localStorage.setItem('viewerEditor.appConfig.v1', '{"primaryColor":"#abcdef"}')

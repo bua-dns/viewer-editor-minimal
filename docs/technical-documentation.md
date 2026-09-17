@@ -244,7 +244,7 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 
 | Schlüssel | Werte (Default) | Wirkung |
 | --- | --- | --- |
-| `connectionMode` | `switchable` \| `offline` \| `online` (`switchable`) | `switchable` zeigt den Umschalter `Offline \| Online`; `offline`/`online` fixieren den App-Modus. Im Tab nicht editierbar. |
+| `connectionMode` | `switchable` \| `offline` \| `online` (`switchable`) | `switchable` zeigt den Umschalter `Offline \| Online`; `offline`/`online` fixieren den App-Modus. |
 | `connectionProfile` | Objekt `{ label?, baseUrl, configPath }` oder `null` | Fest vorgegebenes Strapi-Profil; im Tab `Einstellungen` nur lesbar. Ein ungültiges Profil wird als `null` behandelt und per `console.warn` gemeldet. |
 | `language` | Sprachcode (`de`) | Startsprache |
 | `languageMode` | `single` \| `multi` (`multi`) | Nur bei `multi` erscheint der Umschalter `DE \| EN`. |
@@ -258,8 +258,13 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 - **Fehlerfall:** fehlt eine Datei oder ist sie ungültig, gelten die fest eingebauten Defaults der
   Normalizer bzw. die Inline-Fallbacks der `t()`-Aufrufe. Die App startet immer; der Grund steht in
   `lastBasicConfigLoadError` und als `console.warn`.
-- **Erzeugen:** Tab `Einstellungen`, `Grundkonfiguration als JSON herunterladen`. Die Datei enthält die
-  Bootstrap-Schlüssel und die aktuell wirksamen Viewer-Einstellungen.
+- **Bearbeiten und Erzeugen:** Der Bereich `Grundkonfiguration` im Tab `Einstellungen` ist ein Formular für
+  `connectionMode`, `language`, `languageMode`, `primaryColor` und `dataInspectionMode`. Weil der Browser
+  die Datei auf dem Server nicht schreiben kann, gilt `Anwenden` (`applyBasicConfig`) nur bis zum nächsten
+  Neuladen; das Verbindungsprofil wird dabei nicht umgeschaltet. `Grundkonfiguration als JSON
+  herunterladen` (`exportBasicConfigAsJson(draft)`) schreibt die Formularwerte in die Datei für
+  `public/app-config/`; die Option `Verbindungsprofil in die Datei übernehmen` fügt das aktuelle Profil als
+  festes `connectionProfile` ein.
 - **Altlast:** ein früher gespeicherter localStorage-Eintrag `viewerEditor.appConfig.v1` wird beim Laden
   entfernt und nicht mehr gelesen.
 
@@ -1136,7 +1141,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand Konfigurationsebenen: 20 Testdateien, 215 Tests, alle grün.
+Stand Konfigurationsebenen: 20 Testdateien, 216 Tests, alle grün.
 
 ### Composables
 
@@ -1164,7 +1169,7 @@ Stand Konfigurationsebenen: 20 Testdateien, 215 Tests, alle grün.
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal; Inline-Fallback ohne Wording; eingebaute Defaults; Laden von Grundkonfiguration und Wording aus `app-config/`; Normalisierung bzw. Verwerfen eines mitgelieferten Profils; Defaults bei fehlender oder ungültiger Datei; Überlagerung der Viewer-Einstellungen durch die Datenquelle inkl. Sprache; Entfernen des alten localStorage-Snapshots |
+| `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal; Inline-Fallback ohne Wording; eingebaute Defaults; Laden von Grundkonfiguration und Wording aus `app-config/`; Normalisierung bzw. Verwerfen eines mitgelieferten Profils; Defaults bei fehlender oder ungültiger Datei; Überlagerung der Viewer-Einstellungen durch die Datenquelle inkl. Sprache; Entfernen des alten localStorage-Snapshots; Export eines bearbeiteten Entwurfs als Dateiinhalt |
 | `stores/useUserConfigStore.test.js` | Initialisierung minimaler Autosuggest-Config beim Typwechsel; Erhalt unbekannter Autosuggest-Schlüssel; Entfernen von `autosuggest`/`readOnly` bei Typwechsel; Candidate-Initialisierung, -Aktualisierung und Abwehr ungültiger Ziele; Persistenz und Bereinigung von `itemLabelField`; leere Feldkonfiguration nach `initializeUserConfig`; Hinzufügen aus Datenschlüsseln ohne reservierte und bereits konfigurierte Schlüssel |
 | `stores/useAuthStore.test.js` | Login speichert das JWT; `restoreSession` lädt Token und Nutzer; Login ohne Credentials schlägt fehl |
 | `stores/useConnectionProfileStore.test.js` | Speichern nur nach bestandenem Verbindungstest und Neuladen; kein Speichern bei fehlgeschlagenem Test; Ablehnung ungültiger Profile ohne Backend-Aufruf; JSON-Import; mitgeliefertes Profil hat Vorrang vor einem gespeicherten und lässt sich weder speichern noch löschen |

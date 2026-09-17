@@ -162,9 +162,21 @@ async function loadBasicConfig() {
   }
 }
 
-// Template for a deployment: the bootstrap keys plus the viewer settings currently in effect.
-function exportBasicConfigAsJson() {
-  return JSON.stringify({ ...basicConfig.value, ...effectiveViewerSettings.value }, null, 2)
+// File content for public/app-config/, built from the values edited in the Einstellungen tab
+// (default: the basic config in effect). Only the keys the file needs are written.
+function exportBasicConfigAsJson(draft = basicConfig.value) {
+  const normalized = normalizeBasicConfig(draft)
+  const profile = normalized.connectionProfile
+  return JSON.stringify(
+    {
+      ...normalized,
+      connectionProfile: profile
+        ? { ...(profile.label ? { label: profile.label } : {}), baseUrl: profile.baseUrl, configPath: profile.configPath }
+        : null,
+    },
+    null,
+    2,
+  )
 }
 
 // Viewer settings can be overridden by the open data source (JSON `config` offline,
