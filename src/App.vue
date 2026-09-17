@@ -147,6 +147,7 @@ const {
   createCsvExportText,
   markAsSaved,
   appendOnlineDraftItem,
+  appendLocalItem,
   syncSnapshotItemAtIndex,
   isEditableSimpleValue,
   looksLikeImageUrl,
@@ -387,6 +388,27 @@ function onCreateOnlineItem() {
   if (draftItem) {
     trackOnlineDraftCreate({ item: draftItem })
   }
+  selectItem(nextUid)
+}
+
+// Offline, new items can be created as soon as a field config is applied, also without loaded data.
+const canCreateLocalItem = computed(
+  () => appMode.value === 'offline' && Object.keys(appliedUserConfigFields.value || {}).length > 0,
+)
+const canCreateItem = computed(() => canCreateOnlineItem.value || canCreateLocalItem.value)
+
+function onCreateItem() {
+  if (appMode.value === 'online') {
+    onCreateOnlineItem()
+    return
+  }
+  if (!canCreateLocalItem.value) return
+
+  const nextUid = appendLocalItem({
+    fieldConfigs: appliedUserConfigFields.value,
+    includeScan: hasScanField.value,
+  })
+  searchQuery.value = ''
   selectItem(nextUid)
 }
 
@@ -1143,9 +1165,9 @@ watch(
           :hierarchy-unassigned-label="t('hierarchyUnassignedLabel', 'Ohne Zuordnung')"
           :hierarchy-select-level1-label="t('hierarchySelectLevel1Label', 'Bitte waehlen Sie zuerst eine Kategorie.')"
           :hierarchy-collapse-all-label="t('hierarchyCollapseAllLabel', 'Alle Unterkategorien einklappen')"
-          :render-body="false" :show-create-item-button="canCreateOnlineItem"
+          :render-body="false" :show-create-item-button="canCreateItem"
           :create-item-label="t('onlineCreateItem', 'New item')"
-          :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateOnlineItem"
+          :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateItem"
           @update:search-query="searchQuery = $event"
           @update:edited-items-first="editedItemsFirst = $event" @toggle-suspend-editing="onSuspendEditingToggle" />
       </section>

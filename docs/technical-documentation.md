@@ -943,6 +943,17 @@ Strapi-Instanz.
 
 ### 12.9 Create-Flow (neues Item)
 
+**Offline** zeigt der Listenkopf `Neues Item`, sobald eine Feldkonfiguration angewendet ist - auch ohne
+geladene Daten. `appendLocalItem` (`useViewerData`) hängt ein Item mit den Registry-Defaults der
+angewendeten Felder an (plus `scan: ''`, wenn die Daten eine `scan`-Spalte haben), leert die Suche,
+selektiert es und setzt `isDirty`; es geht mit dem nächsten Download in die Daten. `Reset` entfernt
+Items, die seit dem letzten Import bzw. Speichern angelegt wurden, auch wenn vorher keine Daten geladen
+waren. In dieser Sitzung angelegte Items (offline wie online) merkt sich `src/composables/createdItems.js`
+in einer `WeakSet` außerhalb der Item-Objekte: ihre leeren Felder bleiben bei `showOnlyNonEmptyFields`
+sichtbar, und ohne eigenen Titel zeigt die Liste `Neues Objekt`.
+
+**Online:**
+
 - Im Online-Modus zeigt der Listenkopf für authentifizierte Nutzer mit bekanntem `itemsPath` einen
   Button `Neues Item` / `New item`.
 - Ein Klick legt einen lokalen Entwurf an (`appendOnlineDraftItem`): gleiche Feldschlüssel wie die
@@ -1144,7 +1155,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand Konfigurationsebenen: 20 Testdateien, 220 Tests, alle grün.
+Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
 
 ### Composables
 

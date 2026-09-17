@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 import { useFieldMapping } from './useFieldMapping'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
+import { markItemAsCreated } from './createdItems'
 
 describe('useFieldMapping', () => {
   beforeEach(() => {
@@ -43,6 +44,18 @@ describe('useFieldMapping', () => {
     })
 
     expect(keys).toEqual(['subject', 'note'])
+  })
+
+  test('keeps empty fields of an item created in this session visible when filtering non-empty fields', () => {
+    const store = useUserConfigStore()
+    store.appliedShowOnlyNonEmptyFields.value = true
+    const createdItem = { title: '', note: '' }
+    markItemAsCreated(createdItem)
+
+    const { getDisplayedFieldKeys } = useFieldMapping()
+
+    expect(getDisplayedFieldKeys(createdItem)).toEqual(['title', 'note'])
+    expect(getDisplayedFieldKeys({ title: '', note: '' })).toEqual([])
   })
 
   test('never shows suspendEditing as editable field key', () => {

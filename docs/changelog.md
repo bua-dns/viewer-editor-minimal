@@ -28,6 +28,8 @@
   `Alle hinzufügen`. `public/sample-data.json` now ships with a `config`.
 - Offline, the `Konfiguration` tab is available without data. A config drafted there is kept when the
   first data without a config of its own is loaded, and `Neu beginnen` writes it into the new data set.
+- Offline, `Neues Item` is available as soon as a field config is applied, also with no data loaded. The
+  new item gets the type defaults of the configured fields and goes into the next download.
 - **For deployments:** move the values of `config/app.config.js` and the file in
   `public/connection-profile/` into `public/app-config/viewer-editor-app-config.v1.json` (profile inlined
   as `connectionProfile`). Existing JSON files and Strapi settings stay valid unchanged.
