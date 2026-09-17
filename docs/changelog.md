@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-09 - Two config layers: basic config and data source
+
+- Config now has two layers. The **basic config** is one runtime file,
+  `public/app-config/viewer-editor-app-config.v1.json`, loaded before the app mounts. Everything that
+  belongs to a data set lives with the **data source**: the `config` of the JSON file offline,
+  `viewer-setting.settings` online. The data source wins, key by key.
+- Removed: `config/app.config.js`, `config/wording.js`, `public/connection-profile/`, the
+  `defaultAppConfig` and `defaultConnectionProfile` keys, the `githubRepo` setting and the GitHub link
+  in the footer, the localStorage snapshot of the app settings (`viewerEditor.appConfig.v1`) and the
+  sessionStorage copy of the field config (`viewerEditor.userConfig.v1`). Both old keys are deleted on
+  start.
+- `config/wording.json` moved to `public/app-config/wording.json` and is loaded at runtime.
+- The basic config holds `connectionMode` (default `switchable`), an optional inline
+  `connectionProfile`, and the defaults of the viewer settings `language`, `languageMode` (default
+  `multi`), `primaryColor` and `dataInspectionMode`.
+- A shipped `connectionProfile` is fixed and shown read-only. Without one, the user enters a profile in
+  the `Einstellungen` tab; it is saved to localStorage only after the connection test passes. Choosing
+  `Online` without a profile keeps the app offline, opens the tab, and switches once a profile is saved.
+- The viewer settings can be overridden by the data source. The `Einstellungen` tab edits them while a
+  data source is open: offline they go into the next JSON download, online they are written back to
+  `viewer-setting.settings` like `Konfiguration anwenden`.
+- Field config has no default any more. A data source without `config` (plain JSON array, CSV) starts
+  without fields; the `Konfiguration` tab lists the keys found in the data with `Hinzufügen` and
+  `Alle hinzufügen`. `public/sample-data.json` now ships with a `config`.
+- **For deployments:** move the values of `config/app.config.js` and the file in
+  `public/connection-profile/` into `public/app-config/viewer-editor-app-config.v1.json` (profile inlined
+  as `connectionProfile`). Existing JSON files and Strapi settings stay valid unchanged.
+
 ## 2026-09 - Hierarchy view in offline mode
 
 - The hierarchy view (level-1 boxes, collapsible level-2 groups) now works with local JSON files.

@@ -19,7 +19,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Ersetzungslisten je Feld (werden gesammelt und exportiert, nicht automatisch angewendet)
 - Kartenansicht mit Bildvorschau (`scan`-URL) inkl. Lightbox; ohne `scan` automatische Listenansicht
 - Lokalisierung über Wording-Handles (DE/EN), optional aus dem Backend überschreibbar
-- Tab `Einstellungen` für Strapi-Verbindungsprofile und zur Laufzeit editierbare App-Settings
+- Tab `Einstellungen` für das Strapi-Verbindungsprofil und die Viewer-Einstellungen der geöffneten Datenquelle
 - Tab-Navigation: `Editieren`, `Konfiguration`, `Ersetzungen`, `Einstellungen`, `Info`
 - Responsives Editor-Layout mit sticky Kopfbereich und erweitertem Vollbreiten-Modus
 
@@ -144,7 +144,8 @@ Hinweise:
 Hinweise:
 - Nicht-Objekte im Array werden abgewiesen.
 - Falls `data` vorhanden ist, muss `data` ein Array sein.
-- Falls `config` vorhanden ist, muss `config` ein valides Objekt mit `fields` sein.
+- Falls `config` vorhanden ist, muss `config` ein valides Objekt mit `fields` sein. Optional trägt `config` die Viewer-Einstellungen `language`, `languageMode`, `primaryColor` und `dataInspectionMode`; fehlende Werte kommen aus der Grundkonfiguration.
+- Ohne `config` (reines Array, CSV) startet die Datenquelle ohne Felder. Der Tab `Konfiguration` listet die Schlüssel aus den Daten zum Hinzufügen.
 - Falls `replacements` vorhanden ist, muss `replacements` ein Objekt sein. Inhalt wird derzeit nicht weiter validiert und beim Export unverändert durchgereicht.
 - Bei ungültigem JSON oder falscher Struktur zeigt die App eine Fehlermeldung.
 - Für die Bildvorschau muss `scan` eine direkt ladbare Bild-URL sein (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.avif`).
@@ -174,8 +175,8 @@ Hinweise:
 - `src/fields/` – zentrale Feldtypen-Registry
 - `src/services/strapiApi.js` – gesamter Strapi-HTTP-Zugriff
 - `src/assets/` – Styles (Tokens/Base/Layout/Components/Legacy), Info-Texte, Icons, Logos
-- `config/` – `app.config.js` (App-Defaults) und `wording.json` (Sprachvarianten)
-- `public/` – Beispieldaten, Beispielscans, optionales Default-Verbindungsprofil
+- `public/app-config/` – Grundkonfiguration (`viewer-editor-app-config.v1.json`) und Wording (`wording.json`), beide zur Laufzeit geladen
+- `public/` – Beispieldaten, Beispielscans
 - Tests liegen als `*.test.js` neben ihrem jeweiligen Modul
 
 Die vollständige Dateiliste mit Verantwortlichkeiten steht in der
@@ -185,7 +186,7 @@ Die vollständige Dateiliste mit Verantwortlichkeiten steht in der
 
 - Zentral in `src/assets/styles/`: Tokens, Base, Layout, Components und ein Legacy-Layer.
 - Das Farbthema basiert auf semantischen Root-Tokens (`--color-*`), die auf die bestehenden `--ve-*` Tokens gemappt werden.
-- `--color-primary` wird zur Laufzeit aus der App-Config (`primaryColor`) überschrieben.
+- `--color-primary` wird zur Laufzeit aus `primaryColor` überschrieben (Grundkonfiguration bzw. Datenquelle).
 - Komponenten-spezifische Styles gehören in die jeweiligen SFCs (`<style scoped lang="scss">`);
   `components/_index.scss` nur für Ausnahmen mit notwendiger globaler Wirkung.
 
