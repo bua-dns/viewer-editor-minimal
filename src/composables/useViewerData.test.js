@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { ref } from 'vue'
+import { isCreatedItem } from './createdItems'
 import { __test, useViewerData } from './useViewerData'
 
 describe('useViewerData helpers', () => {
@@ -418,6 +419,37 @@ describe('useViewerData flow', () => {
 
     model.resetToImportedSnapshot()
     expect(model.rawItems.value).toHaveLength(2)
+  })
+
+  test('appendLocalItem creates an exportable item without online meta, also without loaded data', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([])
+
+    const nextUid = model.appendLocalItem({
+      fieldConfigs: {
+        note: { type: 'text', order: 1 },
+        title: { type: 'normal', order: 0 },
+        year: { type: 'integer', order: 2 },
+      },
+    })
+    model.selectItem(nextUid)
+
+    expect(model.hasData.value).toBe(true)
+    expect(model.isDirty.value).toBe(true)
+    expect(model.selectedRawItem.value).toEqual({ title: '', note: '', year: null })
+    expect(Object.keys(model.createExportPayload()[0])).toEqual(['title', 'note', 'year'])
+    expect(isCreatedItem(model.rawItems.value[0])).toBe(true)
+  })
+
+  test('reset removes items created without loaded data', () => {
+    const model = useViewerData()
+    model.initializeFromJsonArray([])
+    model.appendLocalItem({ fieldConfigs: { title: { type: 'normal', order: 0 } } })
+
+    expect(model.resetToImportedSnapshot()).toBe(true)
+
+    expect(model.rawItems.value).toHaveLength(0)
+    expect(model.isDirty.value).toBe(false)
   })
 
   test('applyReplacementsToLoadedItems rewrites values, search text and dirty state', () => {

@@ -22,6 +22,28 @@ describe('validateImportedConfigPayload', () => {
     expect(result.ok).toBe(true)
   })
 
+  test('accepts viewer settings of the data source', () => {
+    const result = validateImportedConfigPayload({
+      fields: {},
+      language: 'en',
+      languageMode: 'single',
+      primaryColor: '#123456',
+      dataInspectionMode: true,
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  test.each([
+    ['language', ''],
+    ['language', 5],
+    ['languageMode', 'both'],
+    ['primaryColor', ''],
+    ['dataInspectionMode', 'yes'],
+  ])('rejects invalid viewer setting %s = %j', (key, value) => {
+    const result = validateImportedConfigPayload({ fields: {}, [key]: value })
+    expect(result.ok).toBe(false)
+  })
+
   test('rejects non-string itemLabelField', () => {
     const result = validateImportedConfigPayload({
       itemLabelField: 5,

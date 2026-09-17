@@ -452,12 +452,12 @@
     "en": "Last saved"
   },
   "appSettingsTitle": {
-    "de": "App-Einstellungen",
-    "en": "App settings"
+    "de": "Grundkonfiguration",
+    "en": "Basic config"
   },
   "appSettingsDescription": {
-    "de": "Laufzeit-App-Einstellungen bearbeiten und als JSON/localStorage persistieren (ohne Wording-Handles).",
-    "en": "Edit runtime app settings and persist them as JSON/localStorage (without wording handles)."
+    "de": "Grundkonfiguration dieser Installation aus /public/app-config. Sie gilt, solange die Datenquelle keine eigenen Werte setzt.",
+    "en": "Basic config of this deployment from /public/app-config. It applies wherever the data source sets no values of its own."
   },
   "appSettingsLanguageField": {
     "de": "Standard-Sprache",
@@ -466,10 +466,6 @@
   "appSettingsLanguageModeField": {
     "de": "Sprachmodus",
     "en": "Language mode"
-  },
-  "appSettingsGithubRepoField": {
-    "de": "GitHub-Repository-URL (optional)",
-    "en": "GitHub repository URL (optional)"
   },
   "appSettingsPrimaryColorField": {
     "de": "Primärfarbe",
@@ -483,77 +479,13 @@
     "de": "Data-Inspection-Modus",
     "en": "Data inspection mode"
   },
-  "appSettingsDefaultConnectionProfileField": {
-    "de": "Default-Verbindungsprofil",
-    "en": "Default connection profile"
-  },
-  "appSettingsSave": {
-    "de": "App-Einstellungen speichern",
-    "en": "Save app settings"
-  },
   "appSettingsDownload": {
-    "de": "App-Einstellungen als JSON herunterladen",
-    "en": "Download app settings JSON"
-  },
-  "appSettingsUpload": {
-    "de": "App-Einstellungen-JSON importieren",
-    "en": "Import app settings JSON"
-  },
-  "appSettingsResetFormButton": {
-    "de": "App-Formular zurücksetzen",
-    "en": "Reset app settings form"
-  },
-  "appSettingsClearSaved": {
-    "de": "Gespeicherte App-Einstellungen löschen",
-    "en": "Clear saved app settings"
-  },
-  "appSettingsSaveSuccess": {
-    "de": "App-Einstellungen gespeichert.",
-    "en": "App settings saved."
-  },
-  "appSettingsSaveFailed": {
-    "de": "App-Einstellungen konnten nicht gespeichert werden.",
-    "en": "App settings could not be saved."
-  },
-  "appSettingsResetForm": {
-    "de": "App-Formular auf gespeicherten Stand zurückgesetzt.",
-    "en": "App settings form reset."
-  },
-  "appSettingsCleared": {
-    "de": "Gespeicherte App-Einstellungen entfernt.",
-    "en": "Saved app settings removed."
-  },
-  "appSettingsNoSavedConfig": {
-    "de": "Keine App-Einstellungen verfügbar.",
-    "en": "No app settings available."
+    "de": "Grundkonfiguration als JSON herunterladen",
+    "en": "Download basic config JSON"
   },
   "appSettingsDownloadSuccess": {
-    "de": "App-Einstellungen heruntergeladen.",
-    "en": "App settings downloaded."
-  },
-  "appSettingsImportSuccess": {
-    "de": "App-Einstellungen importiert.",
-    "en": "App settings imported."
-  },
-  "appSettingsImportFailed": {
-    "de": "Import der App-Einstellungen fehlgeschlagen.",
-    "en": "App settings import failed."
-  },
-  "appSettingsLastSaved": {
-    "de": "Zuletzt gespeichert",
-    "en": "Last saved"
-  },
-  "appSettingsSourceDefaultFile": {
-    "de": "Basis: mitgelieferte Default-App-Config aus /public/app-config.",
-    "en": "Base: bundled default app config from /public/app-config."
-  },
-  "appSettingsSourceBuild": {
-    "de": "Basis: config/app.config.js (keine Default-Datei geladen).",
-    "en": "Base: config/app.config.js (no default file loaded)."
-  },
-  "appSettingsSourceOverridden": {
-    "de": "Lokal gespeicherte App-Einstellungen sind aktiv und haben Vorrang vor der Basis. Zum Zuruecksetzen auf die Basis: \"Gespeicherte App-Einstellungen loeschen\".",
-    "en": "Locally saved app settings are active and take precedence over the base. Use \"Clear saved app settings\" to fall back to the base."
+    "de": "Grundkonfiguration heruntergeladen.",
+    "en": "Basic config downloaded."
   },
   "field_label": {
     "de": "Feld",
@@ -995,12 +927,84 @@
     "de": "Ein Tool von Digitales Netzwerk Sammlungen<br>Berlin University Alliance",
     "en": "A tool by the Digital Network for Collections<br>Berlin University Alliance"
   },
-  "footerGithubAria": {
-    "de": "GitHub-Repository",
-    "en": "GitHub repository"
-  },
   "footerBucAria": {
     "de": "Berlin University Collections",
     "en": "Berlin University Collections"
+  },
+  "appSettingsSourceBasicFile": {
+    "de": "Quelle: Grundkonfiguration aus /public/app-config.",
+    "en": "Source: basic config from /public/app-config."
+  },
+  "appSettingsSourceDefaults": {
+    "de": "Quelle: eingebaute Standardwerte (keine Grundkonfiguration geladen).",
+    "en": "Source: built-in defaults (no basic config file loaded)."
+  },
+  "dbConnectionSaveTestFailed": {
+    "de": "Der Verbindungstest ist fehlgeschlagen:",
+    "en": "The connection test failed:"
+  },
+  "dbConnectionFixedNote": {
+    "de": "Diese Verbindung ist in der Grundkonfiguration dieser Installation festgelegt und kann hier nicht geändert werden.",
+    "en": "This connection is set by the basic config of this deployment and cannot be changed here."
+  },
+  "viewerSettingsTitle": {
+    "de": "Viewer-Einstellungen",
+    "en": "Viewer settings"
+  },
+  "viewerSettingsDescription": {
+    "de": "Werden mit der Datenquelle gespeichert: offline in der JSON-Datei, online in den Strapi-Settings. Werte, die die Datenquelle nicht setzt, kommen aus der Grundkonfiguration.",
+    "en": "Stored with the data source: in the JSON file offline, in the Strapi settings online. Values the data source does not set come from the basic config."
+  },
+  "viewerSettingsNoDataSource": {
+    "de": "Öffnen Sie eine Datenquelle (Datei laden oder online anmelden), um die Viewer-Einstellungen zu ändern.",
+    "en": "Open a data source (load a file or log in online) to change the viewer settings."
+  },
+  "viewerSettingsApply": {
+    "de": "Auf Datenquelle anwenden",
+    "en": "Apply to data source"
+  },
+  "viewerSettingsUseBasic": {
+    "de": "Werte der Grundkonfiguration verwenden",
+    "en": "Use basic config values"
+  },
+  "viewerSettingsApplySuccess": {
+    "de": "Viewer-Einstellungen auf die Datenquelle angewendet.",
+    "en": "Viewer settings applied to the data source."
+  },
+  "viewerSettingsApplyFailed": {
+    "de": "Viewer-Einstellungen konnten nicht angewendet werden.",
+    "en": "Viewer settings could not be applied."
+  },
+  "viewerSettingsSourceDataSource": {
+    "de": "Quelle: Die Datenquelle setzt einen Teil dieser Werte.",
+    "en": "Source: the data source sets some of these values."
+  },
+  "viewerSettingsSourceBasic": {
+    "de": "Quelle: Grundkonfiguration (die Datenquelle setzt keinen dieser Werte).",
+    "en": "Source: basic config (the data source sets none of these values)."
+  },
+  "dataKeysWithoutConfigLabel": {
+    "de": "Schlüssel in den Daten ohne Konfiguration",
+    "en": "Keys in the data without configuration"
+  },
+  "dataKeysAddAll": {
+    "de": "Alle hinzufügen",
+    "en": "Add all"
+  },
+  "dataKeysNoConfigNote": {
+    "de": "Diese Datenquelle hat noch keine Feldkonfiguration. Fügen Sie die Felder hinzu, die Sie bearbeiten möchten, und wenden Sie die Konfiguration an.",
+    "en": "This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration."
+  },
+  "basicConfigIncludeProfileField": {
+    "de": "Verbindungsprofil in die Datei übernehmen (fest für diese Installation)",
+    "en": "Put the connection profile into the file (fixed for this deployment)"
+  },
+  "basicConfigEditNote": {
+    "de": "Die Grundkonfiguration ist eine Datei der Installation und kann hier nicht geändert werden. Änderungen an den Viewer-Einstellungen oben werden mit den Daten gespeichert. Um die Standardwerte zu ändern, die Datei herunterladen, bearbeiten und in /public/app-config/ ablegen.",
+    "en": "The basic config is a file of the deployment and cannot be changed here. Changes to the viewer settings above are saved with the data. To change the defaults, download the file, edit it and place it in /public/app-config/."
+  },
+  "configNoDataHint": {
+    "de": "Keine Daten geladen. Die Konfiguration wird mit den Daten gespeichert: eine JSON- oder CSV-Datei laden oder neu beginnen und danach das JSON herunterladen. Eine hier vorbereitete Konfiguration bleibt erhalten, wenn die Daten keine eigene mitbringen.",
+    "en": "No data loaded. The configuration is saved with the data: load a JSON or CSV file, or start from scratch, and download the JSON afterwards. A configuration drafted here is kept when the data has none of its own."
   }
 }

@@ -27,11 +27,12 @@ describe('useAuthStore', () => {
     const connectionStore = useConnectionProfileStore()
     authStore.logout()
     connectionStore.clearConnectionProfile()
-    connectionStore.saveConnectionProfile({
+    connectionStore.connectionProfile.value = {
+      version: 1,
       label: 'Test',
       baseUrl: 'https://cms.example.org/project',
       configPath: '/api/viewer-setting',
-    })
+    }
   })
 
   test('logs in and stores JWT', async () => {

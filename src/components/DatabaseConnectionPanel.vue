@@ -1,46 +1,57 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 
+const props = defineProps({
+  canEditViewerSettings: { type: Boolean, default: false },
+  // (settings | null) => Promise<{ ok, error? }>; null removes the data source overrides.
+  applyViewerSettings: { type: Function, default: null },
+})
+
 const fileInput = ref(null)
-const appConfigFileInput = ref(null)
 const form = ref({
   label: '',
   baseUrl: '',
   configPath: '',
 })
-const appConfigForm = ref({
-  language: 'de',
-  languageMode: 'single',
-  githubRepo: '',
-  primaryColor: '#0066CC',
-  connectionMode: 'switchable',
-  dataInspectionMode: false,
-  defaultConnectionProfile: '',
-})
 const fieldErrors = ref({})
 const statusMessage = ref('')
 const statusType = ref('neutral')
 const isTesting = ref(false)
+const isSaving = ref(false)
 const isCheckingDataModel = ref(false)
+const isApplyingViewerSettings = ref(false)
+const viewerSettingsForm = ref({})
+const includeProfileInBasicConfig = ref(false)
 
 const {
   t,
-  editableAppConfig,
-  hasSavedEditableAppConfig,
-  appConfigSource,
-  saveEditableAppConfig,
-  clearEditableAppConfig,
-  importEditableAppConfigFromJsonText,
-  exportEditableAppConfigAsJson,
-  buildEditableAppConfigDraft,
+  basicConfig,
+  basicConfigSource,
+  dataSourceViewerSettings,
+  effectiveViewerSettings,
+  exportBasicConfigAsJson,
 } = useAppConfigStore()
+
+// The basic config is a file next to the build: shown read-only here, downloadable as a template
+// for a deployment. Changes to the viewer settings are saved with the data source instead.
+includeProfileInBasicConfig.value = Boolean(basicConfig.value.connectionProfile)
+
+const hasViewerSettingsOverrides = computed(() => Object.keys(dataSourceViewerSettings.value).length > 0)
+
+function hydrateViewerSettingsForm() {
+  viewerSettingsForm.value = { ...effectiveViewerSettings.value }
+}
+
+hydrateViewerSettingsForm()
+watch(effectiveViewerSettings, hydrateViewerSettingsForm)
 const { token } = useAuthStore()
 const {
   connectionProfile,
   hasConnectionProfile,
+  isProfileFixed,
   saveConnectionProfile,
   clearConnectionProfile,
   importConnectionProfileFromJsonText,
@@ -51,7 +62,6 @@ const {
 } = useConnectionProfileStore()
 
 hydrateFormFromStore()
-hydrateAppConfigFormFromStore()
 
 function hydrateFormFromStore() {
   const draft = buildDraftProfile()
@@ -59,19 +69,6 @@ function hydrateFormFromStore() {
     label: draft.label || '',
     baseUrl: draft.baseUrl || '',
     configPath: draft.configPath || '',
-  }
-}
-
-function hydrateAppConfigFormFromStore() {
-  const draft = buildEditableAppConfigDraft()
-  appConfigForm.value = {
-    language: draft.language || 'de',
-    languageMode: draft.languageMode || 'single',
-    githubRepo: draft.githubRepo || '',
-    primaryColor: draft.primaryColor || '#0066CC',
-    connectionMode: draft.connectionMode || 'switchable',
-    dataInspectionMode: Boolean(draft.dataInspectionMode),
-    defaultConnectionProfile: draft.defaultConnectionProfile || '',
   }
 }
 
@@ -84,16 +81,19 @@ function triggerUpload() {
   fileInput.value?.click()
 }
 
-function triggerAppConfigUpload() {
-  appConfigFileInput.value?.click()
-}
-
-function onSave() {
+// Saving runs the connection test first; a profile that fails it is not stored.
+async function onSave() {
   fieldErrors.value = {}
-  const result = saveConnectionProfile(form.value)
+  isSaving.value = true
+  const result = await saveConnectionProfile(form.value)
+  isSaving.value = false
   if (!result.ok) {
     fieldErrors.value = result.errors || {}
-    setStatus('error', t('dbConnectionSaveFailed', 'Connection profile could not be saved.'))
+    const reason =
+      result.reason === 'connection-test-failed'
+        ? ` ${t('dbConnectionSaveTestFailed', 'The connection test failed:')} ${result.error || ''}`
+        : ''
+    setStatus('error', `${t('dbConnectionSaveFailed', 'Connection profile could not be saved.')}${reason}`)
     return
   }
 
@@ -139,7 +139,9 @@ async function onUploadFileChange(event) {
   if (!file) return
 
   const text = await file.text()
-  const result = importConnectionProfileFromJsonText(text)
+  isSaving.value = true
+  const result = await importConnectionProfileFromJsonText(text)
+  isSaving.value = false
   if (!result.ok) {
     fieldErrors.value = result.errors || {}
     setStatus('error', result.error || t('dbConnectionImportFailed', 'Connection profile import failed.'))
@@ -151,35 +153,39 @@ async function onUploadFileChange(event) {
   setStatus('success', t('dbConnectionImportSuccess', 'Connection profile imported.'))
 }
 
-function onSaveAppConfig() {
-  const result = saveEditableAppConfig(appConfigForm.value)
-  if (!result.ok) {
-    setStatus('error', result.error || t('appSettingsSaveFailed', 'App settings could not be saved.'))
+async function runApplyViewerSettings(nextSettings) {
+  if (!props.applyViewerSettings || !props.canEditViewerSettings) return
+  isApplyingViewerSettings.value = true
+  const result = await props.applyViewerSettings(nextSettings)
+  isApplyingViewerSettings.value = false
+  if (!result?.ok) {
+    setStatus('error', result?.error || t('viewerSettingsApplyFailed', 'Viewer settings could not be applied.'))
     return
   }
-
-  hydrateAppConfigFormFromStore()
-  setStatus('success', t('appSettingsSaveSuccess', 'App settings saved.'))
+  hydrateViewerSettingsForm()
+  setStatus('success', t('viewerSettingsApplySuccess', 'Viewer settings applied to the data source.'))
 }
 
-function onResetAppConfigForm() {
-  hydrateAppConfigFormFromStore()
-  setStatus('neutral', t('appSettingsResetForm', 'App settings form reset.'))
+function onApplyViewerSettings() {
+  return runApplyViewerSettings({ ...viewerSettingsForm.value })
 }
 
-function onClearSavedAppConfig() {
-  clearEditableAppConfig()
-  hydrateAppConfigFormFromStore()
-  setStatus('neutral', t('appSettingsCleared', 'Saved app settings removed.'))
+function onUseBasicViewerSettings() {
+  return runApplyViewerSettings(null)
 }
 
-function onDownloadAppConfig() {
-  const jsonText = exportEditableAppConfigAsJson()
-  if (!jsonText) {
-    setStatus('error', t('appSettingsNoSavedConfig', 'No app settings available.'))
-    return
+function buildBasicConfigDraft() {
+  const profile = includeProfileInBasicConfig.value ? connectionProfile.value : null
+  return {
+    ...basicConfig.value,
+    connectionProfile: profile
+      ? { label: profile.label || '', baseUrl: profile.baseUrl, configPath: profile.configPath }
+      : null,
   }
+}
 
+function onDownloadBasicConfig() {
+  const jsonText = exportBasicConfigAsJson(buildBasicConfigDraft())
   const blob = new Blob([jsonText], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -189,23 +195,7 @@ function onDownloadAppConfig() {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
-  setStatus('success', t('appSettingsDownloadSuccess', 'App settings downloaded.'))
-}
-
-async function onUploadAppConfigFileChange(event) {
-  const file = event.target.files?.[0]
-  event.target.value = ''
-  if (!file) return
-
-  const text = await file.text()
-  const result = importEditableAppConfigFromJsonText(text)
-  if (!result.ok) {
-    setStatus('error', result.error || t('appSettingsImportFailed', 'App settings import failed.'))
-    return
-  }
-
-  hydrateAppConfigFormFromStore()
-  setStatus('success', t('appSettingsImportSuccess', 'App settings imported.'))
+  setStatus('success', t('appSettingsDownloadSuccess', 'Basic config downloaded.'))
 }
 
 async function onTestConnection() {
@@ -274,31 +264,34 @@ async function onCheckDataModel() {
     <header class="connection-header">
       <h2>{{ t('dbConnectionTitle', 'Database Connection') }}</h2>
       <p>{{ t('dbConnectionDescription', 'Configure Strapi backend connection without hardcoding app endpoints.') }}</p>
+      <p v-if="isProfileFixed" class="saved-meta">
+        {{ t('dbConnectionFixedNote', 'This connection is set by the basic config of this deployment and cannot be changed here.') }}
+      </p>
     </header>
 
     <div class="connection-form-grid">
       <label class="field">
         <span>{{ t('dbConnectionLabelField', 'Profile label (optional)') }}</span>
-        <input v-model="form.label" type="text" maxlength="120" :placeholder="t('dbConnectionLabelPlaceholder', 'My Strapi Instance')" />
+        <input v-model="form.label" :readonly="isProfileFixed" type="text" maxlength="120" :placeholder="t('dbConnectionLabelPlaceholder', 'My Strapi Instance')" />
         <small v-if="fieldErrors.label" class="field-error">{{ fieldErrors.label }}</small>
       </label>
 
       <label class="field">
         <span>{{ t('dbConnectionBaseUrlField', 'Base URL (Strapi)') }}</span>
-        <input v-model="form.baseUrl" type="url" placeholder="https://cms.example.org/project" />
+        <input v-model="form.baseUrl" :readonly="isProfileFixed" type="url" placeholder="https://cms.example.org/project" />
         <small v-if="fieldErrors.baseUrl" class="field-error">{{ fieldErrors.baseUrl }}</small>
       </label>
 
       <label class="field">
         <span>{{ t('dbConnectionConfigPathField', 'Config endpoint path') }}</span>
-        <input v-model="form.configPath" type="text" placeholder="/api/viewer-setting" />
+        <input v-model="form.configPath" :readonly="isProfileFixed" type="text" placeholder="/api/viewer-setting" />
         <small v-if="fieldErrors.configPath" class="field-error">{{ fieldErrors.configPath }}</small>
       </label>
     </div>
 
     <div class="connection-actions">
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="onSave">
-        {{ t('dbConnectionSave', 'Save profile') }}
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-mode" :disabled="isSaving" @click="onSave">
+        {{ isSaving ? t('dbConnectionTesting', 'Testing...') : t('dbConnectionSave', 'Save profile') }}
       </button>
       <button type="button" class="transfer-btn transfer-btn-mode" :disabled="isTesting" @click="onTestConnection">
         {{ isTesting ? t('dbConnectionTesting', 'Testing...') : t('dbConnectionTest', 'Test connection') }}
@@ -313,13 +306,13 @@ async function onCheckDataModel() {
       <button type="button" class="transfer-btn transfer-btn-mode" :disabled="!hasConnectionProfile" @click="onDownloadProfile">
         {{ t('dbConnectionDownload', 'Download profile JSON') }}
       </button>
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerUpload">
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-mode" :disabled="isSaving" @click="triggerUpload">
         {{ t('dbConnectionUpload', 'Import profile JSON') }}
       </button>
-      <button type="button" class="transfer-btn transfer-btn-reset" @click="onResetToSaved">
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-reset" @click="onResetToSaved">
         {{ t('dbConnectionResetFormButton', 'Reset form') }}
       </button>
-      <button type="button" class="transfer-btn transfer-btn-reset" :disabled="!hasConnectionProfile" @click="onClearSaved">
+      <button v-if="!isProfileFixed" type="button" class="transfer-btn transfer-btn-reset" :disabled="!hasConnectionProfile" @click="onClearSaved">
         {{ t('dbConnectionClearSaved', 'Clear saved profile') }}
       </button>
       <input ref="fileInput" type="file" accept=".json,application/json" @change="onUploadFileChange" />
@@ -330,21 +323,25 @@ async function onCheckDataModel() {
     </p>
 
     <header class="connection-header">
-      <h2>{{ t('appSettingsTitle', 'Settings') }}</h2>
+      <h2>{{ t('viewerSettingsTitle', 'Viewer settings') }}</h2>
       <p>
         {{
           t(
-            'appSettingsDescription',
-            'Edit runtime app settings and persist them as JSON/localStorage (wording handles excluded).',
+            'viewerSettingsDescription',
+            'Stored with the data source: in the JSON file offline, in the Strapi settings online. Values the data source does not set come from the basic config.',
           )
         }}
       </p>
     </header>
 
-    <div class="connection-form-grid">
+    <p v-if="!props.canEditViewerSettings" class="saved-meta">
+      {{ t('viewerSettingsNoDataSource', 'Open a data source (load a file or log in online) to change the viewer settings.') }}
+    </p>
+
+    <fieldset class="connection-form-grid viewer-settings-form" :disabled="!props.canEditViewerSettings || isApplyingViewerSettings">
       <label class="field">
         <span>{{ t('appSettingsLanguageField', 'Default language') }}</span>
-        <select v-model="appConfigForm.language">
+        <select v-model="viewerSettingsForm.language">
           <option value="de">DE</option>
           <option value="en">EN</option>
         </select>
@@ -352,97 +349,112 @@ async function onCheckDataModel() {
 
       <label class="field">
         <span>{{ t('appSettingsLanguageModeField', 'Language mode') }}</span>
-        <select v-model="appConfigForm.languageMode">
+        <select v-model="viewerSettingsForm.languageMode">
           <option value="single">single</option>
           <option value="multi">multi</option>
         </select>
       </label>
 
       <label class="field">
-        <span>{{ t('appSettingsGithubRepoField', 'GitHub repository URL (optional)') }}</span>
-        <input v-model="appConfigForm.githubRepo" type="url" placeholder="https://github.com/org/repo" />
-      </label>
-
-      <label class="field">
         <span>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</span>
         <div class="color-row">
-          <input v-model="appConfigForm.primaryColor" type="text" placeholder="#0066CC" />
-          <input v-model="appConfigForm.primaryColor" type="color" />
+          <input v-model="viewerSettingsForm.primaryColor" type="text" placeholder="#0066CC" />
+          <input v-model="viewerSettingsForm.primaryColor" type="color" />
         </div>
-      </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</span>
-        <select v-model="appConfigForm.connectionMode">
-          <option value="switchable">switchable</option>
-          <option value="offline">offline</option>
-          <option value="online">online</option>
-        </select>
       </label>
 
       <label class="field field-checkbox">
         <span>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</span>
-        <input v-model="appConfigForm.dataInspectionMode" type="checkbox" />
+        <input v-model="viewerSettingsForm.dataInspectionMode" type="checkbox" />
       </label>
-
-      <label class="field">
-        <span>{{ t('appSettingsDefaultConnectionProfileField', 'Default connection profile') }}</span>
-        <input
-          v-model="appConfigForm.defaultConnectionProfile"
-          type="text"
-          placeholder="viewer-editor-connection-profile.v1.json"
-        />
-      </label>
-    </div>
+    </fieldset>
 
     <div class="connection-actions">
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="onSaveAppConfig">
-        {{ t('appSettingsSave', 'Save app settings') }}
-      </button>
       <button
         type="button"
         class="transfer-btn transfer-btn-mode"
-        :disabled="!hasSavedEditableAppConfig"
-        @click="onDownloadAppConfig"
+        :disabled="!props.canEditViewerSettings || isApplyingViewerSettings"
+        @click="onApplyViewerSettings"
       >
-        {{ t('appSettingsDownload', 'Download app settings JSON') }}
-      </button>
-      <button type="button" class="transfer-btn transfer-btn-mode" @click="triggerAppConfigUpload">
-        {{ t('appSettingsUpload', 'Import app settings JSON') }}
-      </button>
-      <button type="button" class="transfer-btn transfer-btn-reset" @click="onResetAppConfigForm">
-        {{ t('appSettingsResetFormButton', 'Reset app settings form') }}
+        {{ t('viewerSettingsApply', 'Apply to data source') }}
       </button>
       <button
         type="button"
         class="transfer-btn transfer-btn-reset"
-        :disabled="!hasSavedEditableAppConfig"
-        @click="onClearSavedAppConfig"
+        :disabled="!props.canEditViewerSettings || isApplyingViewerSettings"
+        @click="hydrateViewerSettingsForm"
       >
-        {{ t('appSettingsClearSaved', 'Clear saved app settings') }}
+        {{ t('dbConnectionResetFormButton', 'Reset form') }}
       </button>
-      <input ref="appConfigFileInput" type="file" accept=".json,application/json" @change="onUploadAppConfigFileChange" />
+      <button
+        type="button"
+        class="transfer-btn transfer-btn-reset"
+        :disabled="!props.canEditViewerSettings || !hasViewerSettingsOverrides || isApplyingViewerSettings"
+        @click="onUseBasicViewerSettings"
+      >
+        {{ t('viewerSettingsUseBasic', 'Use basic config values') }}
+      </button>
     </div>
 
     <p class="saved-meta">
       {{
-        appConfigSource === 'default'
-          ? t('appSettingsSourceDefaultFile', 'Base: bundled default app config from /public/app-config.')
-          : t('appSettingsSourceBuild', 'Base: config/app.config.js (no default file loaded).')
+        hasViewerSettingsOverrides
+          ? t('viewerSettingsSourceDataSource', 'Source: the data source sets some of these values.')
+          : t('viewerSettingsSourceBasic', 'Source: basic config (the data source sets none of these values).')
       }}
     </p>
 
-    <p v-if="hasSavedEditableAppConfig" class="saved-meta">
+    <header class="connection-header">
+      <h2>{{ t('appSettingsTitle', 'Basic config') }}</h2>
+      <p>
+        {{
+          t(
+            'appSettingsDescription',
+            'Basic config of this deployment from /public/app-config. It applies wherever the data source sets no values of its own.',
+          )
+        }}
+      </p>
+    </header>
+
+    <dl class="connection-form-grid settings-readout">
+      <div><dt>{{ t('appSettingsConnectionModeField', 'Connection mode') }}</dt><dd>{{ basicConfig.connectionMode }}</dd></div>
+      <div v-if="basicConfig.connectionProfile">
+        <dt>{{ t('dbConnectionBaseUrlField', 'Base URL (Strapi)') }}</dt><dd>{{ basicConfig.connectionProfile.baseUrl }}</dd>
+      </div>
+      <div><dt>{{ t('appSettingsLanguageField', 'Default language') }}</dt><dd>{{ basicConfig.language }}</dd></div>
+      <div><dt>{{ t('appSettingsLanguageModeField', 'Language mode') }}</dt><dd>{{ basicConfig.languageMode }}</dd></div>
+      <div><dt>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</dt><dd>{{ basicConfig.primaryColor }}</dd></div>
+      <div><dt>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</dt><dd>{{ basicConfig.dataInspectionMode }}</dd></div>
+    </dl>
+
+    <div class="connection-actions">
+      <label class="field field-checkbox">
+        <span>
+          {{ t('basicConfigIncludeProfileField', 'Put the connection profile into the file (fixed for this deployment)') }}
+          <template v-if="connectionProfile"> ({{ connectionProfile.baseUrl }})</template>
+        </span>
+        <input v-model="includeProfileInBasicConfig" :disabled="!connectionProfile" type="checkbox" />
+      </label>
+      <button type="button" class="transfer-btn transfer-btn-mode" @click="onDownloadBasicConfig">
+        {{ t('appSettingsDownload', 'Download basic config JSON') }}
+      </button>
+    </div>
+
+    <p class="saved-meta">
       {{
         t(
-          'appSettingsSourceOverridden',
-          'Locally saved app settings are active and take precedence over the base. Use "Clear saved app settings" to fall back to the base.',
+          'basicConfigEditNote',
+          'The basic config is a file of the deployment and cannot be changed here. Changes to the viewer settings above are saved with the data. To change the defaults, download the file, edit it and place it in /public/app-config/.',
         )
       }}
     </p>
 
-    <p v-if="editableAppConfig?.updatedAt" class="saved-meta">
-      {{ t('appSettingsLastSaved', 'Last saved') }}: {{ editableAppConfig.updatedAt }}
+    <p class="saved-meta">
+      {{
+        basicConfigSource === 'file'
+          ? t('appSettingsSourceBasicFile', 'Source: basic config from /public/app-config.')
+          : t('appSettingsSourceDefaults', 'Source: built-in defaults (no basic config file loaded).')
+      }}
     </p>
 
     <p v-if="statusMessage" class="status" :class="`status-${statusType}`">
@@ -519,6 +531,31 @@ async function onCheckDataModel() {
   width: 3rem;
   min-width: 3rem;
   padding: 0.1rem;
+}
+
+.viewer-settings-form {
+  margin: 0;
+  min-width: 0;
+}
+
+.settings-readout {
+  margin: 0;
+}
+
+.settings-readout > div {
+  display: grid;
+  grid-template-columns: minmax(10rem, 16rem) 1fr;
+  gap: 0.65rem;
+}
+
+.settings-readout dt {
+  font-weight: 600;
+  color: var(--ve-color-text-default);
+}
+
+.settings-readout dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .connection-actions {

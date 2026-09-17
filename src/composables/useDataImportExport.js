@@ -6,7 +6,6 @@ export function useDataImportExport({
   setModeErrorMessage,
   importFromCsvText,
   importFromJsonText,
-  clearUserConfigSession,
   initializeUserConfigForCurrentData,
   importedConfig,
   applyImportedConfigPayload,
@@ -27,6 +26,8 @@ export function useDataImportExport({
   hasUnappliedUserConfigChanges,
   resetToImportedSnapshot,
   resetReplacements,
+  dataSourceViewerSettings = { value: {} },
+  setDataSourceViewerSettings = () => {},
 }) {
   const baseUrl = import.meta.env.BASE_URL || '/'
 
@@ -149,12 +150,13 @@ export function useDataImportExport({
     return { ok: true, urls: [singleUrl] }
   }
 
+  // Carries a field config drafted in the Konfiguration tab before any data existed.
   function createStartFromScratchPayload(scanUrls) {
     return {
       data: scanUrls.map((scanUrl) => ({ scan: scanUrl })),
       config: {
-        version: 1,
-        fields: {},
+        ...createUserConfigPayload(),
+        ...dataSourceViewerSettings.value,
       },
       replacements: {
         allFields: {},
@@ -173,18 +175,38 @@ export function useDataImportExport({
     return importFromJsonText(text, fileName)
   }
 
+  // Every import opens a new data source: its viewer settings replace the previous ones,
+  // and an import without a (valid) config falls back to the basic config.
   async function applyImportedConfigIfPresent() {
-    if (dataMode.value !== 'json' || !importedConfig.value) return true
+    if (dataMode.value !== 'json' || !importedConfig.value) {
+      setDataSourceViewerSettings({})
+      return true
+    }
 
     const applyResult = applyImportedConfigPayload(importedConfig.value)
     if (!applyResult.ok) {
+      setDataSourceViewerSettings({})
       errorMessage.value = applyResult.error
       return false
     }
 
+    setDataSourceViewerSettings(importedConfig.value)
+
     applyUserConfigToRawItems(rawItems.value)
     await nextTick()
     return true
+  }
+
+  // A new data source replaces the field config, except when no data was loaded before and the
+  // new data brings no config of its own: then a config drafted in the Konfiguration tab is kept
+  // and applied to the items.
+  function prepareFieldConfigForNewData(hadDataBefore) {
+    const bringsConfig = dataMode.value === 'json' && Boolean(importedConfig.value)
+    if (!hadDataBefore && !bringsConfig) {
+      applyUserConfigToRawItems(rawItems.value)
+      return
+    }
+    initializeUserConfigForCurrentData()
   }
 
   async function onDataFileSelected(file) {
@@ -195,11 +217,11 @@ export function useDataImportExport({
 
     const text = await file.text()
     setModeErrorMessage('')
+    const hadDataBefore = rawItems.value.length > 0
     const success = parseDataFileContent(text, file.name)
     if (!success) return
 
-    clearUserConfigSession()
-    initializeUserConfigForCurrentData()
+    prepareFieldConfigForNewData(hadDataBefore)
     await applyImportedConfigIfPresent()
   }
 
@@ -218,13 +240,13 @@ export function useDataImportExport({
       }
 
       const text = await response.text()
+      const hadDataBefore = rawItems.value.length > 0
       const success = parseDataFileContent(text, sampleFileName)
       if (!success) return
 
       normalizeSampleScanUrls()
 
-      clearUserConfigSession()
-      initializeUserConfigForCurrentData()
+      prepareFieldConfigForNewData(hadDataBefore)
       await applyImportedConfigIfPresent()
     } catch {
       errorMessage.value = t('sampleDataLoadError', 'Beispieldaten konnten nicht geladen werden.')
@@ -264,7 +286,7 @@ export function useDataImportExport({
 
     const payload = {
       data: createExportPayload(),
-      config: createUserConfigPayload(),
+      config: { ...createUserConfigPayload(), ...dataSourceViewerSettings.value },
       suspendedItems: createSuspendedItemsPayload(),
     }
     payload.replacements = createReplacementsPayload()
@@ -292,7 +314,6 @@ export function useDataImportExport({
       return { ok: false, error: errorMessage.value }
     }
 
-    clearUserConfigSession()
     initializeUserConfigForCurrentData()
     await applyImportedConfigIfPresent()
     isDirty.value = true

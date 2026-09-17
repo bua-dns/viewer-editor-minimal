@@ -9,6 +9,10 @@ const props = defineProps({
   hasData: { type: Boolean, required: true },
   allowWithoutData: { type: Boolean, default: false },
   forceOpen: { type: Boolean, default: false },
+  // Keys found in the loaded items; the ones without configuration can be added from here.
+  dataFieldKeys: { type: Array, default: () => [] },
+  // Shown above the form when no data is loaded.
+  noDataHint: { type: String, default: '' },
 })
 
 const emit = defineEmits(['apply'])
@@ -27,6 +31,7 @@ const {
   newFieldName,
   addFieldError,
   addUserConfigField,
+  addUserConfigFieldsFromDataKeys,
   setFieldType,
   updateFieldAutosuggestConfig,
   updateFieldCandidateConfig,
@@ -51,6 +56,11 @@ const fieldWidthOptions = [
   { value: '50%', labelKey: 'configFieldWidth50', labelFallback: '50% (2 per row)' },
   { value: '100%', labelKey: 'configFieldWidth100', labelFallback: '100% (1 per row)' },
 ]
+const RESERVED_DATA_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
+const unconfiguredDataFieldKeys = computed(() => {
+  const configuredKeys = new Set(sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
+  return props.dataFieldKeys.filter((key) => !RESERVED_DATA_KEYS.has(key) && !configuredKeys.has(key))
+})
 const itemLabelFieldOptions = computed(() => sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
 const prefillFieldOptionsByFieldKey = computed(() => {
   const normalFieldKeys = sortedConfigFieldEntries.value
@@ -106,6 +116,14 @@ function onTogglePanel() {
 
 function onAddField() {
   addUserConfigField(t)
+}
+
+function onAddDataFieldKey(fieldKey) {
+  addUserConfigFieldsFromDataKeys([fieldKey])
+}
+
+function onAddAllDataFieldKeys() {
+  addUserConfigFieldsFromDataKeys(unconfiguredDataFieldKeys.value)
 }
 
 function onFieldTypeChange(fieldKey, nextType) {
@@ -195,6 +213,33 @@ function onRemoveHierarchyField(index) {
     </div>
 
     <div v-if="isPanelOpen" class="user-config-grid">
+      <p v-if="props.noDataHint" class="user-config-no-data-hint">{{ props.noDataHint }}</p>
+
+      <div v-if="unconfiguredDataFieldKeys.length" class="user-config-data-keys">
+        <div class="user-config-data-keys-head">
+          <strong>{{ t('dataKeysWithoutConfigLabel', 'Keys in the data without configuration') }}</strong>
+          <button type="button" @click.stop="onAddAllDataFieldKeys">
+            {{ t('dataKeysAddAll', 'Add all') }}
+          </button>
+        </div>
+        <p v-if="!sortedConfigFieldEntries.length" class="user-config-data-keys-note">
+          {{
+            t(
+              'dataKeysNoConfigNote',
+              'This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration.',
+            )
+          }}
+        </p>
+        <ul class="user-config-data-keys-list">
+          <li v-for="fieldKey in unconfiguredDataFieldKeys" :key="`data-key-${fieldKey}`">
+            <code>{{ fieldKey }}</code>
+            <button type="button" @click.stop="onAddDataFieldKey(fieldKey)">
+              {{ t('addFieldButton', 'Hinzufuegen') }}
+            </button>
+          </li>
+        </ul>
+      </div>
+
       <div class="user-config-add-row">
         <strong>{{ t('addConfigurationField', 'Feld hinzufuegen') }}</strong>
         <input
@@ -422,6 +467,48 @@ function onRemoveHierarchyField(index) {
 
 .user-config-error {
   margin: 0 0 var(--ve-space-1);
+}
+
+.user-config-no-data-hint {
+  margin: 0 0 0.35rem;
+  color: var(--ve-color-text-soft);
+}
+
+.user-config-data-keys {
+  display: grid;
+  gap: var(--ve-space-2);
+  margin-bottom: 0.35rem;
+}
+
+.user-config-data-keys-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ve-space-2);
+}
+
+.user-config-data-keys-note {
+  margin: 0;
+}
+
+.user-config-data-keys-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ve-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.user-config-data-keys-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.user-config-data-keys-list code {
+  overflow-wrap: anywhere;
 }
 
 .user-config-label-row {

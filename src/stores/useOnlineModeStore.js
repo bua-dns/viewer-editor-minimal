@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { useAppConfigStore } from './useAppConfigStore'
+import { useConnectionProfileStore } from './useConnectionProfileStore'
 
 const APP_MODE_STORAGE_KEY = 'viewerEditor.appMode.v1'
 const ONLINE_CONFIG_ONLY_STORAGE_KEY = 'viewerEditor.onlineConfigOnly.v1'
@@ -13,11 +14,15 @@ function normalizeConnectionMode(value) {
 }
 
 const { connectionMode: appConnectionMode } = useAppConfigStore()
+const { hasConnectionProfile } = useConnectionProfileStore()
 const connectionMode = computed(() => normalizeConnectionMode(appConnectionMode.value))
 const fixedAppMode = computed(() => (connectionMode.value === 'switchable' ? '' : connectionMode.value))
 
 const appMode = ref(fixedAppMode.value || 'offline')
 const onlineConfigOnly = ref(false)
+// Set when the user chose `online` without a connection profile. Once a profile is saved,
+// the mode switches to online by itself.
+const isOnlineSwitchPending = ref(false)
 
 function getLocalStorageSafe() {
   try {
@@ -27,6 +32,14 @@ function getLocalStorageSafe() {
   }
 }
 
+function writeAppModeToStorage(nextMode) {
+  const storage = getLocalStorageSafe()
+  if (storage) {
+    storage.setItem(APP_MODE_STORAGE_KEY, nextMode)
+  }
+}
+
+// Reads the connection profile state, so it must run after the profile is initialized.
 function loadAppModeFromStorage() {
   if (fixedAppMode.value) {
     appMode.value = fixedAppMode.value
@@ -37,6 +50,10 @@ function loadAppModeFromStorage() {
   if (!storage) return
 
   const stored = storage.getItem(APP_MODE_STORAGE_KEY)
+  if (stored === 'online' && !hasConnectionProfile.value) {
+    appMode.value = 'offline'
+    return
+  }
   if (APP_MODES.has(stored)) {
     appMode.value = stored
   }
@@ -50,19 +67,25 @@ function loadOnlineConfigOnlyFromStorage() {
   onlineConfigOnly.value = stored === 'true'
 }
 
+// Returns true when the mode changed. Choosing `online` without a connection profile keeps
+// the mode and marks the switch as pending; the caller then opens the Einstellungen tab.
 function setAppMode(nextMode) {
   if (!APP_MODES.has(nextMode)) return false
   if (fixedAppMode.value) {
     appMode.value = fixedAppMode.value
     return false
   }
+
+  if (nextMode === 'online' && !hasConnectionProfile.value) {
+    isOnlineSwitchPending.value = true
+    return false
+  }
+
+  isOnlineSwitchPending.value = false
   if (appMode.value === nextMode) return false
 
   appMode.value = nextMode
-  const storage = getLocalStorageSafe()
-  if (storage) {
-    storage.setItem(APP_MODE_STORAGE_KEY, nextMode)
-  }
+  writeAppModeToStorage(nextMode)
   return true
 }
 
@@ -76,6 +99,21 @@ watch(
 
     if (!APP_MODES.has(appMode.value)) {
       appMode.value = 'offline'
+    }
+  },
+)
+
+watch(
+  () => hasConnectionProfile.value,
+  (nextHasProfile) => {
+    if (fixedAppMode.value) return
+    if (nextHasProfile && isOnlineSwitchPending.value) {
+      setAppMode('online')
+      return
+    }
+    if (!nextHasProfile && appMode.value === 'online') {
+      appMode.value = 'offline'
+      writeAppModeToStorage('offline')
     }
   },
 )
@@ -98,6 +136,7 @@ export function useOnlineModeStore() {
     onlineConfigOnly,
     connectionMode,
     isConnectionModeSwitchable: computed(() => connectionMode.value === 'switchable'),
+    isOnlineSwitchPending,
     loadAppModeFromStorage,
     loadOnlineConfigOnlyFromStorage,
     setAppMode,

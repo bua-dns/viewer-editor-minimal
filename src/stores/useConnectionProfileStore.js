@@ -5,13 +5,17 @@ import {
   parseConnectionProfileJsonText,
   validateConnectionProfile,
 } from '../composables/connectionProfile'
-import { fetchFirstAvailableConfigText, resolvePublicConfigUrls } from '../composables/publicConfigUrls'
 import { checkDataModelImplementationInStrapi } from '../services/strapiApi'
+import { useAppConfigStore } from './useAppConfigStore'
 
+// A profile shipped in the basic config is fixed. Without one, the user enters a profile
+// in the Einstellungen tab; it is kept in localStorage so a reload goes straight back online.
 const CONNECTION_PROFILE_STORAGE_KEY = 'viewerEditor.connectionProfile.v1'
 
+const { basicConnectionProfile } = useAppConfigStore()
+
 const connectionProfile = ref(null)
-const lastConnectionProfileLoadError = ref(null)
+const isProfileFixed = computed(() => Boolean(basicConnectionProfile.value))
 
 function getLocalStorageSafe() {
   try {
@@ -24,49 +28,49 @@ function getLocalStorageSafe() {
 function loadConnectionProfileFromStorage() {
   const storage = getLocalStorageSafe()
   if (!storage) {
-    lastConnectionProfileLoadError.value = {
-      source: 'storage',
-      reason: 'storage-unavailable',
-      error: 'Local storage is not available.',
-    }
+    connectionProfile.value = null
     return { ok: false, reason: 'storage-unavailable' }
   }
 
   const storedValue = storage.getItem(CONNECTION_PROFILE_STORAGE_KEY)
   if (!storedValue) {
     connectionProfile.value = null
-    lastConnectionProfileLoadError.value = null
     return { ok: true, hasProfile: false }
   }
 
   const parsed = parseConnectionProfileJsonText(storedValue)
   if (!parsed.ok) {
     connectionProfile.value = null
-    lastConnectionProfileLoadError.value = {
-      source: 'storage',
-      reason: 'invalid-json',
-      error: parsed.error,
-    }
     return { ok: false, reason: 'invalid-json', error: parsed.error }
   }
 
   const validation = validateConnectionProfile(parsed.value)
   if (!validation.ok) {
     connectionProfile.value = null
-    lastConnectionProfileLoadError.value = {
-      source: 'storage',
-      reason: 'invalid-profile',
-      errors: validation.errors,
-    }
     return { ok: false, reason: 'invalid-profile', errors: validation.errors }
   }
 
   connectionProfile.value = validation.profile
-  lastConnectionProfileLoadError.value = null
   return { ok: true, hasProfile: true, profile: validation.profile }
 }
 
-function saveConnectionProfile(input = {}) {
+// Called once on start, after the basic config is loaded. The shipped profile wins; a
+// stored one is then ignored, not deleted.
+function initializeConnectionProfile() {
+  if (isProfileFixed.value) {
+    connectionProfile.value = basicConnectionProfile.value
+    return { ok: true, hasProfile: true, source: 'basic-config', profile: connectionProfile.value }
+  }
+  return { ...loadConnectionProfileFromStorage(), source: 'storage' }
+}
+
+// Saves only a profile that passes the connection test, so online mode never starts
+// against an address that does not answer.
+async function saveConnectionProfile(input = {}) {
+  if (isProfileFixed.value) {
+    return { ok: false, reason: 'fixed', error: 'The connection profile is fixed by the basic config.' }
+  }
+
   const storage = getLocalStorageSafe()
   if (!storage) {
     return { ok: false, error: 'Local storage is not available.' }
@@ -78,22 +82,27 @@ function saveConnectionProfile(input = {}) {
     return { ok: false, error: 'Validation failed.', errors: validation.errors }
   }
 
+  const testResult = await testConnection(validation.profile)
+  if (!testResult.ok) {
+    return { ok: false, reason: 'connection-test-failed', error: testResult.error, test: testResult }
+  }
+
   storage.setItem(CONNECTION_PROFILE_STORAGE_KEY, JSON.stringify(validation.profile))
   connectionProfile.value = validation.profile
-  lastConnectionProfileLoadError.value = null
   return { ok: true, profile: validation.profile }
 }
 
 function clearConnectionProfile() {
+  if (isProfileFixed.value) return false
   const storage = getLocalStorageSafe()
   if (storage) {
     storage.removeItem(CONNECTION_PROFILE_STORAGE_KEY)
   }
   connectionProfile.value = null
-  lastConnectionProfileLoadError.value = null
+  return true
 }
 
-function importConnectionProfileFromJsonText(jsonText) {
+async function importConnectionProfileFromJsonText(jsonText) {
   const parsed = parseConnectionProfileJsonText(jsonText)
   if (!parsed.ok) {
     return { ok: false, error: parsed.error }
@@ -209,82 +218,6 @@ async function testConnection(input = {}) {
   }
 }
 
-async function loadConnectionProfileFromDefault(defaultProfilePath = '') {
-  const profileUrls = resolvePublicConfigUrls(defaultProfilePath, 'connection-profile')
-  if (!profileUrls.length) {
-    return loadConnectionProfileFromStorage()
-  }
-
-  const fetched = await fetchFirstAvailableConfigText(profileUrls)
-  if (!fetched.ok) {
-    const error =
-      fetched.reason === 'fetch-unavailable'
-        ? fetched.error
-        : 'Could not load default connection profile.'
-    connectionProfile.value = null
-    lastConnectionProfileLoadError.value = {
-      source: 'default',
-      reason: fetched.reason,
-      error,
-      profileUrl: profileUrls[0] || '',
-      attemptedUrls: profileUrls,
-    }
-    return {
-      ok: false,
-      reason: fetched.reason,
-      error,
-      profileUrl: profileUrls[0] || '',
-    }
-  }
-
-  const payloadText = fetched.text
-  const loadedProfileUrl = fetched.url
-
-  const parsed = parseConnectionProfileJsonText(payloadText)
-  if (!parsed.ok) {
-    connectionProfile.value = null
-    lastConnectionProfileLoadError.value = {
-      source: 'default',
-      reason: 'invalid-json',
-      error: parsed.error,
-      profileUrl: loadedProfileUrl,
-    }
-    return {
-      ok: false,
-      reason: 'invalid-json',
-      error: parsed.error,
-      profileUrl: loadedProfileUrl,
-    }
-  }
-
-  const validation = validateConnectionProfile(parsed.value)
-  if (!validation.ok) {
-    connectionProfile.value = null
-    lastConnectionProfileLoadError.value = {
-      source: 'default',
-      reason: 'invalid-profile',
-      errors: validation.errors,
-      profileUrl: loadedProfileUrl,
-    }
-    return {
-      ok: false,
-      reason: 'invalid-profile',
-      errors: validation.errors,
-      profileUrl: loadedProfileUrl,
-    }
-  }
-
-  connectionProfile.value = validation.profile
-  lastConnectionProfileLoadError.value = null
-
-  const storage = getLocalStorageSafe()
-  if (storage) {
-    storage.setItem(CONNECTION_PROFILE_STORAGE_KEY, JSON.stringify(validation.profile))
-  }
-
-  return { ok: true, hasProfile: true, profile: validation.profile, source: 'default', profileUrl: loadedProfileUrl }
-}
-
 async function checkDataModelImplementation(input = {}, options = {}) {
   const profile = Object.keys(input || {}).length ? createSavedConnectionProfile(input) : connectionProfile.value
   if (!profile) {
@@ -324,10 +257,10 @@ const hasConnectionProfile = computed(() => Boolean(connectionProfile.value))
 export function useConnectionProfileStore() {
   return {
     connectionProfile,
-    lastConnectionProfileLoadError,
     hasConnectionProfile,
+    isProfileFixed,
+    initializeConnectionProfile,
     loadConnectionProfileFromStorage,
-    loadConnectionProfileFromDefault,
     saveConnectionProfile,
     clearConnectionProfile,
     importConnectionProfileFromJsonText,

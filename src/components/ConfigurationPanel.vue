@@ -4,6 +4,8 @@ import UserConfigPanel from './UserConfigPanel.vue'
 defineProps({
   hasData: { type: Boolean, required: true },
   allowWithoutData: { type: Boolean, default: false },
+  dataFieldKeys: { type: Array, default: () => [] },
+  noDataHint: { type: String, default: '' },
 })
 
 const emit = defineEmits(['apply'])
@@ -15,7 +17,14 @@ function onApply() {
 
 <template>
   <section class="configuration-panel">
-    <UserConfigPanel :has-data="hasData" :allow-without-data="allowWithoutData" :force-open="true" @apply="onApply" />
+    <UserConfigPanel
+      :has-data="hasData"
+      :allow-without-data="allowWithoutData"
+      :data-field-keys="dataFieldKeys"
+      :no-data-hint="noDataHint"
+      :force-open="true"
+      @apply="onApply"
+    />
   </section>
 </template>
 

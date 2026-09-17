@@ -1,7 +1,8 @@
 # Technical Documentation
 
 > **Referenzstand:** verifiziert am 2026-09-03 gegen Commit `256758f` (`main`) zuzüglich des
-> Replacements-Features (siehe [Kapitel 11](#11-ersetzungen-replacements)).
+> Replacements-Features (siehe [Kapitel 11](#11-ersetzungen-replacements)); Kapitel 4, 5, 7, 9, 12.1,
+> 12.3, 12.7 und 16 am 2026-09-17 an die zwei Konfigurationsebenen angepasst.
 > Bei Abweichungen zwischen diesem Dokument und dem Code gilt der Code.
 > Dieses Dokument ist die maßgebliche Implementierungs-/Architekturreferenz;
 > `README.md` ist die kurze Einstiegs- und Setup-Beschreibung.
@@ -50,7 +51,9 @@ Kernfunktionen:
   geladenen Items, online auf die gesamte Collection, siehe [Kapitel 11](#11-ersetzungen-replacements))
 - Bildvorschau für `scan`-URLs inkl. Lightbox und Fullscreen; automatischer Listenmodus ohne `scan`-Spalte
 - Lokalisierung über Wording-Handles (DE/EN) mit optionaler Überschreibung aus dem Backend
-- Runtime-editierbare App-Settings und Strapi-Verbindungsprofile im Tab `Einstellungen`
+- Zwei Konfigurationsebenen: Grundkonfiguration aus `public/app-config/` und Konfiguration der
+  Datenquelle (JSON-Datei bzw. Strapi-Settings); Tab `Einstellungen` für Verbindungsprofil und
+  Viewer-Einstellungen
 - Responsives Editor-Layout mit dreistufig sticky Kopfbereich (Topbar, Tab-Reihe, Edit-Kopfzeile),
   Sidebar-Editor und erweitertem Vollbreiten-Modus
 
@@ -93,23 +96,13 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `index.html` - Einstiegspunkt mit Mount-Node `#app`
 - `vite.config.js` - Vite-Konfiguration (Vue-Plugin, `base`)
 - `package.json` / `pnpm-lock.yaml` - Abhängigkeiten und Skripte
-- `config/app.config.js` - App-Defaults (Sprache, Sprachmodus, GitHub-Repo, Primärfarbe,
-  `connectionMode`, `dataInspectionMode`, `defaultConnectionProfile`, `defaultAppConfig`) und Import
-  des Wordings
-- `config/wording.json` - **maßgebliche** Sprachvarianten je Wording-Handle (aktuell 238 Handles)
-- `config/wording.js` - **Legacy/unbenutzt.** Die Datei wird von keinem Modul importiert
-  (`app.config.js` importiert `wording.json`) und ist eine unvollständige Teilmenge von
-  `wording.json` (215 Handles, keine eigenen Schlüssel). Änderungen dort haben keine Wirkung;
-  die Datei kann entfernt werden.
 - `docs/` - `technical-documentation.md` (dieses Dokument), `conventions.md`, `changelog.md`
-- `public/app-config/` - optionale Default-App-Config, die zur Laufzeit geladen wird
-  (siehe [4.4](#44-default-app-config-aus-publicapp-config))
-- `public/connection-profile/` - optionales Default-Verbindungsprofil
-  (siehe [12.1](#121-verbindungsprofil))
+- `public/app-config/` - Grundkonfiguration `viewer-editor-app-config.v1.json` und Wording
+  `wording.json`, beide zur Laufzeit geladen (siehe [4.2](#42-grundkonfiguration-publicapp-config))
 
 ### Einstieg
 
-- `src/main.js` - Bootstrapping (`createApp(App).mount('#app')`)
+- `src/main.js` - Bootstrapping: lädt Grundkonfiguration und Wording (`loadBasicConfig`), mountet danach
 - `src/App.vue` - Composition-Root: verdrahtet Komponenten, Stores, Composables, Watcher und Lifecycle
 
 ### Komponenten (`src/components/`)
@@ -125,7 +118,7 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `WikidataAutosuggestInput.vue` - generische Autosuggest-Eingabe (Konfiguration als Pass-through)
 - `DataTransferControls.vue` - Upload/Download/Reset/Datenmodus/Beispieldaten im Header
 - `DatabaseConnectionPanel.vue` - Tab `Einstellungen`: Verbindungsprofil, Verbindungstest,
-  Datenmodell-Prüfung sowie editierbare App-Settings (jeweils mit JSON Import/Export)
+  Datenmodell-Prüfung, Viewer-Einstellungen der Datenquelle und Anzeige/Download der Grundkonfiguration
 - `OnlineAccessPanel.vue` - Offline/Online-Umschalter, Login/Logout, Status- und Save-Controls
 - `ReplacementsPanel.vue` - Tab-Panel mit Ersetzungstabellen je Feld, Entfernen-Button je Regel,
   `Ersetzungen anwenden` und Statuszeile des letzten Laufs
@@ -133,7 +126,7 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `LightboxModal.vue` - Modal für die Scan-Vollansicht inkl. Fullscreen
 - `StartFromScratchModal.vue` - Modal für den "Neu beginnen"-Flow
 - `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen
-- `footer/Identity.vue` - Footer-Identity mit Projektlinks (GitHub-Link nur bei gesetztem `githubRepo`)
+- `footer/Identity.vue` - Footer-Identity mit Credit und Link zu den Berlin University Collections
 
 ### Composables (`src/composables/`)
 
@@ -148,19 +141,21 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `useWikidataSearch.js` - Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen, Lokalisierung
 - `userConfigValidation.js` - zentraler Validator für importierte bzw. geladene JSON-Config
 - `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
+- `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 
 ### Stores (`src/stores/`)
 
-- `useAppConfigStore.js` - App-Config (Sprache, Wording-Auflösung inkl. Backend-Merge, Primärfarbe,
-  `languageMode`, `githubRepo`, `connectionMode`, `dataInspectionMode`, `defaultConnectionProfile`)
-  sowie Persistenz/Import/Export der editierbaren App-Settings
-- `useUserConfigStore.js` - User-Config-State und Aktionen (Add/Remove, Reorder, Apply, Session)
+- `useAppConfigStore.js` - Grundkonfiguration (Laden, Normalisieren, Download), Viewer-Einstellungen der
+  Datenquelle als Überlagerung, Sprache und Wording-Auflösung inkl. Backend-Merge
+- `useUserConfigStore.js` - Feldkonfiguration und Aktionen (Add/Remove, Hinzufügen aus Datenschlüsseln,
+  Reorder, Apply)
 - `useDataTransferStore.js` - Datenmodus (JSON/CSV), Session-Persistenz, Dateinamenslogik
 - `useReplacementsStore.js` - Ersetzungsregeln inkl. Snapshot, Change-Tracking, Export-Payload und
   Status des letzten Anwendungslaufs
-- `useConnectionProfileStore.js` - persistentes Verbindungsprofil, Default-Profil-Laden,
-  Verbindungstest, Datenmodell-Prüfung, JSON Import/Export
-- `useOnlineModeStore.js` - App-Modus (`offline`/`online`) und `Configuration only`-Schalter
+- `useConnectionProfileStore.js` - Verbindungsprofil (fest aus der Grundkonfiguration oder vom Nutzer
+  eingegeben und nach bestandenem Verbindungstest gespeichert), Datenmodell-Prüfung, JSON Import/Export
+- `useOnlineModeStore.js` - App-Modus (`offline`/`online`, online nur mit Verbindungsprofil) und
+  `Configuration only`-Schalter
 - `useAuthStore.js` - Strapi-FE-User-Auth (Login/Logout/Session-Restore)
 - `useOnlineSettingsStore.js` - Laden **und Zurückschreiben** der Online-Settings inkl. Backend-Wording
 - `useOnlineItemsStore.js` - Laden der Online-Items: Hierarchie-Erkennung, Level-1-Optionen
@@ -187,13 +182,13 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 - `texts/info-de.md`, `texts/info-en.md` - Markdown-Quellen für den Info-Tab
 - `icons/` - SVG-Icons für Editor-Controls (`arrow-down`, `edit-3`, `eye`, `eye-off`,
   `maximize-2`, `minimize-2`)
-- `logos/` - Logos für den Footer (`dns-v1.svg`, `Octicons-mark-github.svg`)
+- `logos/` - Logo für den Footer (`dns-v1.svg`)
 
 ### Statische Dateien (`public/`)
 
-- `sample-data.json`, `sample-data.csv` - Beispieldaten je Datenmodus
+- `sample-data.json` (mit `config`), `sample-data.csv` - Beispieldaten je Datenmodus
 - `sample-card-1.jpg` … `sample-card-3.jpg` - Beispielscans für die Kartenansicht
-- `connection-profile/viewer-editor-connection-profile.v1.json` - optionales Default-Verbindungsprofil
+- `app-config/viewer-editor-app-config.v1.json`, `app-config/wording.json` - Grundkonfiguration und Wording
 
 ### Tests
 
@@ -201,65 +196,119 @@ Alle Tests liegen neben ihrem Modul (`*.test.js`); Inhalte siehe [Kapitel 16](#1
 
 ---
 
-## 4 App-Konfiguration und Wording
+## 4 Konfiguration und Wording
 
-### 4.1 Konfigurationsquellen und Präzedenz
+### 4.1 Zwei Ebenen
 
-Es gibt vier Ebenen, die sich in genau dieser Reihenfolge überlagern:
+Es gibt genau zwei Konfigurationsebenen:
 
-1. **Build-Defaults** aus `config/app.config.js`.
-2. **Default-App-Config aus `public/app-config/`** - eine ausgelieferte JSON-Datei, die beim
-   App-Start geladen wird und die Build-Defaults als Basisebene **ersetzt**
-   (siehe [4.4](#44-default-app-config-aus-publicapp-config)).
-3. **Lokal gespeicherte App-Settings** aus `localStorage` (`viewerEditor.appConfig.v1`), gepflegt im
-   Tab `Einstellungen`.
-4. **Online-Settings aus Strapi** - betreffen *nicht* die App-Settings aus (1)-(3), sondern die
-   User-Config (Felder, Hierarchie, Labels) und optional das Wording.
+1. **Grundkonfiguration** - eine JSON-Datei, die neben dem Build in `public/app-config/` liegt und vor
+   dem ersten Rendern geladen wird (siehe [4.2](#42-grundkonfiguration-publicapp-config)).
+2. **Konfiguration der Datenquelle** - offline das `config`-Objekt der hoch- bzw. heruntergeladenen
+   JSON-Datei, online `viewer-setting.settings` in Strapi (siehe [4.3](#43-konfiguration-der-datenquelle)).
 
-Wichtig für die Wartung: `useAppConfigStore.js` lädt beim Modul-Import einmalig
-`loadEditableAppConfigFromStorage()`. Existiert ein gespeicherter Eintrag, **gewinnt dieser
-vollständig** über die Basisebene. Eine Änderung an `app.config.js` **oder** an der Default-Datei
-wirkt sich also bei Nutzern, die bereits einmal im Tab `Einstellungen` gespeichert haben, **nicht**
-aus, solange sie die App-Settings nicht zurücksetzen (`clearEditableAppConfig`, entfernt den
-localStorage-Eintrag und fällt auf die aktuelle Basisebene zurück - also auf die Default-Datei,
-sofern geladen). Ohne gespeicherten Eintrag gilt die Basisebene unverändert.
+Präzedenzregel: **Datenquelle vor Grundkonfiguration, Schlüssel für Schlüssel.** Wird die Datenquelle
+geschlossen (Import ohne `config`, CSV-Import, Verlassen des Online-Modus, Logout), gilt wieder die
+Grundkonfiguration.
 
-Der Tab `Einstellungen` blendet unter den App-Settings ein, welche Basis aktiv ist
-(`appSettingsSourceDefaultFile` / `appSettingsSourceBuild`) und weist bei vorhandenem
-localStorage-Snapshot auf dessen Vorrang hin (`appSettingsSourceOverridden`).
+Die Schlüssel sind nach Rolle gruppiert:
 
-Alle Werte werden beim Laden normalisiert (`normalizeAppConfigInput`), unbekannte oder ungültige
-Eingaben fallen auf definierte Defaults zurück. Gespeicherte Snapshots tragen `version: 1` und
-`updatedAt`; `hasSavedEditableAppConfig` unterscheidet "gespeichert" von "Default".
-
-### 4.2 Schlüssel in `config/app.config.js`
-
-| Schlüssel | Werte | Wirkung |
+| Gruppe | Schlüssel | Ablage |
 | --- | --- | --- |
-| `language` | Sprachcode, Default `de` | Startsprache für die Wording-Auflösung |
-| `languageMode` | `single` \| `multi` (Default bei ungültigem Wert: `multi`) | Steuert `showLanguageSwitch`. Nur bei `multi` erscheint der `DE \| EN`-Umschalter in der Topbar; bei `single` ist die Sprache fix und der Umschalter fehlt vollständig. |
-| `githubRepo` | URL oder Leerstring | Ziel des GitHub-Links im Footer (`footer/Identity.vue`). Bei leerem/fehlendem Wert wird das GitHub-Icon **nicht gerendert** (`v-if="githubRepoUrl"`). |
-| `primaryColor` | CSS-Farbe, Fallback `#0066CC` | Wird beim Start und bei Änderung als `--color-primary` auf `document.documentElement` gesetzt und überschreibt damit den Token-Default (siehe [Kapitel 15](#15-styling-und-responsiveness)). |
-| `connectionMode` | `switchable` \| `offline` \| `online` (Fallback `switchable`) | `switchable` zeigt den Umschalter `Offline \| Online`; `offline`/`online` fixieren den App-Modus ohne Umschalter. |
-| `dataInspectionMode` | `true` \| `false` | `true` blendet im Sidebar-Editor unter der Feldliste `show/hide raw data` und `Copy raw data` ein. |
-| `defaultConnectionProfile` | Dateiname oder Leerstring | Dateiname eines Profils in `public/connection-profile/`, das beim App-Start geladen wird (siehe [12.1](#121-verbindungsprofil)). Leer = nur localStorage-Verhalten. |
-| `defaultAppConfig` | Dateiname oder Leerstring | **Build-only.** Dateiname einer App-Config in `public/app-config/`, die beim App-Start als Basisebene geladen wird (siehe [4.4](#44-default-app-config-aus-publicapp-config)). Leer = nur `app.config.js` + localStorage. |
-| `wording` | Import aus `config/wording.json` | Basis-Wording-Dictionary |
+| Bootstrap | `connectionMode`, `connectionProfile` | nur Grundkonfiguration (ein vom Nutzer eingegebenes Profil: siehe [12.1](#121-verbindungsprofil)) |
+| Viewer-Einstellungen | `language`, `languageMode`, `primaryColor`, `dataInspectionMode` | Grundkonfiguration als Default, Datenquelle überschreibt |
+| Feldkonfiguration | `fields`, `itemLabelField`, `markAsEditedBasis`, `showOnlyNonEmptyFields`, `hierarchyFields`, `firstLevelStaticList` | nur Datenquelle, kein Default (siehe [Kapitel 7](#7-user-config-tab-konfiguration)) |
+| Anbindung (online) | `itemsPath`, `scanField` | nur `viewer-setting.settings` |
+| Wording | Handle → Sprachmap | `public/app-config/wording.json`; online zusätzlich `viewer-setting.wording` |
+| Ersetzungen | `replacements` | Datenquelle (siehe [Kapitel 11](#11-ersetzungen-replacements)) |
 
-Alle Schlüssel außer `wording` und `defaultAppConfig` sind zur Laufzeit im Tab `Einstellungen`
-editierbar und werden dort gespeichert, importiert und exportiert. `defaultAppConfig` ist bewusst
-ausgenommen: der Schlüssel entscheidet, *woher* die App-Config geladen wird, und muss deshalb vor
-diesem Ladevorgang feststehen - er kann nicht aus der Datei stammen, die er adressiert. Er ist
-entsprechend auch **nicht** Teil des Exports aus dem Tab `Einstellungen`.
+Konfiguration wird nicht im Browser gespeichert. Einzige Ausnahme ist ein vom Nutzer eingegebenes
+Verbindungsprofil (siehe [Kapitel 5](#5-browser-persistenz)).
 
-### 4.3 Wording, Backend-Merge und Sprachen
+### 4.2 Grundkonfiguration (`public/app-config/`)
 
-- `config/wording.json` enthält pro Handle eine Sprachmap, z. B. `{ "tabEdit": { "de": ..., "en": ... } }`.
+Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` in
+`useAppConfigStore.js`).
+
+```json
+{
+  "version": 1,
+  "connectionMode": "switchable",
+  "connectionProfile": null,
+  "language": "de",
+  "languageMode": "multi",
+  "primaryColor": "#0066CC",
+  "dataInspectionMode": false
+}
+```
+
+| Schlüssel | Werte (Default) | Wirkung |
+| --- | --- | --- |
+| `connectionMode` | `switchable` \| `offline` \| `online` (`switchable`) | `switchable` zeigt den Umschalter `Offline \| Online`; `offline`/`online` fixieren den App-Modus. |
+| `connectionProfile` | Objekt `{ label?, baseUrl, configPath }` oder `null` | Fest vorgegebenes Strapi-Profil; im Tab `Einstellungen` nur lesbar. Ein ungültiges Profil wird als `null` behandelt und per `console.warn` gemeldet. |
+| `language` | Sprachcode (`de`) | Startsprache |
+| `languageMode` | `single` \| `multi` (`multi`) | Nur bei `multi` erscheint der Umschalter `DE \| EN`. |
+| `primaryColor` | CSS-Farbe (`#0066CC`) | wird als `--color-primary` gesetzt (siehe [Kapitel 15](#15-styling-und-responsiveness)) |
+| `dataInspectionMode` | `true` \| `false` (`false`) | blendet im Sidebar-Editor `show/hide raw data` und `Copy raw data` ein |
+
+- **Laden:** `main.js` ruft `loadBasicConfig()` auf und mountet die App erst danach. Grundkonfiguration
+  und `wording.json` werden parallel über `resolvePublicConfigUrls(..., 'app-config')` und
+  `fetchFirstAvailableConfigText` (`src/composables/publicConfigUrls.js`) geladen: ein Dateiname wird
+  unter den Präfixen `location.pathname`, `import.meta.env.BASE_URL` und `/` gesucht.
+- **Fehlerfall:** fehlt eine Datei oder ist sie ungültig, gelten die fest eingebauten Defaults der
+  Normalizer bzw. die Inline-Fallbacks der `t()`-Aufrufe. Die App startet immer; der Grund steht in
+  `lastBasicConfigLoadError` und als `console.warn`.
+- **Anzeige und Erzeugen:** Der Bereich `Grundkonfiguration` im Tab `Einstellungen` zeigt die Werte nur an.
+  Änderungen an den Viewer-Einstellungen werden im Bereich darüber mit der Datenquelle gespeichert (siehe
+  [4.3](#43-konfiguration-der-datenquelle)). `Grundkonfiguration als JSON herunterladen`
+  (`exportBasicConfigAsJson(draft)`) erzeugt die Datei für `public/app-config/`; die Option
+  `Verbindungsprofil in die Datei übernehmen` fügt das aktuelle Profil als festes `connectionProfile` ein.
+- **Altlast:** ein früher gespeicherter localStorage-Eintrag `viewerEditor.appConfig.v1` wird beim Laden
+  entfernt und nicht mehr gelesen.
+
+### 4.3 Konfiguration der Datenquelle
+
+| | Offline (JSON-Datei) | Online (`viewer-setting`) |
+| --- | --- | --- |
+| Viewer-Einstellungen | `config.language`, `config.languageMode`, … | `settings.language`, `settings.languageMode`, … |
+| Feldkonfiguration | `config.fields`, … | `settings.fields`, … |
+| Wording | - (nur `wording.json`) | `wording` |
+| Ersetzungen | `replacements` | `replacements` |
+
+- Die Viewer-Einstellungen liegen flach neben den Feldkonfigurations-Schlüsseln. Nur vorhandene, gültige
+  Schlüssel überschreiben (`pickViewerSettings`); eine Datenquelle ohne sie nutzt die Grundkonfiguration.
+- `useAppConfigStore` hält sie in `dataSourceViewerSettings`; `primaryColor`, `languageMode` und
+  `dataInspectionMode` sind computed über Grundkonfiguration plus Datenquelle.
+- `language` der Datenquelle setzt die Sprache beim Öffnen. Der Umschalter `DE | EN` ändert sie danach
+  nur für die Sitzung. Endet eine Überschreibung der Sprache, gilt wieder die Sprache der
+  Grundkonfiguration; ohne Sprach-Überschreibung bleibt die Wahl des Nutzers stehen.
+- Gesetzt werden sie beim JSON-Import mit gültiger `config` (`useDataImportExport`) und nach dem Laden der
+  Online-Settings (`App.vue`); geleert bei jedem anderen Import und beim Schließen der Online-Datenquelle.
+- Der Validator prüft die Typen (`language` nicht-leerer String, `languageMode` `single`/`multi`,
+  `primaryColor` nicht-leerer String, `dataInspectionMode` Boolean).
+
+**Bearbeiten im Tab `Einstellungen`:** Der Bereich `Viewer-Einstellungen` ist nur bei geöffneter
+Datenquelle aktiv (offline: Daten geladen; online: angemeldet und Settings geladen).
+`Auf Datenquelle anwenden` setzt alle vier Werte als Überschreibung, `Werte der Grundkonfiguration
+verwenden` entfernt sie.
+
+- Offline: der Stand wird `isDirty`, die Werte gehen mit dem nächsten JSON-Download in `config`; ein
+  CSV-Datenmodus schaltet auf JSON um.
+- Online: `buildMergedOnlineSettings()` in `App.vue` schreibt sie wie `Konfiguration anwenden` per
+  `PUT <configPath>` zurück (siehe [12.7](#127-settings-write-back-konfiguration-anwenden-im-online-modus))
+  und ändert damit den Viewer für alle Nutzer dieser Instanz.
+
+### 4.4 Wording, Backend-Merge und Sprachen
+
+- `public/app-config/wording.json` enthält pro Handle eine Sprachmap, z. B.
+  `{ "tabEdit": { "de": ..., "en": ... } }`. Jeder `t(key, fallback)`-Aufruf in `src/` trägt einen
+  Inline-Fallback.
 - `t(key, fallback)` löst gegen die aktive Sprache auf; Fallback-Kette:
   aktive Sprache → `de` → `en` → übergebener Fallback.
 - Online-Settings können ein eigenes Wording mitliefern (`response.data.wording`). Nach erfolgreichem
   Settings-Load ruft `App.vue` `setOnlineWording(result.wording)` auf; beim Verlassen des Online-Modus
-  bzw. bei fehlgeschlagenem Load wird `clearOnlineWording()` aufgerufen.
+  bzw. bei fehlgeschlagenem Load wird `clearOnlineWording()` aufgerufen. Offline gibt es nur das lokale
+  Wording.
 - **Merge-Regel** (`mergedWording` in `useAppConfigStore.js`): Basis ist das lokale Wording; Backend-Einträge
   werden **je Handle sprachweise darüber** gemischt (`{ ...localEntry, ...backendEntry }`). Ein Backend-Handle,
   das nur `en` liefert, ersetzt also nur `en` und lässt `de` lokal bestehen. Reine Backend-Handles ohne
@@ -270,55 +319,29 @@ entsprechend auch **nicht** Teil des Exports aus dem Tab `Einstellungen`.
 - `supportedLanguages` wird dynamisch aus allen Sprachschlüsseln des gemergten Wordings abgeleitet;
   ist das Dictionary leer, enthält die Liste nur die aktive Sprache.
 
-### 4.4 Default-App-Config aus `public/app-config/`
-
-Damit eine Deployment-Konfiguration nicht im Build festgeschrieben werden muss, kann eine App-Config
-als JSON neben dem Build liegen und zur Laufzeit geladen werden - dasselbe Muster wie beim
-Verbindungsprofil ([12.1](#121-verbindungsprofil)).
-
-- **Erzeugen:** Tab `Einstellungen`, Button `App-Einstellungen als JSON herunterladen`. Die Datei
-  nach `public/app-config/` legen; der Dateiname muss zu `defaultAppConfig` in
-  `config/app.config.js` passen (Default `viewer-editor-app-config.v1.json`).
-- **Laden:** `loadEditableAppConfigFromDefault()` in `useAppConfigStore.js`, aufgerufen aus
-  `onMounted` in `App.vue`.
-- **URL-Auflösung:** über `resolvePublicConfigUrls(value, 'app-config')`
-  (`src/composables/publicConfigUrls.js`). Ein blosser Dateiname wird im Unterordner `app-config/`
-  gesucht, ein Wert mit Pfadanteil unverändert übernommen, eine absolute `http(s)`-URL direkt. Es
-  wird eine Kandidatenliste vom spezifischsten zum allgemeinsten Pfadpräfix probiert
-  (`location.pathname`, dann `import.meta.env.BASE_URL`, dann `/`), damit die App auch unter
-  wechselnden Basispfaden funktioniert.
-- **Wirkung:** die Datei ersetzt ausschliesslich die **Basisebene**. Ein localStorage-Snapshot bleibt
-  vorrangig und wird weder überschrieben noch gelöscht - Unterschied zum Verbindungsprofil, das
-  localStorage aktiv überschreibt.
-- **Fehlerfall:** schlägt Fetch, JSON-Parsing oder die Objektprüfung fehl, bleibt
-  `config/app.config.js` die Basis und die App startet normal. Der Grund landet in
-  `lastAppConfigLoadError` und als `console.warn` aus `App.vue`.
-- **Reihenfolge in `onMounted` ist bindend:** die Default-App-Config wird **vor**
-  `loadAppModeFromStorage()` und **vor** `loadConnectionProfileFromDefault()` geladen, weil sie
-  `connectionMode` und `defaultConnectionProfile` liefern kann, die unmittelbar danach gelesen
-  werden. Der Start kostet dadurch zwei sequenzielle Requests.
-
 ---
 
 ## 5 Browser-Persistenz
 
-Alle Schlüssel sind mit `viewerEditor.` präfixiert und versioniert. Zugriffe auf `localStorage`
-sind gegen nicht verfügbaren Storage abgesichert.
+Alle Schlüssel sind mit `viewerEditor.` präfixiert und versioniert. Zugriffe auf den Storage sind gegen
+nicht verfügbaren Storage abgesichert. Konfiguration liegt nicht im Browser; die einzige Ausnahme ist ein
+vom Nutzer eingegebenes Verbindungsprofil.
 
 | Schlüssel | Storage | Owner | Inhalt | Restore | Löschen/Ersetzen |
 | --- | --- | --- | --- | --- | --- |
-| `viewerEditor.appConfig.v1` | localStorage | `useAppConfigStore` | Snapshot der editierbaren App-Settings (`version`, alle Schlüssel aus [4.2](#42-schlüssel-in-configappconfigjs) außer `defaultAppConfig`, `updatedAt`) | beim Modul-Import (App-Start); behält Vorrang vor einer geladenen Default-App-Config | `clearEditableAppConfig()` im Tab `Einstellungen` (fällt auf die Default-Datei zurück, sofern geladen); JSON-Import überschreibt |
-| `viewerEditor.connectionProfile.v1` | localStorage | `useConnectionProfileStore` | Verbindungsprofil (`version`, `label`, `baseUrl`, `configPath`, `updatedAt`) | beim App-Start; wird bei gesetztem `defaultConnectionProfile` ggf. durch das geladene Default-Profil überschrieben | `clearConnectionProfile()`; Speichern/Import ersetzt |
+| `viewerEditor.connectionProfile.v1` | localStorage | `useConnectionProfileStore` | vom Nutzer eingegebenes Verbindungsprofil (`version`, `label`, `baseUrl`, `configPath`, `updatedAt`) | `initializeConnectionProfile()` beim App-Start, nur wenn die Grundkonfiguration kein Profil mitbringt | `Gespeichertes Profil löschen`; Speichern/Import (nach bestandenem Verbindungstest) ersetzt |
 | `viewerEditor.authToken.v1` | localStorage | `useAuthStore` | Strapi-JWT | `restoreSession()` beim App-Start (holt anschließend `/api/users/me`) | Logout und fehlgeschlagener Restore entfernen den Token |
-| `viewerEditor.appMode.v1` | localStorage | `useOnlineModeStore` | App-Modus `offline` \| `online` | beim App-Start; ein fixierter `connectionMode` hat Vorrang | Moduswechsel schreibt neu |
+| `viewerEditor.appMode.v1` | localStorage | `useOnlineModeStore` | App-Modus `offline` \| `online` | beim App-Start; ein fixierter `connectionMode` hat Vorrang; `online` ohne Profil wird zu `offline` | Moduswechsel schreibt neu |
 | `viewerEditor.onlineConfigOnly.v1` | localStorage | `useOnlineModeStore` | Schalter `Configuration only` | beim App-Start | Toggle im Header schreibt neu |
-| `viewerEditor.userConfig.v1` | **sessionStorage** | `useUserConfigStore` | `fields`/`appliedFields`, `itemLabelField`/`appliedItemLabelField`, `markAsEditedBasis`/`appliedMarkAsEditedBasis`, `showOnlyNonEmptyFields`/`appliedShowOnlyNonEmptyFields` | beim Start der Session | `clearUserConfigSession()` bei jedem Datei-Import, Beispieldaten-Load und Start-from-Scratch |
 | `viewerEditor.dataMode.v1` | **sessionStorage** | `useDataTransferStore` | aktiver Datenmodus `json` \| `csv` | beim Start der Session | Moduswechsel schreibt neu |
 
-Nicht im Browser persistiert werden Items, Ersetzungsregeln, Auswahl und Dirty-State: sie leben nur im
-Speicher und gehen beim Reload verloren. Die Ersetzungsregeln haben allerdings eine eigene Ablage
-außerhalb des Browsers - offline die exportierte JSON-Datei, online das Settings-Singleton in Strapi
-(siehe [11.4](#114-persistenz-der-regeln)).
+Entfernte Altlasten: `viewerEditor.appConfig.v1` (localStorage, App-Settings-Snapshot) und
+`viewerEditor.userConfig.v1` (sessionStorage, Kopie der Feldkonfiguration) werden beim Start gelöscht und
+nicht mehr gelesen.
+
+Nicht im Browser persistiert werden Items, Feldkonfiguration, Ersetzungsregeln, Auswahl und Dirty-State:
+sie leben nur im Speicher und gehen beim Reload verloren. Ihre Ablage ist die Datenquelle - offline die
+exportierte JSON-Datei, online Strapi (siehe [11.4](#114-persistenz-der-regeln)).
 
 ---
 
@@ -378,16 +401,33 @@ Sortiert wird in drei Stufen:
 ## 7 User-Config (Tab `Konfiguration`)
 
 Die User-Config ist modularisiert: `UserConfigPanel.vue` kapselt die GUI, `useUserConfigStore.js` State
-und Aktionen, `App.vue` orchestriert nur (Apply, Datenmodus-Wechsel, Datenfluss). Gerendert wird sie im
-Tab `Konfiguration`, dort dauerhaft geöffnet.
+und Aktionen, `App.vue` orchestriert nur (Apply, Datenfluss). Gerendert wird sie im Tab `Konfiguration`,
+dort dauerhaft geöffnet.
 
-Der Tab ist nach einem Daten-Import nutzbar. Im Online-Modus kann die Konfiguration zusätzlich ohne
-geladene Items bearbeitet werden, sobald gültige Online-Settings vorliegen (`Configuration only`).
+**Die Feldkonfiguration hat keinen Default.** Sie kommt immer aus der Datenquelle (`config` der JSON-Datei
+bzw. `viewer-setting.settings`, siehe [4.1](#41-zwei-ebenen)). Jeder Import setzt sie zuerst zurück
+(`initializeUserConfig()`) und wendet dann eine mitgelieferte `config` an. Eine Datenquelle ohne `config`
+(reines JSON-Array, CSV) startet ohne Felder - außer offline beim ersten Laden, siehe oben; es wird nichts
+aus den Datenschlüsseln abgeleitet und nichts im Browser zwischengespeichert.
+
+Oberhalb der Feldliste zeigt der Tab die **Schlüssel in den Daten ohne Konfiguration** (aus
+`availableFieldKeys`, ohne reservierte Schlüssel) mit je einem Button `Hinzufügen` und `Alle hinzufügen`
+(`addUserConfigFieldsFromDataKeys`). Hinzugefügte Schlüssel erhalten Typ `normal`; wirksam werden sie mit
+`Konfiguration anwenden`. Nicht konfigurierte Schlüssel bleiben in den Daten erhalten: `Konfiguration
+anwenden` entfernt nur Felder, die zuvor angewendet und dann aus der Konfiguration gelöscht wurden.
+
+Offline ist der Tab immer nutzbar, auch ohne geladene Daten; dann steht über dem Formular ein Hinweis, dass
+die Konfiguration mit den Daten gespeichert wird. Eine so vorbereitete Konfiguration bleibt beim ersten
+Laden von Daten ohne eigene `config` erhalten und wird auf die Items angewendet
+(`prepareFieldConfigForNewData` in `useDataImportExport`); `Neu beginnen` übernimmt sie in die `config`
+des erzeugten Datensatzes. Bringen die Daten eine eigene `config` mit oder waren schon Daten geladen, wird
+die Feldkonfiguration ersetzt. Online ist der Tab nutzbar, sobald gültige Online-Settings vorliegen, auch
+ohne geladene Items (`Configuration only`).
 
 ### 7.1 Optionen pro Feld
 
 Reservierte Schlüssel (`scan`, `suspendEditing`, `__onlineMeta`) erscheinen nicht als konfigurierbare
-Datenfelder. Pro erkanntem Feld konfigurierbar:
+Datenfelder. Pro konfiguriertem Feld einstellbar:
 
 - `type`: `normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`
 - `label` - alternative Feldbeschriftung
@@ -576,8 +616,9 @@ Die Data-Transfer-Funktion ist modularisiert:
 4. Bei Erfolg initialisiert `initializeFromJsonArray` die Datenstates, übernimmt eine optionale `config`
    in `importedConfig` und übergibt `replacements` an den Replacements-Store. `suspendedItems` wird
    gegen die Itemanzahl normalisiert (nur nicht-negative Integer im gültigen Bereich, dedupliziert, sortiert).
-5. `App.vue` validiert und appliziert eine eingebettete `config` strikt (bei Fehler harter Abbruch mit
-   Fehlermeldung).
+5. `useDataImportExport` setzt die Feldkonfiguration zurück, validiert eine eingebettete `config` strikt
+   und wendet sie an, inklusive der Viewer-Einstellungen (siehe [4.3](#43-konfiguration-der-datenquelle)).
+   Bei ungültiger `config` erscheint eine Fehlermeldung; die Daten bleiben ohne Feldkonfiguration geladen.
 6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
 
 **Kopierstrategie:** Daten werden via `cloneData` (`JSON.parse(JSON.stringify(...))`) tief kopiert.
@@ -601,9 +642,9 @@ nicht-JSON-Typen (`Date`, `Map`, Funktionen).
 - Verfügbar nur im JSON-Modus ohne geladene Daten.
 - Eingabe entweder einer einzelnen absoluten `http(s)`-Scan-URL oder eines CSV-Textes mit mehreren URLs;
   ungültige URLs werden mit Fehlermeldung im Modal abgewiesen.
-- Erzeugt intern das Payload `{ data: [{ scan }], config: { version: 1, fields: {} },
-  replacements: { allFields: {} } }`, importiert es über den normalen JSON-Pfad, setzt die
-  User-Config-Session zurück und markiert den Stand als dirty.
+- Erzeugt intern das Payload `{ data: [{ scan }], config: <vorbereitete Konfiguration inkl. Viewer-Einstellungen>,
+  replacements: { allFields: {} } }`, importiert es über den normalen JSON-Pfad und markiert den Stand
+  als dirty.
 
 ---
 
@@ -612,6 +653,7 @@ nicht-JSON-Typen (`Date`, `Map`, Funktionen).
 - `createExportPayload()` liefert eine tiefe Kopie von `rawItems`.
 - **JSON-Export** schreibt immer das kanonische Format
   `{ data: <items>, config: <user-config>, suspendedItems: <number[]>, replacements: <replacements> }`.
+  `config` enthält neben der Feldkonfiguration die Viewer-Einstellungen, die die Datenquelle überschreibt.
 - **CSV-Export** schreibt nur Nutzdaten (ohne Config, ohne `replacements`, ohne `suspendedItems`).
 - Vor jedem Download (JSON und CSV) wird eine noch nicht angewendete User-Config automatisch auf
   `rawItems` angewendet, damit Exportdaten und Konfigurationsstand nicht auseinanderlaufen.
@@ -734,13 +776,20 @@ Orchestriert wird der Lauf in `src/composables/useReplacementsApply.js`:
   den Login und `/api/users/me` für den Nutzerabruf. Konfigurierbar ist nur `configPath` (Settings-Singleton).
 - Die GUI liegt in `DatabaseConnectionPanel.vue` (Speichern, Verbindungstest, Datenmodell-Prüfung,
   JSON Import/Export). Persistenz siehe [Kapitel 5](#5-browser-persistenz).
-- Ist `defaultConnectionProfile` gesetzt, lädt `App.vue` beim Start
-  `loadConnectionProfileFromDefault(...)` und schreibt das Profil bei Erfolg in `localStorage`.
-  Die URL-Auflösung ist robust gegen unterschiedliche Deploy-Pfade: es werden mehrere Kandidaten aus
-  `window.location.pathname`, `import.meta.env.BASE_URL` und Root (`/`) gebildet, jeweils mit und ohne
-  `connection-profile/`-Prefix. Schlägt das Laden fehl, loggt `App.vue` einmalig
-  `Default connection profile load failed:` inkl. Fehlerobjekt, und `OnlineAccessPanel.vue` zeigt eine
-  technische Diagnose (`reason`, `profileUrl`, `attempted`) aus `lastConnectionProfileLoadError`.
+- **Quelle:** `initializeConnectionProfile()` läuft in `onMounted` vor dem Wiederherstellen des App-Modus.
+  - Bringt die Grundkonfiguration ein `connectionProfile` mit, ist es fest (`isProfileFixed`): das Formular
+    ist nur lesbar, Speichern, Import und Löschen entfallen. Ein im localStorage gespeichertes Profil wird
+    dann ignoriert, aber nicht gelöscht.
+  - Sonst gilt das vom Nutzer eingegebene Profil aus localStorage.
+- **Speichern** (`saveConnectionProfile`, auch beim JSON-Import) ist asynchron: das Profil wird validiert,
+  dann läuft `testConnection`; nur bei bestandenem Test wird es gespeichert. `testConnection` ruft den
+  Settings-Endpunkt ohne Token per `GET` und `POST /api/auth/local` mit Probe-Credentials auf und schlägt
+  nur bei Netzwerkfehler oder `404` fehl.
+- **Online ohne Profil:** Im Modus `switchable` bleibt die App bei `Online` ohne Profil offline
+  (`isOnlineSwitchPending`) und öffnet den Tab `Einstellungen`; sobald ein Profil gespeichert ist,
+  wechselt sie auf `online`, danach folgt der Login. Wird das Profil gelöscht, fällt ein
+  `switchable`-Modus auf `offline` zurück. Bei fixiertem `connectionMode: online` ohne Profil startet die
+  App im Tab `Einstellungen`; der Online-Fluss wartet auf ein gespeichertes Profil.
 
 ### 12.2 Login-Modal
 
@@ -765,9 +814,10 @@ werden Online-Wording, Settings, Items und Updates geleert. Andernfalls läuft s
 3. `itemsPath` aus den Settings lesen (`itemsPath`, Legacy-Fallback `item_path`) und das Datenmodell
    mit einer leeren Liste initialisieren (`online:<itemsPath>` als Anzeigename). Die Scan-Quelle wird
    analog aus `scanField` aufgelöst (siehe [12.6](#126-item-normalisierung-und-wikidata-mapping)).
-4. **Settings-Config anwenden** (`applyImportedConfigPayload`). Ist `data.settings` nicht als gültige
-   Config interpretierbar, geht die UI in einen expliziten Fehlerzustand
-   (`markOnlineSettingsInvalid`) - kein stilles Weiterlaufen mit inkonsistentem Stand.
+4. **Settings-Config anwenden** (`applyImportedConfigPayload`) und die Viewer-Einstellungen aus
+   `data.settings` übernehmen (`setDataSourceViewerSettings`, siehe [4.3](#43-konfiguration-der-datenquelle)).
+   Ist `data.settings` nicht als gültige Config interpretierbar, geht die UI in einen expliziten
+   Fehlerzustand (`markOnlineSettingsInvalid`) - kein stilles Weiterlaufen mit inkonsistentem Stand.
 5. Bei aktivem **`Configuration only`** endet der Fluss hier: Item-Requests werden vollständig
    übersprungen, die Settings-Config bleibt aber verbindlich im User-Config-State und ist im Tab
    `Konfiguration` sichtbar.
@@ -858,10 +908,11 @@ Da alle Items im Speicher liegen, gibt es keine Nachlade-Requests; die reinen Fu
 Wird `Konfiguration anwenden` bei App-Modus `online`, authentifiziertem Nutzer und vorhandenem
 Verbindungsprofil ausgelöst, folgt auf die lokale Anwendung ein **Schreibzugriff auf Strapi**:
 
-1. `App.vue` baut `mergedSettings = { ...bisherigeOnlineSettings, ...createUserConfigPayload(),
-   fields: <payload.fields> }`. Bestehende Settings-Schlüssel bleiben also erhalten, die
-   Config-Schlüssel des Viewers (u. a. `fields`, `itemLabelField`, `markAsEditedBasis`,
-   `showOnlyNonEmptyFields`) werden überschrieben.
+1. `buildMergedOnlineSettings()` in `App.vue` baut `{ ...bisherigeOnlineSettings, ...createUserConfigPayload() }`,
+   entfernt daraus die vier Viewer-Einstellungen und fügt die aktuellen Überschreibungen der Datenquelle
+   (`dataSourceViewerSettings`) wieder ein. Nicht vom Viewer bearbeitete Schlüssel (`itemsPath`,
+   `scanField`, …) bleiben erhalten; Feldkonfiguration und Viewer-Einstellungen werden ersetzt. Derselbe
+   Schreibweg dient dem Bereich `Viewer-Einstellungen` im Tab `Einstellungen`.
 2. `useOnlineSettingsStore.persistOnlineSettings(mergedSettings)` ruft
    `updateViewerSettingsInStrapi(...)` auf: `PUT <configPath>` mit `{ data: { settings } }`.
 3. Die Antwort muss erneut ein Objekt unter `data.settings` liefern, sonst Fehler. Bei Erfolg werden
@@ -891,6 +942,17 @@ Strapi-Instanz.
   Save-UX liegen als Wording-Handles vor.
 
 ### 12.9 Create-Flow (neues Item)
+
+**Offline** zeigt der Listenkopf `Neues Item`, sobald eine Feldkonfiguration angewendet ist - auch ohne
+geladene Daten. `appendLocalItem` (`useViewerData`) hängt ein Item mit den Registry-Defaults der
+angewendeten Felder an (plus `scan: ''`, wenn die Daten eine `scan`-Spalte haben), leert die Suche,
+selektiert es und setzt `isDirty`; es geht mit dem nächsten Download in die Daten. `Reset` entfernt
+Items, die seit dem letzten Import bzw. Speichern angelegt wurden, auch wenn vorher keine Daten geladen
+waren. In dieser Sitzung angelegte Items (offline wie online) merkt sich `src/composables/createdItems.js`
+in einer `WeakSet` außerhalb der Item-Objekte: ihre leeren Felder bleiben bei `showOnlyNonEmptyFields`
+sichtbar, und ohne eigenen Titel zeigt die Liste `Neues Objekt`.
+
+**Online:**
 
 - Im Online-Modus zeigt der Listenkopf für authentifizierte Nutzer mit bekanntem `itemsPath` einen
   Button `Neues Item` / `New item`.
@@ -1023,16 +1085,14 @@ Interne Aufteilung:
 - `useDataImportExport.js` kapselt Dateityp-Checks, Importpfade, Beispieldaten, Start-from-Scratch,
   Download und Reset.
 - `App.vue` bleibt Composition-Root und beschränkt sich auf Verdrahtung von Komponenten, Stores,
-  Watchern und Lifecycle-Events. Im Online-Modus verhindert es zusätzlich, dass die lokale
-  Feld-Auto-Initialisierung die aus Strapi geladenen Settings überschreibt.
+  Watchern und Lifecycle-Events.
 - Die Höhen von Topbar, Tab-Reihe und Edit-Header werden per `ResizeObserver` gemessen und als
   CSS-Variablen (`--ve-header-offset`, `--ve-tabs-row-height`, `--ve-edit-sticky-stack-height`) auf
   `.app-shell` für die Sticky-Offsets gesetzt. Beobachtet wird explizit die **Border-Box**, weil das
   Ein-/Ausklappen der Topbar nur das Padding ändert und die Content-Box (Default des
   `ResizeObserver`) dabei unverändert bleibt.
-- Die Verdrahtung dieser Messung steht in `onMounted` **vor** dem `await` auf
-  `loadConnectionProfileFromDefault`. Andernfalls blieben die Offsets bei langsamer oder
-  fehlschlagender Profil-Anfrage ungesetzt und die Sticky-Ebenen würden überlappen.
+- `onMounted` wartet auf keine Anfrage mehr: Grundkonfiguration und Wording sind bereits vor dem Mount
+  geladen (`main.js`), das Verbindungsprofil wird synchron initialisiert.
 
 ---
 
@@ -1059,7 +1119,7 @@ Variablen, damit Komponenten-Regeln unverändert bleiben. Token-Defaults:
 
 > **Achtung:** `--color-primary` ist zur Laufzeit überschrieben. `App.vue` setzt beim Start und bei
 > jeder Änderung `document.documentElement.style.setProperty('--color-primary', primaryColor)` aus der
-> App-Config. Der Token-Wert `#0066CC` ist damit nur der Fallback, nicht die effektive Farbe.
+> Grundkonfiguration bzw. der Datenquelle. Der Token-Wert `#0066CC` ist damit nur der Fallback, nicht die effektive Farbe.
 > `--color-primary-hover` wird nicht mitgesetzt.
 
 Globaler Seitenhintergrund:
@@ -1095,16 +1155,16 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand Offline-Hierarchie: 20 Testdateien, 192 Tests, alle grün.
+Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
 
 ### Composables
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `tokenize`, `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
-| `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`) |
+| `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
-| `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet |
+| `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
 | `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
 | `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
@@ -1123,11 +1183,11 @@ Stand Offline-Hierarchie: 20 Testdateien, 192 Tests, alle grün.
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal |
-| `stores/useUserConfigStore.test.js` | Initialisierung minimaler Autosuggest-Config beim Typwechsel; Erhalt unbekannter Autosuggest-Schlüssel; Entfernen von `autosuggest`/`readOnly` bei Typwechsel; Candidate-Initialisierung, -Aktualisierung und Abwehr ungültiger Ziele; Persistenz und Bereinigung von `itemLabelField` |
+| `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal; Inline-Fallback ohne Wording; eingebaute Defaults; Laden von Grundkonfiguration und Wording aus `app-config/`; Normalisierung bzw. Verwerfen eines mitgelieferten Profils; Defaults bei fehlender oder ungültiger Datei; Überlagerung der Viewer-Einstellungen durch die Datenquelle inkl. Sprache; Entfernen des alten localStorage-Snapshots; Export eines bearbeiteten Entwurfs als Dateiinhalt |
+| `stores/useUserConfigStore.test.js` | Initialisierung minimaler Autosuggest-Config beim Typwechsel; Erhalt unbekannter Autosuggest-Schlüssel; Entfernen von `autosuggest`/`readOnly` bei Typwechsel; Candidate-Initialisierung, -Aktualisierung und Abwehr ungültiger Ziele; Persistenz und Bereinigung von `itemLabelField`; leere Feldkonfiguration nach `initializeUserConfig`; Hinzufügen aus Datenschlüsseln ohne reservierte und bereits konfigurierte Schlüssel |
 | `stores/useAuthStore.test.js` | Login speichert das JWT; `restoreSession` lädt Token und Nutzer; Login ohne Credentials schlägt fehl |
-| `stores/useConnectionProfileStore.test.js` | Speichern und Neuladen eines Profils; Ablehnung ungültiger Profile; JSON-Import; Laden des Default-Profils über Runtime-Fallback-Pfade |
-| `stores/useOnlineModeStore.test.js` | Speichern/Restore des App-Modus; Ablehnung ungültiger Modi; deaktiviertes Umschalten bei fixiertem `connectionMode` |
+| `stores/useConnectionProfileStore.test.js` | Speichern nur nach bestandenem Verbindungstest und Neuladen; kein Speichern bei fehlgeschlagenem Test; Ablehnung ungültiger Profile ohne Backend-Aufruf; JSON-Import; mitgeliefertes Profil hat Vorrang vor einem gespeicherten und lässt sich weder speichern noch löschen |
+| `stores/useOnlineModeStore.test.js` | Speichern/Restore des App-Modus mit Profil; Ablehnung ungültiger Modi; kein Wechsel auf `online` ohne Profil und automatischer Wechsel nach dem Speichern; gespeichertes `online` ohne Profil wird `offline`; Rückfall auf `offline` beim Entfernen des Profils; deaktiviertes Umschalten bei fixiertem `connectionMode` |
 | `stores/useOnlineSettingsStore.test.js` | Laden aus `response.data.settings`; Persistieren gegen den Singleton-Endpoint; lokaler State bleibt bei fehlgeschlagenem Persist erhalten; Persistieren der Ersetzungsregeln inkl. Fehlerpfad |
 | `stores/useOnlineItemsStore.test.js` | Laden und Sanitizing über `settings.itemsPath`; `attributes`-Form mit numerischem ID-Fallback; harter Fehler ohne stabile ID; Level-1-Optionen ohne Voll-Item-Fetch; `firstLevelStaticList` ohne Item-Requests; Hierarchie-Erkennung über den Legacy-Schlüssel `hierarchy_fields` |
 | `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad; Ersetzungslauf über die Collection registriert Deltas nur für nicht geladene Treffer, meldet Fetch-Fehler ohne Pending-Updates und verlangt einen `itemsPath` |

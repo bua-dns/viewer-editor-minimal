@@ -1,5 +1,6 @@
 import { useUserConfigStore } from '../stores/useUserConfigStore'
 import { createFieldEditorBinding } from '../fields/fieldRegistry'
+import { isCreatedItem } from './createdItems'
 
 export function useFieldMapping() {
   const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
@@ -82,13 +83,14 @@ export function useFieldMapping() {
 
   function getDisplayedFieldKeys(selectedRawItem) {
     if (!selectedRawItem) return []
-    const isOnlineDraft = selectedRawItem?.__onlineMeta?.isDraft === true
+    // Items created in this session keep their empty fields visible so they can be filled.
+    const isNewItem = selectedRawItem?.__onlineMeta?.isDraft === true || isCreatedItem(selectedRawItem)
     const keys = Object.keys(selectedRawItem).filter((key) => {
       if (key === 'scan') return false
       if (key === 'suspendEditing') return false
       if (key === '__onlineMeta') return false
       if (!appliedShowOnlyNonEmptyFields.value) return true
-      if (isOnlineDraft) return true
+      if (isNewItem) return true
       if (isAutosuggestFieldType(appliedUserConfigFields.value[key]?.type)) return true
       return !isFieldValueEmpty(selectedRawItem[key])
     })

@@ -2,6 +2,7 @@ import { computed, ref, unref } from 'vue'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
 import { computeReplacementChanges, countChangedFields } from './replacementRules'
 import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
+import { markItemAsCreated } from './createdItems'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -438,7 +439,8 @@ export function useViewerData(options = {}) {
   }
 
   function resetToImportedSnapshot() {
-    if (!importSnapshot.value.length) return false
+    // An empty snapshot is valid when all items were created in this session.
+    if (!importSnapshot.value.length && !rawItems.value.length) return false
     const fileName = importFileName.value
     initializeFromJsonArray(cloneData(importSnapshot.value), fileName, cloneData(suspendedItemIndicesSnapshot.value))
     return true
@@ -464,7 +466,8 @@ export function useViewerData(options = {}) {
     return true
   }
 
-  function appendOnlineDraftItem({ fieldConfigs = {}, itemsPath = '', includeScan = false } = {}) {
+  // Appends an item with the type defaults of the configured fields and returns its UID.
+  function appendNewItem({ fieldConfigs = {}, includeScan = false, onlineMeta = null } = {}) {
     const draftItem = {}
     Object.entries(fieldConfigs)
       .sort((a, b) => (a[1]?.order ?? 0) - (b[1]?.order ?? 0))
@@ -476,13 +479,12 @@ export function useViewerData(options = {}) {
       draftItem.scan = ''
     }
 
-    draftItem.__onlineMeta = {
-      isDraft: true,
-      draftId: `draft-${uid()}`,
-      itemsPath: String(itemsPath || '').split('#')[0].split('?')[0],
+    if (onlineMeta) {
+      draftItem.__onlineMeta = onlineMeta
     }
 
     rawItems.value = [...rawItems.value, draftItem]
+    markItemAsCreated(rawItems.value[rawItems.value.length - 1])
     const nextUid = uid()
     viewItems.value = [
       ...viewItems.value,
@@ -494,6 +496,23 @@ export function useViewerData(options = {}) {
     ]
     isDirty.value = true
     return nextUid
+  }
+
+  function appendOnlineDraftItem({ fieldConfigs = {}, itemsPath = '', includeScan = false } = {}) {
+    return appendNewItem({
+      fieldConfigs,
+      includeScan,
+      onlineMeta: {
+        isDraft: true,
+        draftId: `draft-${uid()}`,
+        itemsPath: String(itemsPath || '').split('#')[0].split('?')[0],
+      },
+    })
+  }
+
+  // Offline "Neues Item": becomes part of the data and of the next download.
+  function appendLocalItem({ fieldConfigs = {}, includeScan = false } = {}) {
+    return appendNewItem({ fieldConfigs, includeScan })
   }
 
   function syncSnapshotItemAtIndex(index) {
@@ -531,6 +550,7 @@ export function useViewerData(options = {}) {
     createSuspendedItemsPayload,
     markAsSaved,
     appendOnlineDraftItem,
+    appendLocalItem,
     syncSnapshotItemAtIndex,
     isEditableSimpleValue,
     looksLikeImageUrl,

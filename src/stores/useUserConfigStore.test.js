@@ -1,36 +1,20 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 import { useUserConfigStore } from './useUserConfigStore'
 
-function createSessionStorageMock() {
-  const store = new Map()
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null
-    },
-    setItem(key, value) {
-      store.set(key, String(value))
-    },
-    removeItem(key) {
-      store.delete(key)
-    },
-    clear() {
-      store.clear()
-    },
-  }
+// Field config starts empty; the tests add fields the way the Konfiguration tab does.
+function initializeWithDataKeys(store, dataKeys) {
+  store.initializeUserConfig()
+  store.addUserConfigFieldsFromDataKeys(dataKeys)
 }
 
 describe('useUserConfigStore autosuggest gui config', () => {
   beforeEach(() => {
-    globalThis.sessionStorage = createSessionStorageMock()
-    const store = useUserConfigStore()
-    store.userConfigFields.value = {}
-    store.appliedUserConfigFields.value = {}
-    store.clearUserConfigSession()
+    useUserConfigStore().initializeUserConfig()
   })
 
   test('initializes minimal autosuggest config when switching type', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['collector'], true)
+    initializeWithDataKeys(store, ['collector'])
 
     const updated = store.setFieldType('collector', 'wikidata-autosuggest')
 
@@ -78,7 +62,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('removes autosuggest when field type changes away', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['collector'], true)
+    initializeWithDataKeys(store, ['collector'])
     store.setFieldType('collector', 'wikidata-autosuggest')
     store.updateFieldAutosuggestConfig('collector', { resultLanguage: 'de' })
 
@@ -92,7 +76,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('drops readOnly when switching to wikidata-autosuggest', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['collector'], true)
+    initializeWithDataKeys(store, ['collector'])
     store.userConfigFields.value.collector.readOnly = true
 
     const switched = store.setFieldType('collector', 'wikidata-autosuggest')
@@ -103,7 +87,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('initializes minimal candidate config when switching type', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['title_candidate'], true)
+    initializeWithDataKeys(store, ['title_candidate'])
 
     const updated = store.setFieldType('title_candidate', 'candidate')
 
@@ -117,7 +101,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('updates candidate config with valid target and input mode', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['title', 'title_candidate'], true)
+    initializeWithDataKeys(store, ['title', 'title_candidate'])
     store.setFieldType('title_candidate', 'candidate')
 
     const updated = store.updateFieldCandidateConfig('title_candidate', {
@@ -134,7 +118,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('rejects candidate config when target points to candidate field', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['title', 'first_candidate', 'second_candidate'], true)
+    initializeWithDataKeys(store, ['title', 'first_candidate', 'second_candidate'])
     store.setFieldType('first_candidate', 'candidate')
     store.setFieldType('second_candidate', 'candidate')
     store.updateFieldCandidateConfig('first_candidate', {
@@ -152,7 +136,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('persists configured item label field in payload', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number', 'species'], true)
+    initializeWithDataKeys(store, ['inventory_number', 'species'])
 
     const updated = store.setItemLabelField('species')
     expect(updated).toBe(true)
@@ -165,7 +149,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('clears item label field when configured key is removed', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number', 'species'], true)
+    initializeWithDataKeys(store, ['inventory_number', 'species'])
     store.setItemLabelField('species')
 
     store.removeUserConfigField('species')
@@ -175,7 +159,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('persists markAsEditedBasis in payload', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number', 'edited_note'], true)
+    initializeWithDataKeys(store, ['inventory_number', 'edited_note'])
 
     const updated = store.setMarkAsEditedBasis('edited_note')
     expect(updated).toBe(true)
@@ -188,7 +172,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('clears markAsEditedBasis when configured key is removed', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number', 'edited_note'], true)
+    initializeWithDataKeys(store, ['inventory_number', 'edited_note'])
     store.setMarkAsEditedBasis('edited_note')
 
     store.removeUserConfigField('edited_note')
@@ -198,7 +182,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('persists showOnlyNonEmptyFields in payload', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number'], true)
+    initializeWithDataKeys(store, ['inventory_number'])
 
     store.setShowOnlyNonEmptyFields(true)
 
@@ -208,7 +192,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('persists hierarchy fields and first level static list in payload', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number'], true)
+    initializeWithDataKeys(store, ['inventory_number'])
 
     store.addHierarchyField()
     store.updateHierarchyFieldAt(0, ' level_1 ')
@@ -240,7 +224,7 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('keeps hint in payload for normal fields', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['species'], true)
+    initializeWithDataKeys(store, ['species'])
     store.userConfigFields.value.species.hint = 'Use latin species name'
     store.userConfigFields.value.species.fieldWidth = '50%'
 
@@ -252,21 +236,46 @@ describe('useUserConfigStore autosuggest gui config', () => {
 
   test('initializes fieldWidth with 100% by default', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['species'], true)
+    initializeWithDataKeys(store, ['species'])
 
     expect(store.userConfigFields.value.species.fieldWidth).toBe('100%')
   })
 
-  test('does not include suspendEditing in config fields on initialize', () => {
+  test('starts without fields, whatever keys the data has', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number', 'suspendEditing'], true)
+    initializeWithDataKeys(store, ['species'])
+
+    store.initializeUserConfig()
+
+    expect(store.userConfigFields.value).toEqual({})
+    expect(store.appliedUserConfigFields.value).toEqual({})
+    expect(store.hasUnappliedUserConfigChanges.value).toBe(false)
+  })
+
+  test('adding data keys skips keys that are already configured', () => {
+    const store = useUserConfigStore()
+    initializeWithDataKeys(store, ['species'])
+    store.userConfigFields.value.species.type = 'text'
+
+    const added = store.addUserConfigFieldsFromDataKeys(['species', 'collector'])
+
+    expect(added).toEqual(['collector'])
+    expect(store.userConfigFields.value.species.type).toBe('text')
+    expect(store.userConfigFields.value.collector.type).toBe('normal')
+    expect(store.userConfigFields.value.collector.order).toBe(1)
+    expect(store.hasUnappliedUserConfigChanges.value).toBe(true)
+  })
+
+  test('does not include suspendEditing when adding data keys', () => {
+    const store = useUserConfigStore()
+    initializeWithDataKeys(store, ['inventory_number', 'suspendEditing'])
 
     expect(Object.keys(store.userConfigFields.value)).toEqual(['inventory_number'])
   })
 
-  test('does not include __onlineMeta in config fields on initialize', () => {
+  test('does not include __onlineMeta when adding data keys', () => {
     const store = useUserConfigStore()
-    store.initializeUserConfig(['inventory_number', '__onlineMeta'], true)
+    initializeWithDataKeys(store, ['inventory_number', '__onlineMeta'])
 
     expect(Object.keys(store.userConfigFields.value)).toEqual(['inventory_number'])
   })

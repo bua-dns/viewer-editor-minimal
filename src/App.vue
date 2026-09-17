@@ -6,7 +6,7 @@ import { useDataImportExport } from './composables/useDataImportExport'
 import { useReplacementsApply } from './composables/useReplacementsApply'
 import { collectReplaceableFieldKeys } from './composables/replacementRules'
 import { useSelectionNavigation } from './composables/useSelectionNavigation'
-import { useAppConfigStore } from './stores/useAppConfigStore'
+import { VIEWER_SETTING_KEYS, useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
 import { useDataTransferStore } from './stores/useDataTransferStore'
 import { useReplacementsStore } from './stores/useReplacementsStore'
@@ -62,17 +62,16 @@ const {
   primaryColor,
   dataInspectionMode,
   showLanguageSwitch,
-  defaultConnectionProfile,
-  defaultAppConfigFile,
-  loadEditableAppConfigFromDefault,
   language,
   setLanguage,
   t,
   setOnlineWording,
   clearOnlineWording,
-} =
-  useAppConfigStore()
-const { connectionProfile, loadConnectionProfileFromDefault } = useConnectionProfileStore()
+  dataSourceViewerSettings,
+  setDataSourceViewerSettings,
+  clearDataSourceViewerSettings,
+} = useAppConfigStore()
+const { connectionProfile, initializeConnectionProfile } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
 const { token, isAuthenticated, restoreSession } = useAuthStore()
 const {
@@ -107,7 +106,6 @@ const {
 
 const {
   initializeUserConfig,
-  clearUserConfigSession,
   applyUserConfigToRawItems,
   createUserConfigPayload,
   applyImportedConfigPayload,
@@ -149,6 +147,7 @@ const {
   createCsvExportText,
   markAsSaved,
   appendOnlineDraftItem,
+  appendLocalItem,
   syncSnapshotItemAtIndex,
   isEditableSimpleValue,
   looksLikeImageUrl,
@@ -305,8 +304,19 @@ function initializeExpandedHierarchyLevel2(nextSelectedLevel1 = selectedHierarch
 
 const showSampleDataButton = computed(() => !hasData.value)
 const showStartFromScratchButton = computed(() => dataMode.value === 'json' && !hasData.value)
-const canConfigureWithoutData = computed(
-  () => appMode.value === 'online' && isAuthenticated.value && Boolean(onlineSettings.value),
+// Offline the field config can be drafted before any data is loaded; it is kept when the first
+// data without its own config is opened. Online it needs loaded settings to write back to.
+const canConfigureWithoutData = computed(() => {
+  if (appMode.value === 'offline') return true
+  return isAuthenticated.value && Boolean(onlineSettings.value)
+})
+const configurationNoDataHint = computed(() =>
+  appMode.value === 'offline' && !hasData.value
+    ? t(
+        'configNoDataHint',
+        'No data loaded. The configuration is saved with the data: load a JSON or CSV file, or start from scratch, and download the JSON afterwards. A configuration drafted here is kept when the data has none of its own.',
+      )
+    : '',
 )
 
 const hasPendingChanges = computed(() => {
@@ -338,19 +348,6 @@ const isSidebarSuspendEditingChecked = computed(() => {
   return suspendedItemIndices.value.includes(selectedIndex)
 })
 
-function initializeUserConfigForCurrentData() {
-  if (hasData.value) {
-    initializeUserConfig(availableFieldKeys.value, true)
-    return
-  }
-  initializeUserConfig([], false)
-}
-
-function onDataModeChanged() {
-  clearUserConfigSession()
-  initializeUserConfigForCurrentData()
-}
-
 function onFieldChange(key, value, configuredType) {
   const selectedIndex = selectedViewItem.value?._index
   const changed = updateField(key, value, configuredType)
@@ -381,13 +378,8 @@ const canCreateOnlineItem = computed(
 function onCreateOnlineItem() {
   if (!canCreateOnlineItem.value) return
 
-  const configuredFields = appliedUserConfigFields.value || {}
-  const fieldConfigs = Object.keys(configuredFields).length
-    ? configuredFields
-    : Object.fromEntries(availableFieldKeys.value.map((key) => [key, { type: 'normal' }]))
-
   const nextUid = appendOnlineDraftItem({
-    fieldConfigs,
+    fieldConfigs: appliedUserConfigFields.value || {},
     itemsPath: activeItemsPath.value,
     includeScan: hasScanField.value,
   })
@@ -396,6 +388,27 @@ function onCreateOnlineItem() {
   if (draftItem) {
     trackOnlineDraftCreate({ item: draftItem })
   }
+  selectItem(nextUid)
+}
+
+// Offline, new items can be created as soon as a field config is applied, also without loaded data.
+const canCreateLocalItem = computed(
+  () => appMode.value === 'offline' && Object.keys(appliedUserConfigFields.value || {}).length > 0,
+)
+const canCreateItem = computed(() => canCreateOnlineItem.value || canCreateLocalItem.value)
+
+function onCreateItem() {
+  if (appMode.value === 'online') {
+    onCreateOnlineItem()
+    return
+  }
+  if (!canCreateLocalItem.value) return
+
+  const nextUid = appendLocalItem({
+    fieldConfigs: appliedUserConfigFields.value,
+    includeScan: hasScanField.value,
+  })
+  searchQuery.value = ''
   selectItem(nextUid)
 }
 
@@ -521,6 +534,25 @@ function onSidebarSuspendEditingChange(event) {
   onSuspendEditingToggle({ uid, checked: event.target.checked })
 }
 
+// Keeps the keys the viewer does not edit (itemsPath, scanField, ...) and replaces the field
+// config and the viewer settings; a viewer setting without override is removed.
+function buildMergedOnlineSettings() {
+  const baseSettings =
+    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
+  const mergedSettings = {
+    ...baseSettings,
+    ...createUserConfigPayload(),
+  }
+  VIEWER_SETTING_KEYS.forEach((key) => {
+    delete mergedSettings[key]
+  })
+  return { ...mergedSettings, ...dataSourceViewerSettings.value }
+}
+
+const canWriteOnlineSettings = computed(
+  () => appMode.value === 'online' && isAuthenticated.value && Boolean(connectionProfile.value),
+)
+
 async function onApplyUserConfig() {
   applyUserConfigToRawItems(rawItems.value)
   if (dataMode.value === 'csv') {
@@ -528,20 +560,38 @@ async function onApplyUserConfig() {
   }
   isDirty.value = rawItems.value.length > 0
 
-  if (appMode.value !== 'online' || !isAuthenticated.value || !connectionProfile.value) {
+  if (!canWriteOnlineSettings.value) {
     return
   }
 
-  const baseSettings =
-    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
-  const userConfigPayload = createUserConfigPayload()
-  const mergedSettings = {
-    ...baseSettings,
-    ...userConfigPayload,
-    fields: userConfigPayload.fields,
+  await persistOnlineSettings(buildMergedOnlineSettings())
+}
+
+// Viewer settings live with the data source, so they can only be edited while one is open.
+const canEditViewerSettings = computed(() => {
+  if (appMode.value === 'online') {
+    return canWriteOnlineSettings.value && Boolean(onlineSettings.value)
+  }
+  return hasData.value
+})
+
+// `nextSettings` = null removes every override, so the basic config applies again.
+async function onApplyViewerSettings(nextSettings) {
+  if (!canEditViewerSettings.value) {
+    return { ok: false, reason: 'no-data-source' }
   }
 
-  await persistOnlineSettings(mergedSettings)
+  setDataSourceViewerSettings(nextSettings || {})
+
+  if (appMode.value === 'online') {
+    return persistOnlineSettings(buildMergedOnlineSettings())
+  }
+
+  if (dataMode.value === 'csv') {
+    setDataMode('json')
+  }
+  isDirty.value = true
+  return { ok: true }
 }
 
 function onAcceptCandidate({ targetField, candidateValue, targetConfiguredType }) {
@@ -648,8 +698,7 @@ const {
   setModeErrorMessage,
   importFromCsvText,
   importFromJsonText,
-  clearUserConfigSession,
-  initializeUserConfigForCurrentData,
+  initializeUserConfigForCurrentData: initializeUserConfig,
   importedConfig,
   applyImportedConfigPayload,
   applyUserConfigToRawItems,
@@ -669,6 +718,8 @@ const {
   hasUnappliedUserConfigChanges,
   resetToImportedSnapshot,
   resetReplacements,
+  dataSourceViewerSettings,
+  setDataSourceViewerSettings,
 })
 
 function onReset() {
@@ -756,13 +807,11 @@ function updateTopbarCondensedState() {
   }
 }
 
-onMounted(async () => {
+onMounted(() => {
   document.documentElement.style.setProperty('--color-primary', primaryColor.value)
 
-  // Muss vor dem await stehen: die Sticky-Offsets der Topbar/Tab-Reihe/Edit-Kopfzeile
-  // haengen an den hier gesetzten CSS-Variablen. Wuerde die Verdrahtung auf das
-  // Laden des Verbindungsprofils warten, blieben die Offsets bei einer langsamen
-  // oder fehlschlagenden Anfrage ungesetzt und die Sticky-Ebenen ueberlappen.
+  // Die Sticky-Offsets der Topbar/Tab-Reihe/Edit-Kopfzeile haengen an den hier
+  // gesetzten CSS-Variablen.
   window.addEventListener('resize', updateStickyMeasurements)
   window.addEventListener('scroll', updateTopbarCondensedState, { passive: true })
   stickyResizeObserver = new ResizeObserver(() => {
@@ -777,20 +826,15 @@ onMounted(async () => {
     updateStickyMeasurements()
   })
 
-  // Reihenfolge ist bindend: die Default-App-Config kann `defaultConnectionProfile`
-  // und `connectionMode` liefern, die unmittelbar danach gelesen werden.
-  const appConfigLoadResult = await loadEditableAppConfigFromDefault(defaultAppConfigFile)
-  if (!appConfigLoadResult?.ok) {
-    console.warn('Default app config load failed:', appConfigLoadResult)
-  }
-
+  // The basic config is already loaded (main.js). The profile comes first: the stored app
+  // mode only counts as `online` when a profile exists.
+  initializeConnectionProfile()
   loadDataModeFromSession()
   loadAppModeFromStorage()
   loadOnlineConfigOnlyFromStorage()
 
-  const connectionProfileLoadResult = await loadConnectionProfileFromDefault(defaultConnectionProfile.value)
-  if (!connectionProfileLoadResult?.ok) {
-    console.warn('Default connection profile load failed:', connectionProfileLoadResult)
+  if (appMode.value === 'online' && !connectionProfile.value) {
+    openDatabaseConnectionTab()
   }
   restoreSession()
   window.addEventListener('beforeunload', beforeUnloadListener)
@@ -824,10 +868,6 @@ watch(
     hasSelectedHierarchyLevel1.value = false
     selectedHierarchyLevel1.value = ''
     expandedHierarchyLevel2Values.value = []
-    if (appMode.value === 'online' && isAuthenticated.value && onlineSettings.value) {
-      return
-    }
-    initializeUserConfigForCurrentData()
   },
 )
 
@@ -859,14 +899,6 @@ watch(
     if (!Number.isInteger(nextSelectedIndex)) return
     if (!suspendedItemIndices.value.includes(nextSelectedIndex)) return
     toggleSuspendEditingByUid(nextSelectedUid, false)
-  },
-)
-
-watch(
-  () => availableFieldKeys.value.join('|'),
-  () => {
-    if (appMode.value === 'online' && isAuthenticated.value) return
-    initializeUserConfigForCurrentData()
   },
 )
 
@@ -973,6 +1005,7 @@ watch(
   async ([nextMode, nextAuthenticated, nextOnlineConfigOnly]) => {
     if (nextMode !== 'online' || !nextAuthenticated) {
       clearOnlineWording()
+      clearDataSourceViewerSettings()
       clearOnlineSettings()
       clearOnlineItems()
       clearOnlineUpdates()
@@ -985,6 +1018,7 @@ watch(
     const result = await fetchOnlineSettings()
     if (!result.ok) {
       clearOnlineWording()
+      clearDataSourceViewerSettings()
       return
     }
 
@@ -1002,10 +1036,12 @@ watch(
 
     const applyResult = applyImportedConfigPayload(result.settings)
     if (!applyResult.ok) {
+      clearDataSourceViewerSettings()
       markOnlineSettingsInvalid(applyResult.error)
       return
     }
 
+    setDataSourceViewerSettings(result.settings)
     applyUserConfigToRawItems(rawItems.value)
 
     if (nextOnlineConfigOnly) {
@@ -1057,7 +1093,7 @@ watch(
           :app-mode="appMode"
           :show-sample-data-button="showSampleDataButton" :show-start-from-scratch-button="showStartFromScratchButton"
           @file-selected="onDataFileSelected" @download="onDownload" @start-from-scratch="onStartFromScratchOpen"
-          @reset="onReset" @mode-changed="onDataModeChanged" @load-sample-data="onLoadSampleData" />
+          @reset="onReset" @load-sample-data="onLoadSampleData" />
       </div>
     </header>
     <section class="app-tab-sheet" :class="{ 'edit-active': activeTab === 'edit' }">
@@ -1129,9 +1165,9 @@ watch(
           :hierarchy-unassigned-label="t('hierarchyUnassignedLabel', 'Ohne Zuordnung')"
           :hierarchy-select-level1-label="t('hierarchySelectLevel1Label', 'Bitte waehlen Sie zuerst eine Kategorie.')"
           :hierarchy-collapse-all-label="t('hierarchyCollapseAllLabel', 'Alle Unterkategorien einklappen')"
-          :render-body="false" :show-create-item-button="canCreateOnlineItem"
+          :render-body="false" :show-create-item-button="canCreateItem"
           :create-item-label="t('onlineCreateItem', 'New item')"
-          :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateOnlineItem"
+          :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateItem"
           @update:search-query="searchQuery = $event"
           @update:edited-items-first="editedItemsFirst = $event" @toggle-suspend-editing="onSuspendEditingToggle" />
       </section>
@@ -1252,7 +1288,8 @@ watch(
 
         <section v-if="activeTab === 'configuration'" id="panel-configuration"
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
-          <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData" @apply="onApplyUserConfig" />
+          <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
+            :data-field-keys="availableFieldKeys" :no-data-hint="configurationNoDataHint" @apply="onApplyUserConfig" />
         </section>
 
         <section v-if="activeTab === 'replacements'" id="panel-replacements"
@@ -1262,7 +1299,8 @@ watch(
 
         <section v-if="activeTab === 'database-connection'" id="panel-database-connection"
           class="database-connection-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-database-connection">
-          <DatabaseConnectionPanel />
+          <DatabaseConnectionPanel :can-edit-viewer-settings="canEditViewerSettings"
+            :apply-viewer-settings="onApplyViewerSettings" />
         </section>
 
         <section v-if="activeTab === 'info'" id="panel-info" class="info-tab-panel tab-sheet-panel" role="tabpanel"

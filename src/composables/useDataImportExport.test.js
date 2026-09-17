@@ -20,7 +20,7 @@ function createBrowserMock() {
   }
 }
 
-function createModel({ dataMode = 'json', hasUnapplied = false, log = [] } = {}) {
+function createModel({ dataMode = 'json', hasUnapplied = false, log = [], overrides = {} } = {}) {
   const rawItems = ref([{ scan: 'https://example.com/a.jpg' }])
 
   return useDataImportExport({
@@ -66,6 +66,7 @@ function createModel({ dataMode = 'json', hasUnapplied = false, log = [] } = {})
     hasUnappliedUserConfigChanges: ref(hasUnapplied),
     resetToImportedSnapshot: vi.fn(),
     resetReplacements: vi.fn(),
+    ...overrides,
   })
 }
 
@@ -100,5 +101,156 @@ describe('useDataImportExport download flow', () => {
     model.onDownload()
 
     expect(log).toEqual(['apply', 'csv'])
+  })
+
+  test('writes the data source viewer settings into the exported config', async () => {
+    const blobParts = []
+    const OriginalBlob = globalThis.Blob
+    globalThis.Blob = class {
+      constructor(parts) {
+        blobParts.push(...parts)
+      }
+    }
+
+    try {
+      const model = createModel({
+        overrides: { dataSourceViewerSettings: ref({ primaryColor: '#123456', languageMode: 'single' }) },
+      })
+      model.onDownload()
+    } finally {
+      globalThis.Blob = OriginalBlob
+    }
+
+    const exported = JSON.parse(blobParts.join(''))
+    expect(exported.config).toEqual({ version: 1, fields: {}, primaryColor: '#123456', languageMode: 'single' })
+  })
+})
+
+function createFile(name, text = '[]') {
+  return { name, text: async () => text }
+}
+
+describe('useDataImportExport field config for new data', () => {
+  test('keeps a drafted config when the first data brings no config', async () => {
+    const log = []
+    const rawItems = ref([])
+    const initializeUserConfigForCurrentData = vi.fn()
+    const model = createModel({
+      log,
+      overrides: {
+        rawItems,
+        importFromJsonText: vi.fn(() => {
+          rawItems.value = [{ title: 'A' }]
+          return true
+        }),
+        initializeUserConfigForCurrentData,
+      },
+    })
+
+    await model.onDataFileSelected(createFile('plain.json'))
+
+    expect(initializeUserConfigForCurrentData).not.toHaveBeenCalled()
+    expect(log).toContain('apply')
+  })
+
+  test('replaces the config when data was already loaded', async () => {
+    const initializeUserConfigForCurrentData = vi.fn()
+    const model = createModel({
+      overrides: {
+        importFromJsonText: vi.fn(() => true),
+        initializeUserConfigForCurrentData,
+      },
+    })
+
+    await model.onDataFileSelected(createFile('plain.json'))
+
+    expect(initializeUserConfigForCurrentData).toHaveBeenCalled()
+  })
+
+  test('replaces a drafted config when the first data brings its own config', async () => {
+    const rawItems = ref([])
+    const initializeUserConfigForCurrentData = vi.fn()
+    const model = createModel({
+      overrides: {
+        rawItems,
+        importedConfig: ref({ version: 1, fields: { title: { type: 'text' } } }),
+        importFromJsonText: vi.fn(() => {
+          rawItems.value = [{ title: 'A' }]
+          return true
+        }),
+        initializeUserConfigForCurrentData,
+      },
+    })
+
+    await model.onDataFileSelected(createFile('with-config.json'))
+
+    expect(initializeUserConfigForCurrentData).toHaveBeenCalled()
+  })
+
+  test('start from scratch carries the drafted config into the new data', async () => {
+    let importedText = ''
+    const model = createModel({
+      overrides: {
+        importFromJsonText: vi.fn((text) => {
+          importedText = text
+          return true
+        }),
+        dataSourceViewerSettings: ref({ primaryColor: '#123456' }),
+      },
+    })
+
+    await model.onStartFromScratch({ singleUrl: 'https://example.org/card.jpg' })
+
+    expect(JSON.parse(importedText).config).toEqual({ version: 1, fields: {}, primaryColor: '#123456' })
+  })
+})
+
+describe('useDataImportExport viewer settings on import', () => {
+
+  test('takes the viewer settings from an imported JSON config', async () => {
+    const setDataSourceViewerSettings = vi.fn()
+    const importedConfig = ref({ version: 1, fields: {}, primaryColor: '#abcdef' })
+    const model = createModel({
+      overrides: {
+        importFromJsonText: vi.fn(() => true),
+        importedConfig,
+        setDataSourceViewerSettings,
+      },
+    })
+
+    await model.onDataFileSelected(createFile('data.json'))
+
+    expect(setDataSourceViewerSettings).toHaveBeenLastCalledWith(importedConfig.value)
+  })
+
+  test('falls back to the basic config for a CSV import', async () => {
+    const setDataSourceViewerSettings = vi.fn()
+    const model = createModel({
+      dataMode: 'csv',
+      overrides: {
+        importFromCsvText: vi.fn(() => true),
+        setDataSourceViewerSettings,
+      },
+    })
+
+    await model.onDataFileSelected(createFile('data.csv', 'a,b'))
+
+    expect(setDataSourceViewerSettings).toHaveBeenLastCalledWith({})
+  })
+
+  test('falls back to the basic config when the imported config is invalid', async () => {
+    const setDataSourceViewerSettings = vi.fn()
+    const model = createModel({
+      overrides: {
+        importFromJsonText: vi.fn(() => true),
+        importedConfig: ref({ primaryColor: '#abcdef' }),
+        applyImportedConfigPayload: vi.fn(() => ({ ok: false, error: 'invalid' })),
+        setDataSourceViewerSettings,
+      },
+    })
+
+    await model.onDataFileSelected(createFile('data.json'))
+
+    expect(setDataSourceViewerSettings).toHaveBeenLastCalledWith({})
   })
 })

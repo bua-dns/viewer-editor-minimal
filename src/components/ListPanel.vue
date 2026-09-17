@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { isCreatedItem } from '../composables/createdItems'
 
 const props = defineProps({
   itemLabel: {
@@ -208,7 +209,7 @@ function resolveItemCaption(item) {
   }
   const inventoryNumber = String(item?.inventory_number ?? '').trim()
   if (inventoryNumber) return inventoryNumber
-  if (item?.__onlineMeta?.isDraft === true && props.newItemFallbackLabel) {
+  if ((item?.__onlineMeta?.isDraft === true || isCreatedItem(item)) && props.newItemFallbackLabel) {
     return props.newItemFallbackLabel
   }
   return ''

@@ -1,11 +1,9 @@
 {
   "version": 1,
+  "connectionMode": "switchable",
+  "connectionProfile": null,
   "language": "de",
-  "languageMode": "single",
-  "githubRepo": "https://github.com/bua-dns/viewer-editor-minimal",
+  "languageMode": "multi",
   "primaryColor": "#1f7a8c",
-  "connectionMode": "online",
-  "dataInspectionMode": false,
-  "defaultConnectionProfile": "viewer-editor-connection-profile.v1.json",
-  "updatedAt": "2026-09-04T09:49:50.636Z"
+  "dataInspectionMode": false
 }

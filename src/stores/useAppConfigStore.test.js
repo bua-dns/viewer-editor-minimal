@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { useAppConfigStore } from './useAppConfigStore'
+
+const shippedWording = JSON.parse(
+  readFileSync(new URL('../../public/app-config/wording.json', import.meta.url), 'utf8'),
+)
 
 describe('useAppConfigStore wording merge', () => {
   beforeEach(() => {
     const store = useAppConfigStore()
+    store.setLocalWording(shippedWording)
     store.setLanguage('de')
     store.clearOnlineWording()
   })
@@ -72,6 +78,12 @@ describe('useAppConfigStore wording merge', () => {
     store.setLanguage('de')
     expect(store.t('tabDatabaseConnection', '')).toBe('Einstellungen')
   })
+
+  test('uses the inline fallback when no wording is loaded', () => {
+    const store = useAppConfigStore()
+    store.setLocalWording({})
+    expect(store.t('appTitle', 'Fallback title')).toBe('Fallback title')
+  })
 })
 
 function createLocalStorageMock() {
@@ -92,27 +104,33 @@ function createLocalStorageMock() {
   }
 }
 
-describe('useAppConfigStore default app config', () => {
+describe('useAppConfigStore basic config', () => {
   const originalFetch = globalThis.fetch
   const originalLocalStorage = globalThis.localStorage
 
-  const defaultFilePayload = {
+  const basicConfigPayload = {
     version: 1,
-    language: 'en',
-    languageMode: 'multi',
-    githubRepo: 'https://github.com/example/from-file',
-    primaryColor: '#123456',
     connectionMode: 'offline',
+    connectionProfile: {
+      label: 'Shipped',
+      baseUrl: 'https://cms.example.org/base/',
+      configPath: 'api/viewer-setting',
+    },
+    language: 'en',
+    languageMode: 'single',
+    primaryColor: '#123456',
     dataInspectionMode: true,
-    defaultConnectionProfile: 'from-file-profile.v1.json',
   }
 
-  function stubFetch(matcher, payload) {
+  function stubPublicFiles({ config = basicConfigPayload, wording = { appTitle: { de: 'Titel', en: 'Title' } } } = {}) {
     const calls = []
     globalThis.fetch = async (url) => {
       calls.push(url)
-      if (matcher(url)) {
-        return { ok: true, text: async () => JSON.stringify(payload) }
+      if (config !== null && url === '/viewer-editor/app-config/viewer-editor-app-config.v1.json') {
+        return { ok: true, text: async () => (typeof config === 'string' ? config : JSON.stringify(config)) }
+      }
+      if (wording !== null && url === '/viewer-editor/app-config/wording.json') {
+        return { ok: true, text: async () => JSON.stringify(wording) }
       }
       return { ok: false, status: 404 }
     }
@@ -121,8 +139,6 @@ describe('useAppConfigStore default app config', () => {
 
   beforeEach(() => {
     globalThis.localStorage = createLocalStorageMock()
-    const store = useAppConfigStore()
-    store.clearEditableAppConfig()
     Object.defineProperty(globalThis, 'location', {
       value: { pathname: '/viewer-editor/index.html' },
       configurable: true,
@@ -131,104 +147,178 @@ describe('useAppConfigStore default app config', () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch
-    globalThis.localStorage = createLocalStorageMock()
-    // Basisebene auf die Build-Defaults zuruecksetzen, damit ein geladener
-    // Default-File-Snapshot nicht in andere Tests leckt (Modul-globaler State).
-    useAppConfigStore().loadEditableAppConfigFromDefault('')
-    useAppConfigStore().clearEditableAppConfig()
+    // Module-global state: reset to the defaults so a loaded file does not leak into other tests.
+    useAppConfigStore().clearDataSourceViewerSettings()
+    useAppConfigStore().applyBasicConfig({})
+    useAppConfigStore().setLocalWording(shippedWording)
     globalThis.localStorage = originalLocalStorage
   })
 
-  test('looks the file up under the app-config folder of the runtime path prefix', async () => {
+  test('uses the hard-coded defaults before anything is loaded', () => {
     const store = useAppConfigStore()
-    const calls = stubFetch(
-      (url) => url === '/viewer-editor/app-config/viewer-editor-app-config.v1.json',
-      defaultFilePayload,
-    )
+    store.applyBasicConfig({})
 
-    const result = await store.loadEditableAppConfigFromDefault('viewer-editor-app-config.v1.json')
+    expect(store.connectionMode.value).toBe('switchable')
+    expect(store.basicConnectionProfile.value).toBe(null)
+    expect(store.language.value).toBe('de')
+    expect(store.languageMode.value).toBe('multi')
+    expect(store.showLanguageSwitch.value).toBe(true)
+    expect(store.primaryColor.value).toBe('#0066CC')
+    expect(store.dataInspectionMode.value).toBe(false)
+  })
+
+  test('loads the basic config and the wording from the app-config folder', async () => {
+    const store = useAppConfigStore()
+    const calls = stubPublicFiles()
+
+    const result = await store.loadBasicConfig()
 
     expect(result.ok).toBe(true)
     expect(calls).toContain('/viewer-editor/app-config/viewer-editor-app-config.v1.json')
-    expect(store.appConfigSource.value).toBe('default')
-  })
-
-  test('applies the default file over the build defaults', async () => {
-    const store = useAppConfigStore()
-    stubFetch(() => true, defaultFilePayload)
-
-    await store.loadEditableAppConfigFromDefault('viewer-editor-app-config.v1.json')
-
-    expect(store.primaryColor.value).toBe('#123456')
+    expect(calls).toContain('/viewer-editor/app-config/wording.json')
+    expect(store.basicConfigSource.value).toBe('file')
     expect(store.connectionMode.value).toBe('offline')
-    expect(store.dataInspectionMode.value).toBe(true)
-    expect(store.defaultConnectionProfile.value).toBe('from-file-profile.v1.json')
     expect(store.language.value).toBe('en')
-    // Kein gespeicherter Snapshot: die Basis gilt, zaehlt aber nicht als "gespeichert".
-    expect(store.hasSavedEditableAppConfig.value).toBe(false)
-  })
-
-  test('keeps a locally saved config in front of the default file', async () => {
-    const store = useAppConfigStore()
-    store.saveEditableAppConfig({ ...defaultFilePayload, primaryColor: '#abcdef' })
-
-    stubFetch(() => true, defaultFilePayload)
-    const result = await store.loadEditableAppConfigFromDefault('viewer-editor-app-config.v1.json')
-
-    expect(result.ok).toBe(true)
-    expect(result.overriddenByStorage).toBe(true)
-    expect(store.primaryColor.value).toBe('#abcdef')
-  })
-
-  test('clearing the saved config falls back to the default file, not to app.config.js', async () => {
-    const store = useAppConfigStore()
-    stubFetch(() => true, defaultFilePayload)
-    await store.loadEditableAppConfigFromDefault('viewer-editor-app-config.v1.json')
-
-    store.saveEditableAppConfig({ ...defaultFilePayload, primaryColor: '#abcdef' })
-    expect(store.primaryColor.value).toBe('#abcdef')
-
-    store.clearEditableAppConfig()
+    expect(store.languageMode.value).toBe('single')
     expect(store.primaryColor.value).toBe('#123456')
+    expect(store.dataInspectionMode.value).toBe(true)
+    expect(store.t('appTitle', '')).toBe('Title')
   })
 
-  test('keeps the build defaults when the file is missing', async () => {
+  test('normalizes a shipped connection profile', async () => {
     const store = useAppConfigStore()
-    const buildPrimaryColor = store.primaryColor.value
-    stubFetch(() => false, defaultFilePayload)
+    stubPublicFiles()
 
-    const result = await store.loadEditableAppConfigFromDefault('viewer-editor-app-config.v1.json')
+    await store.loadBasicConfig()
+
+    expect(store.basicConnectionProfile.value.baseUrl).toBe('https://cms.example.org/base')
+    expect(store.basicConnectionProfile.value.configPath).toBe('/api/viewer-setting')
+  })
+
+  test('ignores an invalid shipped connection profile', async () => {
+    const store = useAppConfigStore()
+    stubPublicFiles({ config: { ...basicConfigPayload, connectionProfile: { baseUrl: 'not a url' } } })
+
+    await store.loadBasicConfig()
+
+    expect(store.basicConnectionProfile.value).toBe(null)
+  })
+
+  test('keeps the defaults when the basic config file is missing', async () => {
+    const store = useAppConfigStore()
+    stubPublicFiles({ config: null })
+
+    const result = await store.loadBasicConfig()
 
     expect(result.ok).toBe(false)
-    expect(result.reason).toBe('fetch-failed')
-    expect(store.primaryColor.value).toBe(buildPrimaryColor)
-    expect(store.appConfigSource.value).toBe('build')
+    expect(result.config.reason).toBe('fetch-failed')
+    expect(store.basicConfigSource.value).toBe('defaults')
+    expect(store.primaryColor.value).toBe('#0066CC')
+    expect(store.t('appTitle', '')).toBe('Titel')
   })
 
-  test('keeps the build defaults when the file is not valid JSON', async () => {
+  test('keeps the defaults when the basic config file is not valid JSON', async () => {
     const store = useAppConfigStore()
-    const buildPrimaryColor = store.primaryColor.value
-    globalThis.fetch = async () => ({ ok: true, text: async () => 'not json' })
+    stubPublicFiles({ config: 'not json' })
 
-    const result = await store.loadEditableAppConfigFromDefault('viewer-editor-app-config.v1.json')
+    const result = await store.loadBasicConfig()
 
-    expect(result.ok).toBe(false)
-    expect(result.reason).toBe('invalid-json')
-    expect(store.primaryColor.value).toBe(buildPrimaryColor)
+    expect(result.config.reason).toBe('invalid-json')
+    expect(store.connectionMode.value).toBe('switchable')
   })
 
-  test('skips the fetch when no default file is configured', async () => {
+  test('falls back to inline texts when the wording file is missing', async () => {
     const store = useAppConfigStore()
-    let fetchCalled = false
-    globalThis.fetch = async () => {
-      fetchCalled = true
-      return { ok: false, status: 404 }
-    }
+    stubPublicFiles({ wording: null })
 
-    const result = await store.loadEditableAppConfigFromDefault('')
+    await store.loadBasicConfig()
 
-    expect(result.ok).toBe(true)
-    expect(result.hasDefault).toBe(false)
-    expect(fetchCalled).toBe(false)
+    expect(store.t('appTitle', 'Inline')).toBe('Inline')
+  })
+
+  test('lets the data source override viewer settings key by key', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ primaryColor: '#111111', languageMode: 'multi', dataInspectionMode: false })
+
+    store.setDataSourceViewerSettings({ primaryColor: '#222222', fields: {}, itemsPath: '/api/items' })
+
+    expect(store.dataSourceViewerSettings.value).toEqual({ primaryColor: '#222222' })
+    expect(store.primaryColor.value).toBe('#222222')
+    expect(store.languageMode.value).toBe('multi')
+    expect(store.dataInspectionMode.value).toBe(false)
+
+    store.clearDataSourceViewerSettings()
+    expect(store.primaryColor.value).toBe('#111111')
+  })
+
+  test('ignores invalid viewer settings from the data source', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({})
+
+    store.setDataSourceViewerSettings({ languageMode: 'both', primaryColor: '', dataInspectionMode: 'yes' })
+
+    expect(store.dataSourceViewerSettings.value).toEqual({})
+    expect(store.languageMode.value).toBe('multi')
+  })
+
+  test('sets the language from the data source and restores it when the source closes', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ language: 'de' })
+
+    store.setDataSourceViewerSettings({ language: 'en' })
+    expect(store.language.value).toBe('en')
+
+    store.clearDataSourceViewerSettings()
+    expect(store.language.value).toBe('de')
+  })
+
+  test('keeps a manually chosen language when the data source sets none', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ language: 'de' })
+    store.setLanguage('en')
+
+    store.setDataSourceViewerSettings({ primaryColor: '#222222' })
+    store.clearDataSourceViewerSettings()
+
+    expect(store.language.value).toBe('en')
+  })
+
+  test('exports an edited draft as the file content for public/app-config', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ primaryColor: '#111111' })
+
+    const exported = JSON.parse(
+      store.exportBasicConfigAsJson({
+        connectionMode: 'online',
+        connectionProfile: { label: 'Main', baseUrl: 'https://cms.example.org/', configPath: 'api/viewer-setting' },
+        language: 'en',
+        languageMode: 'single',
+        primaryColor: '#222222',
+        dataInspectionMode: true,
+      }),
+    )
+
+    expect(exported).toEqual({
+      version: 1,
+      connectionMode: 'online',
+      connectionProfile: { label: 'Main', baseUrl: 'https://cms.example.org', configPath: '/api/viewer-setting' },
+      language: 'en',
+      languageMode: 'single',
+      primaryColor: '#222222',
+      dataInspectionMode: true,
+    })
+    // Exporting does not change the basic config in effect.
+    expect(store.primaryColor.value).toBe('#111111')
+  })
+
+  test('removes the old app settings snapshot from localStorage', async () => {
+    const store = useAppConfigStore()
+    globalThis.localStorage.setItem('viewerEditor.appConfig.v1', '{"primaryColor":"#abcdef"}')
+    stubPublicFiles()
+
+    await store.loadBasicConfig()
+
+    expect(globalThis.localStorage.getItem('viewerEditor.appConfig.v1')).toBe(null)
+    expect(store.primaryColor.value).toBe('#123456')
   })
 })
