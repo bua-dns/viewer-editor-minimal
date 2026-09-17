@@ -995,20 +995,16 @@
     "de": "Diese Datenquelle hat noch keine Feldkonfiguration. Fügen Sie die Felder hinzu, die Sie bearbeiten möchten, und wenden Sie die Konfiguration an.",
     "en": "This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration."
   },
-  "basicConfigApply": {
-    "de": "Anwenden",
-    "en": "Apply"
-  },
-  "basicConfigApplySuccess": {
-    "de": "Grundkonfiguration bis zum nächsten Neuladen angewendet. Zum Übernehmen die Datei herunterladen.",
-    "en": "Basic config applied until the next reload. Download the file to keep it."
-  },
   "basicConfigIncludeProfileField": {
     "de": "Verbindungsprofil in die Datei übernehmen (fest für diese Installation)",
     "en": "Put the connection profile into the file (fixed for this deployment)"
   },
   "basicConfigEditNote": {
-    "de": "Der Browser kann die Datei auf dem Server nicht ändern. „Anwenden“ gilt bis zum nächsten Neuladen; um die Werte zu behalten, die Datei herunterladen und in /public/app-config/ ablegen.",
-    "en": "The browser cannot change the file on the server. \"Apply\" is active until the next reload; to keep the values, download the file and place it in /public/app-config/."
+    "de": "Die Grundkonfiguration ist eine Datei der Installation und kann hier nicht geändert werden. Änderungen an den Viewer-Einstellungen oben werden mit den Daten gespeichert. Um die Standardwerte zu ändern, die Datei herunterladen, bearbeiten und in /public/app-config/ ablegen.",
+    "en": "The basic config is a file of the deployment and cannot be changed here. Changes to the viewer settings above are saved with the data. To change the defaults, download the file, edit it and place it in /public/app-config/."
+  },
+  "configNoDataHint": {
+    "de": "Keine Daten geladen. Die Konfiguration wird mit den Daten gespeichert: eine JSON- oder CSV-Datei laden oder neu beginnen und danach das JSON herunterladen. Eine hier vorbereitete Konfiguration bleibt erhalten, wenn die Daten keine eigene mitbringen.",
+    "en": "No data loaded. The configuration is saved with the data: load a JSON or CSV file, or start from scratch, and download the JSON afterwards. A configuration drafted here is kept when the data has none of its own."
   }
 }

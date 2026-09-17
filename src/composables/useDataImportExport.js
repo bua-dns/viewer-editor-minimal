@@ -150,12 +150,13 @@ export function useDataImportExport({
     return { ok: true, urls: [singleUrl] }
   }
 
+  // Carries a field config drafted in the Konfiguration tab before any data existed.
   function createStartFromScratchPayload(scanUrls) {
     return {
       data: scanUrls.map((scanUrl) => ({ scan: scanUrl })),
       config: {
-        version: 1,
-        fields: {},
+        ...createUserConfigPayload(),
+        ...dataSourceViewerSettings.value,
       },
       replacements: {
         allFields: {},
@@ -196,6 +197,18 @@ export function useDataImportExport({
     return true
   }
 
+  // A new data source replaces the field config, except when no data was loaded before and the
+  // new data brings no config of its own: then a config drafted in the Konfiguration tab is kept
+  // and applied to the items.
+  function prepareFieldConfigForNewData(hadDataBefore) {
+    const bringsConfig = dataMode.value === 'json' && Boolean(importedConfig.value)
+    if (!hadDataBefore && !bringsConfig) {
+      applyUserConfigToRawItems(rawItems.value)
+      return
+    }
+    initializeUserConfigForCurrentData()
+  }
+
   async function onDataFileSelected(file) {
     if (!isSelectedFileTypeMatchingMode(file.name)) {
       setModeErrorMessage(t('uploadModeMismatchError', 'Dateityp passt nicht zum gewaehlten Modus.'))
@@ -204,10 +217,11 @@ export function useDataImportExport({
 
     const text = await file.text()
     setModeErrorMessage('')
+    const hadDataBefore = rawItems.value.length > 0
     const success = parseDataFileContent(text, file.name)
     if (!success) return
 
-    initializeUserConfigForCurrentData()
+    prepareFieldConfigForNewData(hadDataBefore)
     await applyImportedConfigIfPresent()
   }
 
@@ -226,12 +240,13 @@ export function useDataImportExport({
       }
 
       const text = await response.text()
+      const hadDataBefore = rawItems.value.length > 0
       const success = parseDataFileContent(text, sampleFileName)
       if (!success) return
 
       normalizeSampleScanUrls()
 
-      initializeUserConfigForCurrentData()
+      prepareFieldConfigForNewData(hadDataBefore)
       await applyImportedConfigIfPresent()
     } catch {
       errorMessage.value = t('sampleDataLoadError', 'Beispieldaten konnten nicht geladen werden.')

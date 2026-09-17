@@ -303,8 +303,19 @@ function initializeExpandedHierarchyLevel2(nextSelectedLevel1 = selectedHierarch
 
 const showSampleDataButton = computed(() => !hasData.value)
 const showStartFromScratchButton = computed(() => dataMode.value === 'json' && !hasData.value)
-const canConfigureWithoutData = computed(
-  () => appMode.value === 'online' && isAuthenticated.value && Boolean(onlineSettings.value),
+// Offline the field config can be drafted before any data is loaded; it is kept when the first
+// data without its own config is opened. Online it needs loaded settings to write back to.
+const canConfigureWithoutData = computed(() => {
+  if (appMode.value === 'offline') return true
+  return isAuthenticated.value && Boolean(onlineSettings.value)
+})
+const configurationNoDataHint = computed(() =>
+  appMode.value === 'offline' && !hasData.value
+    ? t(
+        'configNoDataHint',
+        'No data loaded. The configuration is saved with the data: load a JSON or CSV file, or start from scratch, and download the JSON afterwards. A configuration drafted here is kept when the data has none of its own.',
+      )
+    : '',
 )
 
 const hasPendingChanges = computed(() => {
@@ -1256,7 +1267,7 @@ watch(
         <section v-if="activeTab === 'configuration'" id="panel-configuration"
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
           <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
-            :data-field-keys="availableFieldKeys" @apply="onApplyUserConfig" />
+            :data-field-keys="availableFieldKeys" :no-data-hint="configurationNoDataHint" @apply="onApplyUserConfig" />
         </section>
 
         <section v-if="activeTab === 'replacements'" id="panel-replacements"

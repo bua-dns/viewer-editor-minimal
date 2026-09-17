@@ -258,13 +258,11 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 - **Fehlerfall:** fehlt eine Datei oder ist sie ungültig, gelten die fest eingebauten Defaults der
   Normalizer bzw. die Inline-Fallbacks der `t()`-Aufrufe. Die App startet immer; der Grund steht in
   `lastBasicConfigLoadError` und als `console.warn`.
-- **Bearbeiten und Erzeugen:** Der Bereich `Grundkonfiguration` im Tab `Einstellungen` ist ein Formular für
-  `connectionMode`, `language`, `languageMode`, `primaryColor` und `dataInspectionMode`. Weil der Browser
-  die Datei auf dem Server nicht schreiben kann, gilt `Anwenden` (`applyBasicConfig`) nur bis zum nächsten
-  Neuladen; das Verbindungsprofil wird dabei nicht umgeschaltet. `Grundkonfiguration als JSON
-  herunterladen` (`exportBasicConfigAsJson(draft)`) schreibt die Formularwerte in die Datei für
-  `public/app-config/`; die Option `Verbindungsprofil in die Datei übernehmen` fügt das aktuelle Profil als
-  festes `connectionProfile` ein.
+- **Anzeige und Erzeugen:** Der Bereich `Grundkonfiguration` im Tab `Einstellungen` zeigt die Werte nur an.
+  Änderungen an den Viewer-Einstellungen werden im Bereich darüber mit der Datenquelle gespeichert (siehe
+  [4.3](#43-konfiguration-der-datenquelle)). `Grundkonfiguration als JSON herunterladen`
+  (`exportBasicConfigAsJson(draft)`) erzeugt die Datei für `public/app-config/`; die Option
+  `Verbindungsprofil in die Datei übernehmen` fügt das aktuelle Profil als festes `connectionProfile` ein.
 - **Altlast:** ein früher gespeicherter localStorage-Eintrag `viewerEditor.appConfig.v1` wird beim Laden
   entfernt und nicht mehr gelesen.
 
@@ -409,8 +407,8 @@ dort dauerhaft geöffnet.
 **Die Feldkonfiguration hat keinen Default.** Sie kommt immer aus der Datenquelle (`config` der JSON-Datei
 bzw. `viewer-setting.settings`, siehe [4.1](#41-zwei-ebenen)). Jeder Import setzt sie zuerst zurück
 (`initializeUserConfig()`) und wendet dann eine mitgelieferte `config` an. Eine Datenquelle ohne `config`
-(reines JSON-Array, CSV) startet ohne Felder; es wird nichts aus den Datenschlüsseln abgeleitet und nichts
-im Browser zwischengespeichert.
+(reines JSON-Array, CSV) startet ohne Felder - außer offline beim ersten Laden, siehe oben; es wird nichts
+aus den Datenschlüsseln abgeleitet und nichts im Browser zwischengespeichert.
 
 Oberhalb der Feldliste zeigt der Tab die **Schlüssel in den Daten ohne Konfiguration** (aus
 `availableFieldKeys`, ohne reservierte Schlüssel) mit je einem Button `Hinzufügen` und `Alle hinzufügen`
@@ -418,8 +416,13 @@ Oberhalb der Feldliste zeigt der Tab die **Schlüssel in den Daten ohne Konfigur
 `Konfiguration anwenden`. Nicht konfigurierte Schlüssel bleiben in den Daten erhalten: `Konfiguration
 anwenden` entfernt nur Felder, die zuvor angewendet und dann aus der Konfiguration gelöscht wurden.
 
-Der Tab ist nach einem Daten-Import nutzbar. Im Online-Modus kann die Konfiguration zusätzlich ohne
-geladene Items bearbeitet werden, sobald gültige Online-Settings vorliegen (`Configuration only`).
+Offline ist der Tab immer nutzbar, auch ohne geladene Daten; dann steht über dem Formular ein Hinweis, dass
+die Konfiguration mit den Daten gespeichert wird. Eine so vorbereitete Konfiguration bleibt beim ersten
+Laden von Daten ohne eigene `config` erhalten und wird auf die Items angewendet
+(`prepareFieldConfigForNewData` in `useDataImportExport`); `Neu beginnen` übernimmt sie in die `config`
+des erzeugten Datensatzes. Bringen die Daten eine eigene `config` mit oder waren schon Daten geladen, wird
+die Feldkonfiguration ersetzt. Online ist der Tab nutzbar, sobald gültige Online-Settings vorliegen, auch
+ohne geladene Items (`Configuration only`).
 
 ### 7.1 Optionen pro Feld
 
@@ -639,7 +642,7 @@ nicht-JSON-Typen (`Date`, `Map`, Funktionen).
 - Verfügbar nur im JSON-Modus ohne geladene Daten.
 - Eingabe entweder einer einzelnen absoluten `http(s)`-Scan-URL oder eines CSV-Textes mit mehreren URLs;
   ungültige URLs werden mit Fehlermeldung im Modal abgewiesen.
-- Erzeugt intern das Payload `{ data: [{ scan }], config: { version: 1, fields: {} },
+- Erzeugt intern das Payload `{ data: [{ scan }], config: <vorbereitete Konfiguration inkl. Viewer-Einstellungen>,
   replacements: { allFields: {} } }`, importiert es über den normalen JSON-Pfad und markiert den Stand
   als dirty.
 
@@ -1141,7 +1144,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand Konfigurationsebenen: 20 Testdateien, 216 Tests, alle grün.
+Stand Konfigurationsebenen: 20 Testdateien, 220 Tests, alle grün.
 
 ### Composables
 
@@ -1150,7 +1153,7 @@ Stand Konfigurationsebenen: 20 Testdateien, 216 Tests, alle grün.
 | `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `tokenize`, `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
 | `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
-| `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück |
+| `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
 | `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
 | `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |

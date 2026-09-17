@@ -11,6 +11,8 @@ const props = defineProps({
   forceOpen: { type: Boolean, default: false },
   // Keys found in the loaded items; the ones without configuration can be added from here.
   dataFieldKeys: { type: Array, default: () => [] },
+  // Shown above the form when no data is loaded.
+  noDataHint: { type: String, default: '' },
 })
 
 const emit = defineEmits(['apply'])
@@ -211,6 +213,8 @@ function onRemoveHierarchyField(index) {
     </div>
 
     <div v-if="isPanelOpen" class="user-config-grid">
+      <p v-if="props.noDataHint" class="user-config-no-data-hint">{{ props.noDataHint }}</p>
+
       <div v-if="unconfiguredDataFieldKeys.length" class="user-config-data-keys">
         <div class="user-config-data-keys-head">
           <strong>{{ t('dataKeysWithoutConfigLabel', 'Keys in the data without configuration') }}</strong>
@@ -463,6 +467,11 @@ function onRemoveHierarchyField(index) {
 
 .user-config-error {
   margin: 0 0 var(--ve-space-1);
+}
+
+.user-config-no-data-hint {
+  margin: 0 0 0.35rem;
+  color: var(--ve-color-text-soft);
 }
 
 .user-config-data-keys {
