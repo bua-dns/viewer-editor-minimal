@@ -15,6 +15,7 @@ lerna-debug.log*
 
 # build output
 dist/
+dist-projects/
 dist-ssr/
 .vite/
 

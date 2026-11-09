@@ -68,8 +68,8 @@ Kernfunktionen:
 - Styling: Sass (SCSS)
 - Info-Tab-Rendering: `markdown-it` + `highlight.js`
 - Sprache: JavaScript (ESM)
-- Deployment Base Path: `/viewer-editor-strapi/` (`base` in `vite.config.js`; früher genutzte Pfade
-  stehen dort auskommentiert)
+- Deployment Base Path: generischer Build `/viewer-editor/` (`base` in `vite.config.js`); Projekt-Builds
+  setzen ihn selbst (siehe [Projekt-Modi](#projekt-modi---mode-project))
 
 ### Paketmanager und Skripte
 
@@ -87,6 +87,36 @@ pnpm test       # vitest run
 Die Skriptnamen sind identisch für `npm run ...`; ein `npm install` erzeugt allerdings ein
 konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 
+### Projekt-Modi (`--mode <project>`)
+
+```bash
+pnpm dev --mode xylothek
+pnpm build --mode xylothek      # Ausgabe: dist-projects/xylothek/
+pnpm preview --mode xylothek
+```
+
+Ohne `--mode` (bzw. mit Vites eigenen Modi `development`, `production`, `test`) entsteht der generische
+Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus ist ein Projektname.
+
+- **Wo die Projekte liegen:** in einem eigenen Config-Repo, per Konvention im Nachbarordner
+  `../viewer-editor-projects/<project>/`. Ein anderer Ort wird in der (ungetrackten) `.env.local` dieses
+  Repos gesetzt: `VIEWER_EDITOR_PROJECTS_DIR=<pfad>`. Fehlt das Projekt, bricht der Build ab und nennt die
+  vorhandenen Projekte.
+- **Projektordner:** `project.json` (optional: `base`, Default `./`; `title` für `<title>`; `favicon` als
+  Pfad im Projekt-`public/`), `public/` und optional `.env` / `.env.local`.
+- **Overlay:** `public/` des Projekts wird über das generische `public/` gelegt; eine Projektdatei ersetzt
+  die generische Datei mit demselben Pfad. Das Ergebnis liegt in `.vite/project-public/<project>/` und dient
+  als `publicDir`. Im Dev-Server wird es bei Änderungen in einem der beiden Ordner neu erzeugt (Full Reload).
+- **Laufzeitdateien bleiben Dateien:** `app-config/*.json` landen unverändert im Build und lassen sich auf dem
+  Server ohne Rebuild austauschen.
+- **`base: "./"`** macht den Build pfadunabhängig; die Seiten-URL muss dann mit `/` enden.
+- **Secrets:** `envDir` ist der Projektordner. `VITE_*`-Werte landen lesbar im Bundle; Secrets gehören ohne
+  `VITE_`-Präfix in die `.env.local` des Projekts und sind nur zur Build-Zeit verfügbar. Der Build warnt bei
+  `VITE_*`-Namen, die nach Secret aussehen (`TOKEN`, `SECRET`, `PASSWORD`, `PRIVATE`, `API_KEY`).
+- Code: `build-tools/projectMode.js` (Auflösen, Overlay, `index.html`-Anpassung, Vite-Plugin), eingebunden
+  in `vite.config.js`. Tests: `build-tools/projectMode.test.js`.
+- Deployment bleibt manuell (Inhalt von `dist-projects/<project>/` hochladen).
+
 ---
 
 ## 3 Projektstruktur
@@ -94,7 +124,8 @@ konkurrierendes `package-lock.json` und sollte deshalb vermieden werden.
 ### Root und Konfiguration
 
 - `index.html` - Einstiegspunkt mit Mount-Node `#app`
-- `vite.config.js` - Vite-Konfiguration (Vue-Plugin, `base`)
+- `vite.config.js` - Vite-Konfiguration (Vue-Plugin, `base`, Projekt-Modi)
+- `build-tools/projectMode.js` - Projekt-Modi: Projektordner auflösen, `public/`-Overlay, `index.html`-Titel/Favicon
 - `package.json` / `pnpm-lock.yaml` - Abhängigkeiten und Skripte
 - `docs/` - `technical-documentation.md` (dieses Dokument), `conventions.md`, `changelog.md`
 - `public/app-config/` - Grundkonfiguration `viewer-editor-app-config.v1.json` und Wording
