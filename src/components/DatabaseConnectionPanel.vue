@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
+import { usePendingOnlineChangesGuard } from '../composables/usePendingOnlineChangesGuard'
 
 const props = defineProps({
   canEditViewerSettings: { type: Boolean, default: false },
@@ -61,7 +62,21 @@ const {
   checkDataModelImplementation,
 } = useConnectionProfileStore()
 
+const { confirmDiscardPendingOnlineChanges } = usePendingOnlineChangesGuard()
+
 hydrateFormFromStore()
+
+function isSameEndpoint(left, right) {
+  const normalize = (value) => String(value || '').trim().replace(/\/+$/, '')
+  return normalize(left?.baseUrl) === normalize(right?.baseUrl)
+    && normalize(left?.configPath) === normalize(right?.configPath)
+}
+
+// Another base URL or config path reloads the online data and drops unsaved online changes.
+function confirmProfileChange(nextProfile = null) {
+  if (nextProfile && isSameEndpoint(nextProfile, connectionProfile.value)) return true
+  return confirmDiscardPendingOnlineChanges()
+}
 
 function hydrateFormFromStore() {
   const draft = buildDraftProfile()
@@ -83,6 +98,7 @@ function triggerUpload() {
 
 // Saving runs the connection test first; a profile that fails it is not stored.
 async function onSave() {
+  if (!confirmProfileChange(form.value)) return
   fieldErrors.value = {}
   isSaving.value = true
   const result = await saveConnectionProfile(form.value)
@@ -108,6 +124,7 @@ function onResetToSaved() {
 }
 
 function onClearSaved() {
+  if (!confirmProfileChange()) return
   clearConnectionProfile()
   hydrateFormFromStore()
   fieldErrors.value = {}
@@ -138,6 +155,7 @@ async function onUploadFileChange(event) {
   event.target.value = ''
   if (!file) return
 
+  if (!confirmProfileChange()) return
   const text = await file.text()
   isSaving.value = true
   const result = await importConnectionProfileFromJsonText(text)

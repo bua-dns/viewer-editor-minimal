@@ -65,6 +65,8 @@ export function resolvePublicConfigUrls(value, folder = '') {
   return uniqueNonEmpty([...withFolder, ...direct])
 }
 
+const CONFIG_FETCH_TIMEOUT_MS = 10_000
+
 // Probiert die Kandidaten-URLs der Reihe nach und liefert den Rohtext der ersten
 // erfolgreichen Antwort.
 export async function fetchFirstAvailableConfigText(urls) {
@@ -80,6 +82,8 @@ export async function fetchFirstAvailableConfigText(urls) {
         headers: {
           Accept: 'application/json',
         },
+        // The app mounts only after this load, so a hanging request must not block it.
+        signal: AbortSignal.timeout(CONFIG_FETCH_TIMEOUT_MS),
       })
       if (!response.ok) {
         lastError = `Could not load config file (HTTP ${response.status}).`

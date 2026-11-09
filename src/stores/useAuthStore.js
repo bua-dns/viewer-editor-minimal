@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { fetchCurrentUserFromStrapi, loginWithStrapi } from '../services/strapiApi'
+import { fetchCurrentUserFromStrapi, loginWithStrapi, setUnauthorizedHandler } from '../services/strapiApi'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 
 const AUTH_TOKEN_STORAGE_KEY = 'viewerEditor.authToken.v1'
@@ -8,6 +8,9 @@ const token = ref('')
 const user = ref(null)
 const authStatus = ref('anonymous')
 const lastAuthError = ref('')
+// The token was rejected (401) during a session. The session and its unsaved changes stay open
+// until the user logs in again or logs out; `user` keeps the last user meanwhile.
+const sessionExpired = ref(false)
 
 function getLocalStorageSafe() {
   try {
@@ -30,8 +33,9 @@ function persistToken(nextToken) {
 
 function clearAuthState() {
   token.value = ''
-  user.value = null
   persistToken('')
+  // An expired session keeps its user, so a failed re-login does not close the session.
+  if (!sessionExpired.value) user.value = null
 }
 
 function normalizeAuthErrorMessage(error, fallback) {
@@ -54,6 +58,7 @@ async function fetchCurrentUser() {
   user.value = currentUser
   authStatus.value = 'authenticated'
   lastAuthError.value = ''
+  sessionExpired.value = false
   return currentUser
 }
 
@@ -97,16 +102,26 @@ async function login(identifier, password) {
 }
 
 function logout() {
+  sessionExpired.value = false
   clearAuthState()
   authStatus.value = 'anonymous'
   lastAuthError.value = ''
 }
 
+/**
+ * Strapi rejected the token of the running session (usually: it expired). Only the token is
+ * dropped; the session stays open so unsaved changes survive until the user logs in again.
+ * 401s outside a running session (login, restoring a stored token) are handled where they occur.
+ */
 function handleUnauthorized() {
+  if (authStatus.value !== 'authenticated') return
+  sessionExpired.value = true
   clearAuthState()
-  authStatus.value = 'anonymous'
-  lastAuthError.value = 'Session expired. Please log in again.'
+  authStatus.value = 'expired'
+  lastAuthError.value = 'Session expired. Log in again to save; unsaved changes are kept.'
 }
+
+setUnauthorizedHandler(handleUnauthorized)
 
 async function restoreSession() {
   const { connectionProfile } = useConnectionProfileStore()
@@ -142,6 +157,10 @@ async function restoreSession() {
 }
 
 const isAuthenticated = computed(() => authStatus.value === 'authenticated' && Boolean(token.value))
+// Open while logged in and while an expired session waits for a new login.
+const hasOnlineSession = computed(() => isAuthenticated.value || sessionExpired.value)
+// Changes when another user logs in; the loaded data and pending changes then belong to nobody.
+const sessionUserId = computed(() => String(user.value?.id ?? user.value?.documentId ?? ''))
 
 export function useAuthStore() {
   return {
@@ -150,6 +169,9 @@ export function useAuthStore() {
     authStatus,
     lastAuthError,
     isAuthenticated,
+    sessionExpired,
+    hasOnlineSession,
+    sessionUserId,
     login,
     logout,
     restoreSession,

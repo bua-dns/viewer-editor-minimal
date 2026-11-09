@@ -6,6 +6,7 @@ import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 import { useOnlineModeStore } from '../stores/useOnlineModeStore'
 import { useOnlineSettingsStore } from '../stores/useOnlineSettingsStore'
 import { useOnlineItemsStore } from '../stores/useOnlineItemsStore'
+import { usePendingOnlineChangesGuard } from '../composables/usePendingOnlineChangesGuard'
 
 const props = defineProps({
   hasPendingOnlineUpdates: { type: Boolean, default: false },
@@ -26,11 +27,13 @@ let saveStatusTimeoutId = null
 const { t } = useAppConfigStore()
 const { appMode, onlineConfigOnly, isConnectionModeSwitchable, setAppMode, setOnlineConfigOnly } = useOnlineModeStore()
 const { hasConnectionProfile } = useConnectionProfileStore()
-const { authStatus, isAuthenticated, lastAuthError, login, logout } = useAuthStore()
+const { authStatus, isAuthenticated, hasOnlineSession, lastAuthError, login, logout } = useAuthStore()
 const { settingsStatus, lastSettingsError } = useOnlineSettingsStore()
 const { itemsStatus, lastItemsError } = useOnlineItemsStore()
+const { confirmDiscardPendingOnlineChanges } = usePendingOnlineChangesGuard()
 
 function onModeChange(nextMode) {
+  if (nextMode !== appMode.value && !confirmDiscardPendingOnlineChanges()) return
   setAppMode(nextMode)
   if (nextMode === 'online' && !hasConnectionProfile.value) {
     emit('open-connection-tab')
@@ -38,6 +41,11 @@ function onModeChange(nextMode) {
 }
 
 function onOnlineConfigOnlyChange(event) {
+  // Toggling reloads the online data; on "cancel" the checkbox goes back to the current state.
+  if (!confirmDiscardPendingOnlineChanges()) {
+    event.target.checked = onlineConfigOnly.value
+    return
+  }
   setOnlineConfigOnly(event.target.checked)
 }
 
@@ -56,6 +64,7 @@ async function onLogin() {
 }
 
 function onLogout() {
+  if (!confirmDiscardPendingOnlineChanges()) return
   logout()
 }
 
@@ -138,17 +147,16 @@ onBeforeUnmount(() => {
           {{ t('dbConnectionOpenTab', 'Open Settings tab') }}
         </button>
       </p>
-      <div v-else-if="!isAuthenticated" class="auth-user-card">
-        <button type="button" class="transfer-btn transfer-btn-mode" @click="openLoginModal">
+      <!-- An expired session shows login and logout: log in again to keep the changes. -->
+      <div v-else class="auth-user-card">
+        <button v-if="!isAuthenticated" type="button" class="transfer-btn transfer-btn-mode" @click="openLoginModal">
           {{ t('authLogin', 'Login') }}
         </button>
-      </div>
-
-      <div v-else class="auth-user-card">
-        <button type="button" class="transfer-btn transfer-btn-reset" @click="onLogout">
+        <button v-if="hasOnlineSession" type="button" class="transfer-btn transfer-btn-reset" @click="onLogout">
           {{ t('authLogout', 'Logout') }}
         </button>
         <button
+          v-if="isAuthenticated"
           type="button"
           class="transfer-btn transfer-btn-mode"
           :disabled="!props.hasPendingOnlineUpdates || props.saveStatus === 'saving'"
@@ -182,7 +190,7 @@ onBeforeUnmount(() => {
         {{ lastItemsError || t('onlineItemsFailed', 'Could not load online items.') }}
       </p>
 
-      <p v-if="isAuthenticated && props.hasPendingOnlineUpdates" class="auth-note status-neutral">
+      <p v-if="hasOnlineSession && props.hasPendingOnlineUpdates" class="auth-note status-neutral">
         {{
           t('onlineUnsavedChangesCount', 'Unsaved online changes in items:')
         }}

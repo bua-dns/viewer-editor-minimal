@@ -177,6 +177,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `userConfigValidation.js` - zentraler Validator für importierte bzw. geladene JSON-Config
 - `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
 - `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
+- `usePendingOnlineChangesGuard.js` - Online-Sitzung, ungespeicherte Online-Änderungen und die Rückfrage vor dem Verwerfen
+- `requestSequence.js` - "neuester Request gewinnt" für Ladevorgänge, die gemeinsamen State schreiben
 
 ### Stores (`src/stores/`)
 
@@ -253,7 +255,7 @@ Die Schlüssel sind nach Rolle gruppiert:
 | Bootstrap | `connectionMode`, `connectionProfile` | nur Grundkonfiguration (ein vom Nutzer eingegebenes Profil: siehe [12.1](#121-verbindungsprofil)) |
 | Viewer-Einstellungen | `language`, `languageMode`, `primaryColor`, `dataInspectionMode` | Grundkonfiguration als Default, Datenquelle überschreibt |
 | Feldkonfiguration | `fields`, `itemLabelField`, `markAsEditedBasis`, `showOnlyNonEmptyFields`, `hierarchyFields`, `firstLevelStaticList` | nur Datenquelle, kein Default (siehe [Kapitel 7](#7-user-config-tab-konfiguration)) |
-| Anbindung (online) | `itemsPath`, `scanField` | nur `viewer-setting.settings` |
+| Anbindung (online) | `itemsPath`, `scanField`, `createKeyField` | nur `viewer-setting.settings` |
 | Wording | Handle → Sprachmap | `public/app-config/wording.json`; online zusätzlich `viewer-setting.wording` |
 | Ersetzungen | `replacements` | Datenquelle (siehe [Kapitel 11](#11-ersetzungen-replacements)) |
 
@@ -801,6 +803,16 @@ Orchestriert wird der Lauf in `src/composables/useReplacementsApply.js`:
 - Der gesamte HTTP-Zugriff liegt in `src/services/strapiApi.js`. `strapiFetchJson(...)` setzt
   `Accept`, bei Body `Content-Type` und bei vorhandenem Token `Authorization: Bearer ...`; Fehlerobjekte
   tragen `status` und `payload`, die Fehlermeldung stammt bevorzugt aus `payload.error.message`.
+  - **Timeout:** jeder Request endet nach `READ_TIMEOUT_MS` (30 s, `GET`) bzw. `WRITE_TIMEOUT_MS`
+    (60 s, sonst); ein optionales `signal` wird damit kombiniert. Timeout und Netzwerkfehler werden zu
+    einem Fehler mit `status: 0` und `outcomeUnknown: true` - bei einem Schreibzugriff ist dann offen,
+    ob der Server ihn ausgeführt hat (siehe [12.9](#129-create-flow-neues-item)).
+  - **2xx ohne JSON** (z. B. eine Proxy- oder SPA-Fallback-Seite) ist ein Fehler; nur `204` liefert
+    `null`. Früher kam `null` zurück, und die populate-Wiederholung in `fetchAllCollectionItemsFromStrapi`
+    lief damit endlos.
+  - **401 mit Token** meldet der Request an den per `setUnauthorizedHandler(...)` registrierten Handler
+    (`useAuthStore.handleUnauthorized`, siehe [12.2](#122-login-modal)).
+  - Wikidata-Requests (10 s) und die Config-Dateien aus `public/app-config/` (10 s) haben eigene Timeouts.
 
 ### 12.1 Verbindungsprofil
 
@@ -833,12 +845,34 @@ Orchestriert wird der Lauf in `src/composables/useReplacementsApply.js`:
   über Icon-Buttons (Eye/Eye-off SVG) umgeschaltet.
 - Das Modal schließt bei Backdrop-Klick, Moduswechsel und nach erfolgreicher Authentifizierung.
 - Authentifiziert zeigt der Header nur den Button `Abmelden` (kein zusätzliches User-Label).
+- **Abgelaufene Sitzung:** Antwortet Strapi während einer Sitzung mit 401, setzt `handleUnauthorized`
+  `authStatus: 'expired'` und `sessionExpired: true`, verwirft nur das Token und behält `user`.
+  `hasOnlineSession` bleibt `true`: geladene Daten und ungespeicherte Änderungen bleiben stehen,
+  der Header zeigt `Anmelden` und `Abmelden`, Speichern ist bis zum neuen Login gesperrt. Ein erneuter
+  Login als **derselbe** Nutzer setzt die Sitzung fort (kein Neuladen); ein **anderer** Nutzer
+  (`sessionUserId` ändert sich) lädt die Datenquelle neu. Ein fehlgeschlagener Neu-Login lässt die
+  Sitzung offen. 401 beim Login selbst und beim Wiederherstellen eines gespeicherten Tokens zählen nicht
+  als Ablauf.
+- **Logout** verwirft nur die Kopie im Browser; das JWT bleibt bei Strapi bis zu seinem Ablauf gültig
+  (users-permissions, Default 30 Tage, `jwt.expiresIn` in der Strapi-Konfiguration).
+- **Rückfrage vor dem Verwerfen:** Logout, Wechsel auf `Offline`, der Toggle `Configuration only` und
+  ein Verbindungsprofil mit anderer `baseUrl`/anderem `configPath` (Speichern, Import, Löschen) laden
+  die Online-Daten neu. Stehen ungespeicherte Item-Änderungen oder geänderte Ersetzungsregeln an, fragt
+  `usePendingOnlineChangesGuard` vorher (`onlineDiscardPendingConfirm`).
 
 ### 12.3 Initialisierungsfluss
 
-Ein Watcher in `App.vue` reagiert auf App-Modus, Auth-Status, `Configuration only` sowie
-`baseUrl`/`configPath` des Profils. Ist der Modus nicht `online` oder der Nutzer nicht authentifiziert,
-werden Online-Wording, Settings, Items und Updates geleert. Andernfalls läuft strikt sequenziell:
+Ein Watcher in `App.vue` reagiert auf App-Modus, Online-Sitzung (`hasOnlineSession`), Sitzungsnutzer
+(`sessionUserId`), `Configuration only` sowie `baseUrl`/`configPath` des Profils. Ist der Modus nicht
+`online` oder keine Sitzung offen, werden Online-Wording, Settings, Items und Updates geleert
+(`closeOnlineDataSource`). Andernfalls läuft `loadOnlineDataSource` strikt sequenziell.
+
+**Nur der neueste Lauf schreibt:** Datenquellen-Ladevorgänge und Level-1-Ladevorgänge
+([12.5](#125-hierarchie-und-level-1-buckets)) teilen eine Request-Sequenz
+(`src/composables/requestSequence.js`). Nach jedem `await` prüft ein Lauf `isCurrent()`; ist inzwischen
+ein neuerer gestartet (Logout, Moduswechsel, Gruppenklick, …), bricht er ab, ohne zu schreiben. Ist die
+Sitzung dann schon geschlossen, werden die Online-Stores erneut geleert, falls der veraltete Request sie
+noch befüllt hat.
 
 1. **Settings laden** (`fetchOnlineSettings` → `GET <configPath>`, erwartet ein Objekt unter
    `data.settings`; optionales `data.wording` und `data.replacements` werden mitgenommen). Die
@@ -880,7 +914,9 @@ Einzelne Items lädt `fetchCollectionItemFromStrapi(...)` (`GET <itemsPath>/<id>
 `fetchAllCollectionItemsFromStrapi(...)` paginiert bis `meta.pagination.pageCount` und sammelt alle
 Zeilen ein. Meldet Strapi einen ungültigen Query-Key (`invalid key <name>`) und ist dieser Name ein
 aktuell gesetzter `populate`-Key, wird der Key entfernt und der Request wiederholt; andere Fehler werden
-durchgereicht. Damit funktioniert die App auch gegen Datenmodelle, in denen ein konfiguriertes
+durchgereicht. Die Wiederholung steckt in `fetchDroppingInvalidPopulateKeys` (auch von der
+Datenmodell-Prüfung genutzt) und ist begrenzt: jeder Versuch entfernt einen Key, also höchstens
+`populateFields.length + 1` Requests. Damit funktioniert die App auch gegen Datenmodelle, in denen ein konfiguriertes
 Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
 
 ### 12.5 Hierarchie und Level-1-Buckets
@@ -908,7 +944,9 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
   (auch reine Leerzeichen zählen als leer).
 - **Wechsel des Level-1-Buckets** lädt die Items neu und verwirft dabei ausstehende Online-Änderungen
   (`clearOnlineUpdates`). Gibt es welche, fragt die App vorher nach (`onlineDiscardPendingConfirm`);
-  bei Abbruch bleibt der aktuelle Bucket samt Änderungen stehen.
+  bei Abbruch bleibt der aktuelle Bucket samt Änderungen stehen. Während ein Bucket lädt, sind die
+  Level-1-Boxen gesperrt (`hierarchyLoading`); kommt trotzdem ein älteres Ergebnis nach einem neueren an,
+  wird es verworfen (Request-Sequenz, siehe [12.3](#123-initialisierungsfluss)).
 - Die Level-1-Boxen werden im Hierarchie-Modus sofort gerendert, auch wenn noch keine Item-Karten geladen sind.
 
 **Offline-Modus (lokale JSON-Datei).** Die Hierarchie kommt aus der angewendeten User-Config
@@ -1030,6 +1068,14 @@ sichtbar, und ohne eigenen Titel zeigt die Liste `Neues Objekt`.
   Baseline-Sync, bei Teilfehlern synchronisiert `syncSnapshotItemAtIndex` gezielt die bereits erstellten Items.
 - Bei Fehlern bleibt der Entwurf als pending Create bestehen (retry-fähig); die Meldung erscheint im
   Save-Status (`error`).
+- **Unklarer Ausgang (Timeout, Verbindungsabbruch):** Der `POST` kann gespeichert worden sein, ohne
+  dass die Antwort ankam; ein erneutes Speichern würde das Item doppelt anlegen. Optional nennt der
+  Settings-Schlüssel `createKeyField` ein Textfeld der Collection (am besten `unique`). Dann trägt jeder
+  Create einen erzeugten Schlüssel (`crypto.randomUUID()`, sonst Zeit+Zufall) in diesem Feld, und nach
+  einem unklaren Ausgang sucht das nächste Speichern das Item zuerst per
+  `filters[<createKeyField>][$eq]=<Schlüssel>` (`findCollectionItemByFieldValue`). Gefunden: Das Item
+  übernimmt die Identität, kein zweiter `POST`. Nicht gefunden: erneuter `POST` mit demselben Schlüssel.
+  Ohne `createKeyField` sagt die Fehlermeldung, dass das Item vielleicht schon existiert.
 - Ein Reset vor dem Speichern verwirft nicht gespeicherte Entwürfe samt Pending-Einträgen.
 
 ### 12.10 Datenmodell-Prüfung (Tab `Einstellungen`)
@@ -1097,6 +1143,15 @@ auf, sperrt den Button während des Laufs und rendert das Ergebnis als Statusmel
 - **Stale-Protection:** `WikidataAutosuggestInput.vue` hält pro Query einen `AbortController`; bei
   neuer Eingabe oder Unmount werden laufende Requests abgebrochen. Abgebrochene Requests erzeugen weder
   Fehleranzeige noch Error-Logging.
+- **Auswahl gehört zum Item:** Nach dem Auswählen laufen noch Label- und Statement-Requests, erst dann
+  wird die Entity geschrieben. `ItemFieldEditor` ist in `App.vue` per `:key` an das selektierte Item
+  gebunden; wechselt der Nutzer vorher das Item, wird der Editor ausgehängt und die laufende Auswahl
+  abgebrochen (`abortPendingSelection`) - sie landet also nie im nächsten Item.
+- **Fehlende Daten:** Schlägt ein Statement- oder Label-Request fehl (auch Timeout), wird die Entity
+  trotzdem übernommen, trägt aber `missingData: { statements: [<PropertyIds>], labels: <bool> }`. Das
+  Feld zeigt dazu einen Hinweis und `Reload data`; der Button wiederholt die Requests
+  (`completeEntity`, per `defineExpose`) und ersetzt die Entity. Online wandert `missingData` wie alle
+  Zusatzschlüssel nach `additional_data` und bleibt damit nach dem Neuladen sichtbar.
 
 ---
 
@@ -1212,7 +1267,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
+Stand 2026-11-09: 23 Testdateien, 271 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
 ### Composables
 
@@ -1227,6 +1282,7 @@ Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
 | `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
 | `composables/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
 
 ### Fields und Services
@@ -1234,7 +1290,7 @@ Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
-| `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key |
+| `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores
 
@@ -1242,12 +1298,12 @@ Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
 | --- | --- |
 | `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal; Inline-Fallback ohne Wording; eingebaute Defaults; Laden von Grundkonfiguration und Wording aus `app-config/`; Normalisierung bzw. Verwerfen eines mitgelieferten Profils; Defaults bei fehlender oder ungültiger Datei; Überlagerung der Viewer-Einstellungen durch die Datenquelle inkl. Sprache; Entfernen des alten localStorage-Snapshots; Export eines bearbeiteten Entwurfs als Dateiinhalt |
 | `stores/useUserConfigStore.test.js` | Initialisierung minimaler Autosuggest-Config beim Typwechsel; Erhalt unbekannter Autosuggest-Schlüssel; Entfernen von `autosuggest`/`readOnly` bei Typwechsel; Candidate-Initialisierung, -Aktualisierung und Abwehr ungültiger Ziele; Persistenz und Bereinigung von `itemLabelField`; leere Feldkonfiguration nach `initializeUserConfig`; Hinzufügen aus Datenschlüsseln ohne reservierte und bereits konfigurierte Schlüssel |
-| `stores/useAuthStore.test.js` | Login speichert das JWT; `restoreSession` lädt Token und Nutzer; Login ohne Credentials schlägt fehl |
+| `stores/useAuthStore.test.js` | Login speichert das JWT; `restoreSession` lädt Token und Nutzer; Login ohne Credentials schlägt fehl; 401 in der Sitzung lässt Sitzung und Nutzer bestehen und verwirft das Token; fehlgeschlagener Neu-Login hält die Sitzung offen; erneuter Login beendet den Ablauf; Logout schließt die Sitzung; abgelehntes gespeichertes Token beim Start zählt nicht als Ablauf |
 | `stores/useConnectionProfileStore.test.js` | Speichern nur nach bestandenem Verbindungstest und Neuladen; kein Speichern bei fehlgeschlagenem Test; Ablehnung ungültiger Profile ohne Backend-Aufruf; JSON-Import; mitgeliefertes Profil hat Vorrang vor einem gespeicherten und lässt sich weder speichern noch löschen |
 | `stores/useOnlineModeStore.test.js` | Speichern/Restore des App-Modus mit Profil; Ablehnung ungültiger Modi; kein Wechsel auf `online` ohne Profil und automatischer Wechsel nach dem Speichern; gespeichertes `online` ohne Profil wird `offline`; Rückfall auf `offline` beim Entfernen des Profils; deaktiviertes Umschalten bei fixiertem `connectionMode` |
 | `stores/useOnlineSettingsStore.test.js` | Laden aus `response.data.settings`; Persistieren gegen den Singleton-Endpoint; lokaler State bleibt bei fehlgeschlagenem Persist erhalten; Persistieren der Ersetzungsregeln inkl. Fehlerpfad |
 | `stores/useOnlineItemsStore.test.js` | Laden und Sanitizing über `settings.itemsPath`; `attributes`-Form mit numerischem ID-Fallback; harter Fehler ohne stabile ID; Level-1-Optionen ohne Voll-Item-Fetch; `firstLevelStaticList` ohne Item-Requests; Hierarchie-Erkennung über den Legacy-Schlüssel `hierarchy_fields` |
-| `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad; Ersetzungslauf über die Collection registriert Deltas nur für nicht geladene Treffer, meldet Fetch-Fehler ohne Pending-Updates und verlangt einen `itemsPath` |
+| `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad; unklarer Create-Ausgang ohne `createKeyField` warnt vor Duplikaten, mit `createKeyField` findet das nächste Speichern das Item statt erneut zu posten bzw. postet mit demselben Schlüssel; Ersetzungslauf über die Collection registriert Deltas nur für nicht geladene Treffer, meldet Fetch-Fehler ohne Pending-Updates und verlangt einen `itemsPath` |
 
 ---
 
@@ -1265,6 +1321,8 @@ Stand Konfigurationsebenen: 20 Testdateien, 223 Tests, alle grün.
   ist das entsprechend teuer.
 - Ersetzungen greifen nur auf String-Werte in Feldern der Typen `normal` und `text`.
 - Items, Auswahl, Dirty-State und Ersetzungen überleben keinen Reload.
+- Die Kartenliste rendert alle gefilterten Items ohne Paginierung; Bilder laden lazy (`loading="lazy"`). Bei sehr großen Collections mit Scans ist das nicht gemessen.
+- Logout widerruft das JWT nicht serverseitig (siehe [12.2](#122-login-modal)).
 - Im Online-Modus ohne Hierarchie werden alle Items paginiert vollständig geladen; es gibt kein
   virtuelles Scrolling.
 

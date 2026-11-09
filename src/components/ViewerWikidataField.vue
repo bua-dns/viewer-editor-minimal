@@ -17,6 +17,8 @@ const emit = defineEmits(['update:modelValue'])
 
 const selectedEntities = computed(() => normalizeWikidataAutosuggestValue(props.modelValue))
 const expandedStatementDataByEntityId = ref({})
+const autosuggestInputRef = ref(null)
+const reloadingEntityIds = ref(new Set())
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -165,6 +167,45 @@ function onSelectEntity(entity) {
   emit('update:modelValue', [...selectedEntities.value, nextEntity])
 }
 
+// `missingData` is set when a Wikidata lookup failed while the entity was picked.
+function getMissingDataText(entity) {
+  const missing = entity?.missingData
+  if (!isPlainObject(missing)) return ''
+  const parts = []
+  if (Array.isArray(missing.statements) && missing.statements.length) {
+    parts.push(`statement data ${missing.statements.join(', ')}`)
+  }
+  if (missing.labels) parts.push('labels/descriptions')
+  return parts.length ? `Not loaded from Wikidata: ${parts.join('; ')}.` : ''
+}
+
+function isReloading(entityId) {
+  return reloadingEntityIds.value.has(entityId)
+}
+
+function setReloading(entityId, isActive) {
+  const next = new Set(reloadingEntityIds.value)
+  if (isActive) next.add(entityId)
+  else next.delete(entityId)
+  reloadingEntityIds.value = next
+}
+
+async function reloadEntityData(entity) {
+  if (!autosuggestInputRef.value || isReloading(entity.id)) return
+  setReloading(entity.id, true)
+  try {
+    const completed = await autosuggestInputRef.value.completeEntity(entity)
+    const [normalized] = normalizeWikidataAutosuggestValue(completed)
+    if (!normalized) return
+    emit(
+      'update:modelValue',
+      selectedEntities.value.map((entry) => (entry.id === entity.id ? normalized : entry)),
+    )
+  } finally {
+    setReloading(entity.id, false)
+  }
+}
+
 function removeEntity(idToRemove) {
   const nextValue = selectedEntities.value.filter((entry) => entry.id !== idToRemove)
   emit('update:modelValue', nextValue)
@@ -174,6 +215,7 @@ function removeEntity(idToRemove) {
 <template>
   <div class="viewer-wikidata-field" :data-field-id="fieldId">
     <WikidataAutosuggestInput
+      ref="autosuggestInputRef"
       :config="autosuggestConfig"
       :selected-entities="selectedEntities"
       :prefill-value="prefillValue"
@@ -207,8 +249,19 @@ function removeEntity(idToRemove) {
             >
               {{ getPrioritizationValuesText(entity) }}
             </small>
+            <small v-if="getMissingDataText(entity)" class="selected-entity-missing">
+              {{ getMissingDataText(entity) }}
+            </small>
           </div>
           <div class="selected-entity-actions">
+            <button
+              v-if="getMissingDataText(entity)"
+              type="button"
+              :disabled="isReloading(entity.id)"
+              @click="reloadEntityData(entity)"
+            >
+              {{ isReloading(entity.id) ? 'Reloading...' : 'Reload data' }}
+            </button>
             <button v-if="hasStatementData(entity)" type="button" @click="toggleStatementData(entity.id)">
               {{ isStatementDataExpanded(entity.id) ? 'Hide statement data' : 'Show statement data' }}
             </button>
@@ -228,6 +281,10 @@ function removeEntity(idToRemove) {
 .viewer-wikidata-field {
   display: grid;
   gap: 0.5rem;
+}
+
+.selected-entity-missing {
+  color: var(--ve-color-error, #b42318);
 }
 
 .selected-entities {

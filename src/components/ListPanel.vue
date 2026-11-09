@@ -127,6 +127,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // While a level-1 group loads, the boxes are disabled (one group load at a time).
+  hierarchyLoading: {
+    type: Boolean,
+    default: false,
+  },
   hierarchyLevel1Options: {
     type: Array,
     default: () => [],
@@ -367,6 +372,7 @@ function hasHierarchyCount(value) {
               type="button"
               class="hierarchy-level1-box"
               :class="{ active: normalizeHierarchyValue(props.selectedHierarchyLevel1) === normalizeHierarchyValue(entry.value) }"
+              :disabled="props.hierarchyLoading"
               @click="onSelectHierarchyLevel1(entry.value)"
             >
               <span>{{ entry.value || props.hierarchyUnassignedLabel }}</span>
@@ -412,6 +418,8 @@ function hasHierarchyCount(value) {
                     <img
                       v-if="props.looksLikeImageUrl(props.rawItems[item._index]?.scan) && !props.hasListImageFailed(item._uid)"
                       :src="props.rawItems[item._index]?.scan"
+                      loading="lazy"
+                      decoding="async"
                       :alt="props.scanPreviewAlt"
                       @error="onListImageFailed(item._uid)"
                     />
@@ -508,6 +516,8 @@ function hasHierarchyCount(value) {
               <img
                 v-if="props.looksLikeImageUrl(props.rawItems[item._index]?.scan) && !props.hasListImageFailed(item._uid)"
                 :src="props.rawItems[item._index]?.scan"
+                loading="lazy"
+                decoding="async"
                 :alt="props.scanPreviewAlt"
                 @error="onListImageFailed(item._uid)"
               />

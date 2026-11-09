@@ -46,6 +46,7 @@
 - Optional kann `config.hierarchyFields` gesetzt werden (Liste von Feldschlüsseln für hierarchische Navigation, Legacy-Formen bleiben kompatibel). Wirkt online wie offline: eine importierte JSON-Datei mit mindestens zwei Hierarchie-Feldern öffnet direkt in der Hierarchie-Ansicht.
 - Optional kann `config.firstLevelStaticList` gesetzt werden (Liste fixer Level-1-Werte, nur relevant zusammen mit `hierarchyFields`). Offline bestimmt sie Reihenfolge und Mindestumfang der Level-1-Boxen; Werte aus den Daten, die nicht in der Liste stehen, werden danach angehängt.
 - Optional kann `scanField` in den Online-Settings gesetzt werden (String, Legacy-Form `scan_field`): Feldschlüssel der Strapi-Collection, dessen Wert beim Laden nach `scan` gemappt wird. Default ist `scan`.
+- Optional kann `createKeyField` in den Online-Settings gesetzt werden (String): ein Textfeld der Strapi-Collection (am besten `unique`), in das jedes neu angelegte Item einen erzeugten Schlüssel bekommt. Bricht beim Speichern eines neuen Items die Verbindung ab, prüft das nächste Speichern über diesen Schlüssel, ob das Item schon angelegt wurde, statt es doppelt anzulegen. Ohne `createKeyField` meldet die App in diesem Fall nur, dass das Item vielleicht schon existiert.
 - Für `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
   - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeinträge bleiben kompatibel)
   - `claimValueMatch.defs`: Liste aus Objekten `{ property, value, label }` (`label` dient der Anzeige)
