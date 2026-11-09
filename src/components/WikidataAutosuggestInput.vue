@@ -302,12 +302,28 @@ const visibleSuggestions = computed(() =>
   suggestions.value.filter((entry) => !selectedEntityIds.value.has(entry.id)),
 )
 
+// The lookups after a pick take a moment. The editor is keyed per item, so moving to another item
+// unmounts this input; the pending pick is then aborted and never written (review F5).
+let pendingSelectionController = null
+
+function abortPendingSelection() {
+  pendingSelectionController?.abort()
+  pendingSelectionController = null
+}
+
 async function selectEntity(entity) {
-  const nextItem = await getEmitItem(entity)
+  abortPendingSelection()
+  const controller = new AbortController()
+  pendingSelectionController = controller
+
+  const nextItem = await getEmitItem(entity, controller.signal)
+  if (controller.signal.aborted) return
+  pendingSelectionController = null
+
   emit('select', nextItem)
   query.value = ''
   suggestions.value = []
-  requestError.value = ''
+  requestError.value = nextItem.missingData ? MISSING_DATA_MESSAGE : ''
 }
 
 function filterPrioritizationValues(prioritizationValues, propertyIds) {
@@ -359,25 +375,15 @@ function getSuggestionPrioritizationValuesText(item) {
   return parts.join(' | ')
 }
 
-async function getEmitItem(item) {
-  const nextItem = { ...item }
-  const shouldIncludeClaimData = persistedClaimPropertyIds.value.length > 0
-  const fallbackLanguage = String(mergedConfig.value.resultLanguage || '').trim().toLowerCase()
-  const labelFallback = readLocalizedTextValue(nextItem.label)
-  const descriptionFallback = readLocalizedTextValue(nextItem.description)
+const MISSING_DATA_MESSAGE = 'Some Wikidata data could not be loaded. Use "Reload data" on the entity.'
 
-  if (!shouldIncludeClaimData) {
+function applyClaimSelection(nextItem, item) {
+  if (!persistedClaimPropertyIds.value.length) {
     delete nextItem.ranking
     delete nextItem.prioritizationValues
   } else {
-    nextItem.prioritizationValues = filterPrioritizationValues(
-      item?.prioritizationValues,
-      persistedClaimPropertyIds.value,
-    )
-
-    if (!Object.keys(nextItem.prioritizationValues).length) {
-      delete nextItem.prioritizationValues
-    }
+    nextItem.prioritizationValues = filterPrioritizationValues(item?.prioritizationValues, persistedClaimPropertyIds.value)
+    if (!Object.keys(nextItem.prioritizationValues).length) delete nextItem.prioritizationValues
   }
 
   const geoNamesValues = deriveGeoNamesValues(nextItem.prioritizationValues)
@@ -386,80 +392,104 @@ async function getEmitItem(item) {
   } else {
     delete nextItem.geoNames
   }
+}
 
-  if (
-    alsoGetDataFromProperties.value.length &&
-    typeof nextItem.id === 'string' &&
-    nextItem.id.trim()
-  ) {
-    const statementRequests = alsoGetDataFromProperties.value.map(async ({ propertyId }) => ({
-      propertyId,
-      statementData: await fetchStatementDataForEntity(nextItem.id, propertyId),
-    }))
+function logLookupFailure(context, error) {
+  if (!isAbortError(error) && import.meta.env.DEV) {
+    console.warn(`[wikidata] ${context} request failed`, error)
+  }
+}
 
-    const settled = await Promise.allSettled(statementRequests)
-    const existingStatementData = isPlainObject(nextItem.statementData) ? nextItem.statementData : {}
-    const nextStatementData = { ...existingStatementData }
+/** Loads the configured statement data; returns the property ids whose request failed. */
+async function loadStatementData(nextItem, signal) {
+  if (!alsoGetDataFromProperties.value.length) return []
 
-    for (const result of settled) {
-      if (result.status === 'fulfilled') {
-        nextStatementData[result.value.propertyId] = result.value.statementData
-        continue
-      }
+  const statementRequests = alsoGetDataFromProperties.value.map(async ({ propertyId }) => ({
+    propertyId,
+    statementData: await fetchStatementDataForEntity(nextItem.id, propertyId, { signal }),
+  }))
+  const settled = await Promise.allSettled(statementRequests)
+  const nextStatementData = isPlainObject(nextItem.statementData) ? { ...nextItem.statementData } : {}
+  const failedPropertyIds = []
 
-      if (!isAbortError(result.reason) && import.meta.env.DEV) {
-        console.warn('[wikidata] statement data request failed', result.reason)
-      }
+  settled.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      nextStatementData[result.value.propertyId] = result.value.statementData
+      return
     }
+    failedPropertyIds.push(alsoGetDataFromProperties.value[index].propertyId)
+    logLookupFailure('statement data', result.reason)
+  })
 
-    if (Object.keys(nextStatementData).length) {
-      nextItem.statementData = nextStatementData
-    }
+  if (Object.keys(nextStatementData).length) nextItem.statementData = nextStatementData
+  return failedPropertyIds
+}
+
+function pickLocalizedText(texts, fallbackLanguage, fallback) {
+  return texts[fallbackLanguage] || texts.de || texts.en || fallback
+}
+
+/** Adds de/en labels and descriptions; returns false when the request failed. */
+async function loadLocalizedTexts(nextItem, signal) {
+  const fallbackLanguage = String(mergedConfig.value.resultLanguage || '').trim().toLowerCase()
+  const labelFallback = readLocalizedTextValue(nextItem.label)
+  const descriptionFallback = readLocalizedTextValue(nextItem.description)
+
+  let localizedTexts
+  try {
+    localizedTexts = await fetchEntityLocalizedTexts(nextItem.id, { languages: ['de', 'en'], signal })
+  } catch (error) {
+    logLookupFailure('localized label/description', error)
+    return false
   }
 
-  if (typeof nextItem.id === 'string' && nextItem.id.trim()) {
-    try {
-      const localizedTexts = await fetchEntityLocalizedTexts(nextItem.id, {
-        languages: ['de', 'en'],
-      })
-
-      const labels = isPlainObject(nextItem.labels) ? { ...nextItem.labels } : {}
-      const descriptions = isPlainObject(nextItem.descriptions) ? { ...nextItem.descriptions } : {}
-
-      labels.de = readLocalizedTextValue(localizedTexts.labels?.de)
-      labels.en = readLocalizedTextValue(localizedTexts.labels?.en)
-      descriptions.de = readLocalizedTextValue(localizedTexts.descriptions?.de)
-      descriptions.en = readLocalizedTextValue(localizedTexts.descriptions?.en)
-
-      if (fallbackLanguage === 'de' || fallbackLanguage === 'en') {
-        if (!labels[fallbackLanguage] && labelFallback) {
-          labels[fallbackLanguage] = labelFallback
-        }
-        if (!descriptions[fallbackLanguage] && descriptionFallback) {
-          descriptions[fallbackLanguage] = descriptionFallback
-        }
-      }
-
-      nextItem.labels = labels
-      nextItem.descriptions = descriptions
-
-      if (!readLocalizedTextValue(nextItem.label)) {
-        nextItem.label = labels[fallbackLanguage] || labels.de || labels.en || nextItem.id
-      }
-
-      if (!readLocalizedTextValue(nextItem.description)) {
-        nextItem.description =
-          descriptions[fallbackLanguage] || descriptions.de || descriptions.en || ''
-      }
-    } catch (error) {
-      if (!isAbortError(error) && import.meta.env.DEV) {
-        console.warn('[wikidata] localized label/description request failed', error)
-      }
-    }
+  const labels = { ...(isPlainObject(nextItem.labels) ? nextItem.labels : {}) }
+  const descriptions = { ...(isPlainObject(nextItem.descriptions) ? nextItem.descriptions : {}) }
+  for (const language of ['de', 'en']) {
+    labels[language] = readLocalizedTextValue(localizedTexts.labels?.[language])
+    descriptions[language] = readLocalizedTextValue(localizedTexts.descriptions?.[language])
+  }
+  if (fallbackLanguage === 'de' || fallbackLanguage === 'en') {
+    labels[fallbackLanguage] = labels[fallbackLanguage] || labelFallback
+    descriptions[fallbackLanguage] = descriptions[fallbackLanguage] || descriptionFallback
   }
 
+  nextItem.labels = labels
+  nextItem.descriptions = descriptions
+  if (!labelFallback) nextItem.label = pickLocalizedText(labels, fallbackLanguage, nextItem.id)
+  if (!descriptionFallback) nextItem.description = pickLocalizedText(descriptions, fallbackLanguage, '')
+  return true
+}
+
+/**
+ * The entity as stored: selected claim data plus the configured lookups. Failed lookups are
+ * recorded in `missingData` (kept with the record), so an incomplete entity stays visible (F8).
+ */
+async function getEmitItem(item, signal) {
+  const nextItem = { ...item }
+  delete nextItem.missingData
+  applyClaimSelection(nextItem, item)
+
+  const entityId = typeof nextItem.id === 'string' ? nextItem.id.trim() : ''
+  if (!entityId) return nextItem
+
+  const [missingStatements, hasLocalizedTexts] = await Promise.all([
+    loadStatementData(nextItem, signal),
+    loadLocalizedTexts(nextItem, signal),
+  ])
+
+  if (missingStatements.length || !hasLocalizedTexts) {
+    nextItem.missingData = { statements: missingStatements, labels: !hasLocalizedTexts }
+  }
   return nextItem
 }
+
+/** Repeats the lookups for an already selected entity ("Reload data"). */
+async function completeEntity(entity) {
+  return getEmitItem(entity)
+}
+
+defineExpose({ completeEntity })
 
 const { search, fetchStatementDataForEntity, fetchEntityLocalizedTexts } = useWikidataSearch()
 
@@ -604,6 +634,7 @@ function onEnterKey() {
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
   abortActiveSearch()
+  abortPendingSelection()
 })
 </script>
 

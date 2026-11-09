@@ -1278,13 +1278,15 @@ watch(
                     <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
                   </div>
                   <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
-                  <ItemFieldEditor class="sidebar-checkbox-fields" :selected-raw-item="selectedRawItem"
+                  <ItemFieldEditor :key="selectedViewItem?._uid" class="sidebar-checkbox-fields" :selected-raw-item="selectedRawItem"
                     :selected-view-item="selectedViewItem" :include-configured-types="['checkbox']"
                     :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
                     @accept-candidate="onAcceptCandidate" />
                 </div>
 
-                <ItemFieldEditor :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
+                <!-- Keyed per item: leaving an item unmounts its editors, so a pending Wikidata pick is
+                  aborted instead of being written to the next item. -->
+                <ItemFieldEditor :key="selectedViewItem?._uid" :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
                   :exclude-configured-types="hasScanField ? ['checkbox'] : []"
                   :show-raw-data-dev-preview="dataInspectionMode"
                   :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"

@@ -418,6 +418,8 @@ function hasHierarchyCount(value) {
                     <img
                       v-if="props.looksLikeImageUrl(props.rawItems[item._index]?.scan) && !props.hasListImageFailed(item._uid)"
                       :src="props.rawItems[item._index]?.scan"
+                      loading="lazy"
+                      decoding="async"
                       :alt="props.scanPreviewAlt"
                       @error="onListImageFailed(item._uid)"
                     />
@@ -514,6 +516,8 @@ function hasHierarchyCount(value) {
               <img
                 v-if="props.looksLikeImageUrl(props.rawItems[item._index]?.scan) && !props.hasListImageFailed(item._uid)"
                 :src="props.rawItems[item._index]?.scan"
+                loading="lazy"
+                decoding="async"
                 :alt="props.scanPreviewAlt"
                 @error="onListImageFailed(item._uid)"
               />
