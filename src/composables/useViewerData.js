@@ -3,6 +3,7 @@ import { useReplacementsStore } from '../stores/useReplacementsStore'
 import { computeReplacementChanges, countChangedFields } from './replacementRules'
 import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 import { markItemAsCreated } from './createdItems'
+import { tokenizeSearchQuery } from './searchQuery'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -23,14 +24,6 @@ function toSearchText(item) {
   return Object.values(item)
     .map((value) => String(value ?? '').toLowerCase())
     .join(' ')
-}
-
-function tokenize(query) {
-  return query
-    .toLowerCase()
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
 }
 
 function isEditableSimpleValue(value) {
@@ -259,8 +252,7 @@ export function useViewerData(options = {}) {
   })
 
   const filteredViewItems = computed(() => {
-    const normalizedQuery = String(searchQuery.value || '').trim().toLowerCase()
-    const tokens = normalizedQuery.length > 2 ? tokenize(normalizedQuery) : []
+    const tokens = tokenizeSearchQuery(searchQuery.value)
 
     const itemLabelField = String(unref(itemLabelFieldRef) || '').trim()
     const editedBasisField = String(unref(markAsEditedBasisRef) || '').trim()
@@ -571,7 +563,6 @@ export const __test = {
   createCsvTextFromItems,
   normalizeSuspendedItemIndices,
   splitCsvLine,
-  tokenize,
   toSearchText,
   isEditableSimpleValue,
   looksLikeImageUrl,

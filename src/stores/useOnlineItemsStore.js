@@ -7,6 +7,8 @@ import {
   resolveItemsPathFromSettings,
   resolveScanFieldFromSettings,
 } from '../services/strapiApi'
+import { resolveSearchableFieldKeys, searchCollectionItemsInStrapi } from '../services/strapiSearch'
+import { tokenizeSearchQuery } from '../composables/searchQuery'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 
@@ -144,62 +146,86 @@ function clearOnlineItems() {
   selectedHierarchyLevel1Value.value = ''
 }
 
-async function fetchOnlineItems({ settings }) {
+function failItemsLoad(message) {
+  itemsStatus.value = 'error'
+  lastItemsError.value = message
+  return { ok: false, error: message }
+}
+
+function failItemsLoadWithError(error) {
+  items.value = []
+  const message = typeof error?.message === 'string' ? error.message.trim() : ''
+  return failItemsLoad(message || 'Could not load online items.')
+}
+
+/**
+ * What every item load needs: the request base (profile, path, token, populate keys) and how a
+ * Strapi row becomes an app item. Returns `{ error }` when the connection or settings are incomplete.
+ */
+function resolveItemsLoadContext(settings) {
   const { connectionProfile } = useConnectionProfileStore()
   const { token } = useAuthStore()
 
-  if (!connectionProfile.value) {
-    itemsStatus.value = 'error'
-    lastItemsError.value = 'No saved connection profile found.'
-    return { ok: false, error: lastItemsError.value }
-  }
+  if (!connectionProfile.value) return { error: 'No saved connection profile found.' }
 
   const itemsPath = resolveItemsPathFromSettings(settings)
-  if (!itemsPath) {
-    itemsStatus.value = 'error'
-    lastItemsError.value = 'Online settings must provide itemsPath.'
-    return { ok: false, error: lastItemsError.value }
-  }
+  if (!itemsPath) return { error: 'Online settings must provide itemsPath.' }
 
   const settingsFields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
   const scanFieldKey = resolveScanFieldFromSettings(settings)
-  const populateFields = getWikidataAutosuggestFieldKeysFromSettings(settings)
-  const normalizedHierarchyFields = normalizeHierarchyFields(settings)
-  const firstLevelStaticList = normalizeFirstLevelStaticList(settings)
 
+  return {
+    itemsPath,
+    fetchRequest: {
+      profile: connectionProfile.value,
+      itemsPath,
+      token: token.value || '',
+      populateFields: getWikidataAutosuggestFieldKeysFromSettings(settings),
+    },
+    normalizeRow: (rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey),
+  }
+}
+
+function startItemsLoad(itemsPath, normalizedHierarchyFields) {
   itemsStatus.value = 'loading'
   lastItemsError.value = ''
   activeItemsPath.value = itemsPath
   hierarchyFields.value = normalizedHierarchyFields
+}
+
+async function loadHierarchyLevel1Options(context, normalizedHierarchyFields, firstLevelStaticList) {
+  if (firstLevelStaticList.length > 0) {
+    return buildHierarchyLevel1OptionsFromStaticList(firstLevelStaticList)
+  }
+  const { profile, itemsPath, token } = context.fetchRequest
+  const level1Values = await fetchCollectionFieldValuesFromStrapi({
+    profile,
+    itemsPath,
+    token,
+    fieldKey: normalizedHierarchyFields[0],
+  })
+  return buildHierarchyLevel1Options(level1Values)
+}
+
+async function fetchOnlineItems({ settings }) {
+  const context = resolveItemsLoadContext(settings)
+  if (context.error) return failItemsLoad(context.error)
+
+  const { itemsPath } = context
+  const normalizedHierarchyFields = normalizeHierarchyFields(settings)
+
+  startItemsLoad(itemsPath, normalizedHierarchyFields)
   hierarchyLevel1Options.value = []
   selectedHierarchyLevel1Value.value = ''
 
   try {
     if (normalizedHierarchyFields.length >= 2) {
-      if (firstLevelStaticList.length > 0) {
-        hierarchyLevel1Options.value = buildHierarchyLevel1OptionsFromStaticList(firstLevelStaticList)
-        items.value = []
-        itemsStatus.value = 'ready'
-
-        return {
-          ok: true,
-          items: [],
-          itemsPath,
-          hierarchyEnabled: true,
-          hierarchyFields: normalizedHierarchyFields,
-          hierarchyLevel1Options: hierarchyLevel1Options.value,
-        }
-      }
-
-      const level1FieldKey = normalizedHierarchyFields[0]
-      const level1Values = await fetchCollectionFieldValuesFromStrapi({
-        profile: connectionProfile.value,
-        itemsPath,
-        token: token.value || '',
-        fieldKey: level1FieldKey,
-      })
-
-      hierarchyLevel1Options.value = buildHierarchyLevel1Options(level1Values)
+      // With a hierarchy only the level-1 boxes are loaded; the items follow per box.
+      hierarchyLevel1Options.value = await loadHierarchyLevel1Options(
+        context,
+        normalizedHierarchyFields,
+        normalizeFirstLevelStaticList(settings),
+      )
       items.value = []
       itemsStatus.value = 'ready'
 
@@ -213,16 +239,8 @@ async function fetchOnlineItems({ settings }) {
       }
     }
 
-    const fetchedRows = await fetchAllCollectionItemsFromStrapi({
-      profile: connectionProfile.value,
-      itemsPath,
-      token: token.value || '',
-      populateFields,
-    })
-
-    items.value = fetchedRows.map((rawRow) =>
-      normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey),
-    )
+    const fetchedRows = await fetchAllCollectionItemsFromStrapi(context.fetchRequest)
+    items.value = fetchedRows.map(context.normalizeRow)
     itemsStatus.value = 'ready'
     return {
       ok: true,
@@ -233,13 +251,7 @@ async function fetchOnlineItems({ settings }) {
       hierarchyLevel1Options: [],
     }
   } catch (error) {
-    items.value = []
-    itemsStatus.value = 'error'
-    lastItemsError.value =
-      typeof error?.message === 'string' && error.message.trim()
-        ? error.message.trim()
-        : 'Could not load online items.'
-    return { ok: false, error: lastItemsError.value }
+    return failItemsLoadWithError(error)
   }
 }
 
@@ -263,58 +275,27 @@ function fetchLevel1Rows(fetchRequest, level1FieldKey, level1Value) {
 }
 
 async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
-  const { connectionProfile } = useConnectionProfileStore()
-  const { token } = useAuthStore()
-
-  if (!connectionProfile.value) {
-    itemsStatus.value = 'error'
-    lastItemsError.value = 'No saved connection profile found.'
-    return { ok: false, error: lastItemsError.value }
-  }
-
-  const itemsPath = resolveItemsPathFromSettings(settings)
-  if (!itemsPath) {
-    itemsStatus.value = 'error'
-    lastItemsError.value = 'Online settings must provide itemsPath.'
-    return { ok: false, error: lastItemsError.value }
-  }
+  const context = resolveItemsLoadContext(settings)
+  if (context.error) return failItemsLoad(context.error)
 
   const normalizedHierarchyFields = normalizeHierarchyFields(settings)
   if (normalizedHierarchyFields.length < 2) {
     return fetchOnlineItems({ settings })
   }
 
-  const settingsFields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
-  const scanFieldKey = resolveScanFieldFromSettings(settings)
-  const populateFields = getWikidataAutosuggestFieldKeysFromSettings(settings)
+  const { itemsPath } = context
   const normalizedLevel1Value = normalizeHierarchyValue(level1Value)
   const level1FieldKey = normalizedHierarchyFields[0]
 
-  itemsStatus.value = 'loading'
-  lastItemsError.value = ''
-  activeItemsPath.value = itemsPath
-  hierarchyFields.value = normalizedHierarchyFields
+  startItemsLoad(itemsPath, normalizedHierarchyFields)
 
   try {
-    const hasExplicitLevel1Value = normalizedLevel1Value.length > 0
-    const fetchedRows = await fetchLevel1Rows(
-      { profile: connectionProfile.value, itemsPath, token: token.value || '', populateFields },
-      level1FieldKey,
-      normalizedLevel1Value,
-    )
+    const fetchedRows = await fetchLevel1Rows(context.fetchRequest, level1FieldKey, normalizedLevel1Value)
 
     // The client filter stays as a safety net (e.g. whitespace-only values count as unassigned).
-    const normalizedItems = fetchedRows
-      .map((rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey))
-      .filter((item) => {
-        const currentValue = normalizeHierarchyValue(item?.[level1FieldKey])
-        if (hasExplicitLevel1Value) {
-          return currentValue === normalizedLevel1Value
-        }
-        return currentValue.length === 0
-      })
-
-    items.value = normalizedItems
+    items.value = fetchedRows
+      .map(context.normalizeRow)
+      .filter((item) => normalizeHierarchyValue(item?.[level1FieldKey]) === normalizedLevel1Value)
     selectedHierarchyLevel1Value.value = normalizedLevel1Value
     itemsStatus.value = 'ready'
 
@@ -328,13 +309,35 @@ async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
       hierarchyLevel1Options: hierarchyLevel1Options.value,
     }
   } catch (error) {
-    items.value = []
-    itemsStatus.value = 'error'
-    lastItemsError.value =
-      typeof error?.message === 'string' && error.message.trim()
-        ? error.message.trim()
-        : 'Could not load online items.'
-    return { ok: false, error: lastItemsError.value }
+    return failItemsLoadWithError(error)
+  }
+}
+
+/**
+ * Searches the whole collection on the server (all level-1 groups) and replaces the items with the
+ * hits. The selected level-1 value is kept, so the caller can return to that group afterwards.
+ */
+async function searchOnlineItems({ settings, query }) {
+  const tokens = tokenizeSearchQuery(query)
+  if (!tokens.length) return failItemsLoad('The search needs at least three characters.')
+
+  const context = resolveItemsLoadContext(settings)
+  if (context.error) return failItemsLoad(context.error)
+
+  const normalizedHierarchyFields = normalizeHierarchyFields(settings)
+  startItemsLoad(context.itemsPath, normalizedHierarchyFields)
+
+  try {
+    const { rows, droppedFieldKeys } = await searchCollectionItemsInStrapi({
+      ...context.fetchRequest,
+      tokens,
+      fieldKeys: resolveSearchableFieldKeys(settings, normalizedHierarchyFields),
+    })
+    items.value = rows.map(context.normalizeRow)
+    itemsStatus.value = 'ready'
+    return { ok: true, items: items.value, itemsPath: context.itemsPath, droppedFieldKeys }
+  } catch (error) {
+    return failItemsLoadWithError(error)
   }
 }
 
@@ -350,5 +353,6 @@ export function useOnlineItemsStore() {
     clearOnlineItems,
     fetchOnlineItems,
     fetchOnlineItemsForHierarchyLevel1,
+    searchOnlineItems,
   }
 }
