@@ -53,7 +53,16 @@ pnpm preview
 ```
 
 Deploy-Hinweis:
-- Der Vite-Build ist auf den Subpfad `/viewer-editor-strapi/` konfiguriert (`base` in `vite.config.js`).
+- Der generische Build ist auf den Subpfad `/viewer-editor/` konfiguriert (`base` in `vite.config.js`).
+
+Projekt-Builds (Konfiguration aus dem Config-Repo `../viewer-editor-projects/<project>/`):
+
+```bash
+pnpm dev --mode xylothek        # http://localhost:5173/xylothek/
+pnpm build --mode xylothek      # Ausgabe: dist-projects/xylothek/ -> auf dem Server nach <server>/xylothek/
+```
+
+Details: [technische Dokumentation, Projekt-Modi](docs/technical-documentation.md#projekt-modi---mode-project).
 
 ## Tests
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11 - Project modes
+
+- `pnpm dev --mode <project>` and `pnpm build --mode <project>` build the app for one project. The project
+  lives in a separate config repo (by default `../viewer-editor-projects/<project>/`). Its `public/` files
+  replace the generic ones with the same path, and its optional `project.json` sets page title, favicon and an optional
+  `base`. The app runs under `<server>/<project>/` (dev: `http://localhost:5173/<project>/`). The output goes to
+  `dist-projects/<project>/`. Without `--mode`, the build is generic as before.
+- Project secrets stay at build time: `VITE_*` values are visible in the bundle, and the build warns
+  about names that look like secrets.
+- First project: `xylothek` (online only, German only, fixed Strapi profile).
+
 ## 2026-11 - Safer online saving
 
 - Switching the level-1 group with unsaved online changes now asks before discarding them.
