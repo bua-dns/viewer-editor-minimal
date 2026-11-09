@@ -33,6 +33,7 @@ import { resolveItemsPathFromSettings } from './services/strapiApi'
 import { usePendingOnlineChangesGuard } from './composables/usePendingOnlineChangesGuard'
 import { createRequestSequence } from './composables/requestSequence'
 import { useCollectionSearch } from './composables/useCollectionSearch'
+import { useRemoteFieldModel } from './composables/useRemoteFieldModel'
 import {
   buildHierarchyLevel1Options,
   buildHierarchyLevel2Options,
@@ -341,6 +342,12 @@ const configurationNoDataHint = computed(() =>
       )
     : '',
 )
+
+// The online collection's fields (Strapi data model), offered in the configuration tab for adding.
+const { fieldModel: remoteFieldModel, reload: reloadRemoteFieldModel } = useRemoteFieldModel({
+  appMode, isAuthenticated, connectionProfile, token, onlineSettings,
+  isNeeded: () => activeTab.value === 'configuration',
+})
 
 const hasPendingChanges = computed(() => {
   if (dataMode.value === 'csv') {
@@ -1358,7 +1365,9 @@ watch(
         <section v-if="activeTab === 'configuration'" id="panel-configuration"
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
           <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
-            :data-field-keys="availableFieldKeys" :no-data-hint="configurationNoDataHint" @apply="onApplyUserConfig" />
+            :data-field-keys="availableFieldKeys" :remote-field-model="remoteFieldModel"
+            :no-data-hint="configurationNoDataHint" @apply="onApplyUserConfig"
+            @reload-remote-field-model="reloadRemoteFieldModel" />
         </section>
 
         <section v-if="activeTab === 'replacements'" id="panel-replacements"

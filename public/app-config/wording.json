@@ -1034,5 +1034,33 @@
   "configNoDataHint": {
     "de": "Keine Daten geladen. Die Konfiguration wird mit den Daten gespeichert: eine JSON- oder CSV-Datei laden oder neu beginnen und danach das JSON herunterladen. Eine hier vorbereitete Konfiguration bleibt erhalten, wenn die Daten keine eigene mitbringen.",
     "en": "No data loaded. The configuration is saved with the data: load a JSON or CSV file, or start from scratch, and download the JSON afterwards. A configuration drafted here is kept when the data has none of its own."
+  },
+  "remoteFieldsWithoutConfigLabel": {
+    "de": "Felder im Datenmodell (Strapi) ohne Konfiguration",
+    "en": "Fields of the data model (Strapi) without configuration"
+  },
+  "remoteFieldModelLoading": {
+    "de": "Datenmodell wird aus Strapi geladen ...",
+    "en": "Loading the data model from Strapi ..."
+  },
+  "remoteFieldModelError": {
+    "de": "Das Datenmodell konnte nicht geladen werden",
+    "en": "The data model could not be loaded"
+  },
+  "remoteFieldModelSampleNote": {
+    "de": "Das Schema ist für diese Rolle nicht lesbar (Strapi-Berechtigung \"Content-type-builder: getContentTypes\"), daher stammen die Felder aus einem Beispiel-Eintrag. Relationen ohne Leserecht können fehlen.",
+    "en": "The schema is not readable for this role (Strapi permission \"Content-type-builder: getContentTypes\"), so the fields were taken from one sample item. Relations without read permission may be missing."
+  },
+  "remoteFieldModelReload": {
+    "de": "Datenmodell neu laden",
+    "en": "Reload data model"
+  },
+  "remoteFieldsAllConfigured": {
+    "de": "Alle Felder des Datenmodells sind konfiguriert.",
+    "en": "All fields of the data model are configured."
+  },
+  "remoteFieldStructuredNote": {
+    "de": "strukturierter Wert, im Viewer nur teilweise bearbeitbar",
+    "en": "structured value, the viewer edits it only partly"
   }
 }
