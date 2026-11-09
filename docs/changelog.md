@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11 - Review fixes: CSV line breaks, search limits
+
+- CSV: a value with a line break (e.g. a multi-line `text` field) is exported in quotes and now imported
+  back into its own row. Before, the import split it into two rows and shifted the columns, without an
+  error. An unclosed quote is now reported with its line.
+- Search across the whole collection (online): relations, media, components and JSON fields are no longer
+  searched, even if they are configured as `normal` fields; they are named under `Not searched on the
+  server`. Before, such a field made every search fail.
+- Search across the whole collection (online): more than 500 hits are not loaded; the search asks to be
+  refined and names the number of hits.
+- `Add all` in the configuration no longer adds structured fields (relations, components, JSON); add them
+  one by one from the dropdown if needed.
+
 ## 2026-11 - Add fields from the Strapi data model
 
 - `Add field` in the `Configuration` tab is now a dropdown of the fields that are not configured yet.
