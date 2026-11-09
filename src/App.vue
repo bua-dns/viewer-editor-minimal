@@ -427,36 +427,50 @@ function onCollapseAllHierarchyLevel2() {
   expandedHierarchyLevel2Values.value = []
 }
 
+function confirmDiscardPendingOnlineUpdates() {
+  if (!hasPendingUpdates.value) return true
+  return globalThis.confirm(
+    t('onlineDiscardPendingConfirm', 'Unsaved online changes will be discarded. Continue?'),
+  )
+}
+
+// Loads the items of one level-1 group from the server. Returns false when nothing was loaded.
+async function loadOnlineHierarchyLevel1(normalizedLevel1Value) {
+  if (!connectionProfile.value) return false
+  if (!onlineSettings.value || typeof onlineSettings.value !== 'object') return false
+  // Loading another group replaces the items and drops the pending online changes.
+  if (!confirmDiscardPendingOnlineUpdates()) return false
+  clearSelection()
+
+  const result = await fetchOnlineItemsForHierarchyLevel1({
+    settings: onlineSettings.value,
+    level1Value: normalizedLevel1Value,
+  })
+  if (!result.ok) return false
+
+  initializeFromJsonArray(result.items, `online:${result.itemsPath}`)
+  clearOnlineUpdates()
+
+  const applyResult = applyImportedConfigPayload(onlineSettings.value)
+  if (!applyResult.ok) {
+    markOnlineSettingsInvalid(applyResult.error)
+    return false
+  }
+
+  applyUserConfigToRawItems(rawItems.value)
+  return true
+}
+
 async function onSelectHierarchyLevel1(value) {
   if (!hierarchyEnabled.value) return
 
   const normalizedLevel1Value = normalizeHierarchyValue(value)
-  clearSelection()
 
   if (appMode.value === 'online' && isAuthenticated.value) {
-    if (!connectionProfile.value) return
-    if (!onlineSettings.value || typeof onlineSettings.value !== 'object') return
-
-    const result = await fetchOnlineItemsForHierarchyLevel1({
-      settings: onlineSettings.value,
-      level1Value: normalizedLevel1Value,
-    })
-    if (!result.ok) return
-
-    initializeFromJsonArray(result.items, `online:${result.itemsPath}`)
-    clearOnlineUpdates()
-
-    const applyResult = applyImportedConfigPayload(onlineSettings.value)
-    if (!applyResult.ok) {
-      markOnlineSettingsInvalid(applyResult.error)
-      return
-    }
-
-    applyUserConfigToRawItems(rawItems.value)
-    hasSelectedHierarchyLevel1.value = true
-    selectedHierarchyLevel1.value = normalizedLevel1Value
-    initializeExpandedHierarchyLevel2(normalizedLevel1Value)
-    return
+    const isLoaded = await loadOnlineHierarchyLevel1(normalizedLevel1Value)
+    if (!isLoaded) return
+  } else {
+    clearSelection()
   }
 
   hasSelectedHierarchyLevel1.value = true

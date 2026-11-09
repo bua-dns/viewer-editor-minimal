@@ -243,6 +243,25 @@ async function fetchOnlineItems({ settings }) {
   }
 }
 
+/**
+ * Loads the items without a level-1 value, filtered on the server (null or empty string). If the
+ * server rejects that filter (e.g. for a non-text field type), falls back to loading the whole
+ * collection; the caller filters on the client either way.
+ */
+async function fetchUnassignedLevel1Rows(fetchRequest, level1FieldKey) {
+  try {
+    return await fetchAllCollectionItemsFromStrapi({ ...fetchRequest, filterEmptyField: level1FieldKey })
+  } catch (error) {
+    if (error?.status !== 400) throw error
+    return fetchAllCollectionItemsFromStrapi(fetchRequest)
+  }
+}
+
+function fetchLevel1Rows(fetchRequest, level1FieldKey, level1Value) {
+  if (!level1Value) return fetchUnassignedLevel1Rows(fetchRequest, level1FieldKey)
+  return fetchAllCollectionItemsFromStrapi({ ...fetchRequest, filtersEq: { [level1FieldKey]: level1Value } })
+}
+
 async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
   const { connectionProfile } = useConnectionProfileStore()
   const { token } = useAuthStore()
@@ -278,14 +297,13 @@ async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
 
   try {
     const hasExplicitLevel1Value = normalizedLevel1Value.length > 0
-    const fetchedRows = await fetchAllCollectionItemsFromStrapi({
-      profile: connectionProfile.value,
-      itemsPath,
-      token: token.value || '',
-      populateFields,
-      filtersEq: hasExplicitLevel1Value ? { [level1FieldKey]: normalizedLevel1Value } : {},
-    })
+    const fetchedRows = await fetchLevel1Rows(
+      { profile: connectionProfile.value, itemsPath, token: token.value || '', populateFields },
+      level1FieldKey,
+      normalizedLevel1Value,
+    )
 
+    // The client filter stays as a safety net (e.g. whitespace-only values count as unassigned).
     const normalizedItems = fetchedRows
       .map((rawRow) => normalizeStrapiItem(rawRow, settingsFields, itemsPath, scanFieldKey))
       .filter((item) => {

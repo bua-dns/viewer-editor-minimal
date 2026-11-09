@@ -1,6 +1,43 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { useOnlineUpdatesStore } from './useOnlineUpdatesStore'
 
+const PROFILE = { baseUrl: 'https://cms.example.org' }
+
+function okResponse(body) {
+  return { ok: true, status: 200, json: async () => body }
+}
+
+function errorResponse(status, message) {
+  return { ok: false, status, json: async () => ({ error: { message } }) }
+}
+
+/**
+ * Fetch mock routed by "METHOD /path" (query ignored). A route value is a response, a function
+ * returning one (or a promise of one), or an array consumed one response per call.
+ */
+function mockStrapiFetch(routes) {
+  return vi.fn(async (url, init = {}) => {
+    const path = new URL(url).pathname
+    const routeKey = `${init.method || 'GET'} ${path}`
+    const route = routes[routeKey]
+    if (!route) throw new Error(`Unexpected request: ${routeKey}`)
+    if (Array.isArray(route)) return route.shift()
+    return typeof route === 'function' ? route(init) : route
+  })
+}
+
+function deferred() {
+  let resolve
+  const promise = new Promise((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
+function requestsOf(fetchMock, method) {
+  return fetchMock.mock.calls.filter(([, init = {}]) => (init.method || 'GET') === method)
+}
+
 describe('useOnlineUpdatesStore', () => {
   beforeEach(() => {
     const store = useOnlineUpdatesStore()
@@ -41,17 +78,12 @@ describe('useOnlineUpdatesStore', () => {
   })
 
   test('keeps failed updates and reports error', async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { id: 1 } }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({ error: { message: 'boom' } }),
-      })
+    globalThis.fetch = mockStrapiFetch({
+      'GET /api/cards/doc-a': okResponse({ data: { documentId: 'doc-a', label: 'A1' } }),
+      'PUT /api/cards/doc-a': okResponse({ data: { id: 1 } }),
+      'GET /api/cards/doc-b': okResponse({ data: { documentId: 'doc-b', label: 'B1' } }),
+      'PUT /api/cards/doc-b': errorResponse(500, 'boom'),
+    })
 
     const store = useOnlineUpdatesStore()
 
@@ -190,16 +222,11 @@ describe('useOnlineUpdatesStore draft creates', () => {
   })
 
   test('created item switches to the regular update path for later edits', async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { id: 12, documentId: 'abc123' } }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { id: 12, documentId: 'abc123' } }),
-      })
+    globalThis.fetch = mockStrapiFetch({
+      'POST /api/cards': okResponse({ data: { id: 12, documentId: 'abc123' } }),
+      'GET /api/cards/abc123': okResponse({ data: { id: 12, documentId: 'abc123', inventory_number: '' } }),
+      'PUT /api/cards/abc123': okResponse({ data: { id: 12, documentId: 'abc123' } }),
+    })
 
     const store = useOnlineUpdatesStore()
     const draft = createDraftItem()
@@ -226,7 +253,7 @@ describe('useOnlineUpdatesStore draft creates', () => {
     })
 
     expect(updateResult.ok).toBe(true)
-    const [updateUrl, updateInit] = globalThis.fetch.mock.calls[1]
+    const [[updateUrl, updateInit]] = requestsOf(globalThis.fetch, 'PUT')
     expect(updateUrl).toBe('https://cms.example.org/api/cards/abc123')
     expect(updateInit.method).toBe('PUT')
     expect(JSON.parse(updateInit.body)).toEqual({ data: { inventory_number: 'EDIT-2' } })
@@ -299,5 +326,132 @@ describe('useOnlineUpdatesStore draft creates', () => {
 
     expect(result.ok).toBe(false)
     expect(store.pendingUpdateCount.value).toBe(0)
+  })
+})
+
+describe('useOnlineUpdatesStore save safety', () => {
+  beforeEach(() => {
+    useOnlineUpdatesStore().clearOnlineUpdates()
+  })
+
+  function trackLabelEdit(store, { from, to, id = 'doc-1' }) {
+    const item = { label: to, __onlineMeta: { id, itemsPath: '/api/cards' } }
+    store.trackOnlineFieldChange({ item, snapshotItem: { label: from }, key: 'label', nextValue: to })
+    return item
+  }
+
+  function editLabel(store, item, nextValue, snapshotLabel = 'Original') {
+    item.label = nextValue
+    store.trackOnlineFieldChange({ item, snapshotItem: { label: snapshotLabel }, key: 'label', nextValue })
+  }
+
+  test('refuses to overwrite a field someone else changed, and overwrites on the second save', async () => {
+    globalThis.fetch = mockStrapiFetch({
+      'GET /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1', label: 'Their edit' } }),
+      'PUT /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1' } }),
+    })
+    const store = useOnlineUpdatesStore()
+    trackLabelEdit(store, { from: 'Original', to: 'My edit' })
+
+    const first = await store.saveOnlineUpdates({ profile: PROFILE })
+
+    expect(first.ok).toBe(false)
+    expect(first.error).toContain('label changed on the server')
+    expect(requestsOf(globalThis.fetch, 'PUT')).toHaveLength(0)
+    expect(store.pendingUpdateCount.value).toBe(1)
+
+    const second = await store.saveOnlineUpdates({ profile: PROFILE })
+
+    expect(second.ok).toBe(true)
+    const [[, putInit]] = requestsOf(globalThis.fetch, 'PUT')
+    expect(JSON.parse(putInit.body)).toEqual({ data: { label: 'My edit' } })
+    expect(store.pendingUpdateCount.value).toBe(0)
+  })
+
+  test('does not report a conflict when only other fields changed on the server', async () => {
+    globalThis.fetch = mockStrapiFetch({
+      'GET /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1', label: 'Original', notes: 'new note' } }),
+      'PUT /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1' } }),
+    })
+    const store = useOnlineUpdatesStore()
+    trackLabelEdit(store, { from: 'Original', to: 'My edit' })
+
+    const result = await store.saveOnlineUpdates({ profile: PROFILE })
+
+    expect(result.ok).toBe(true)
+    const [[, putInit]] = requestsOf(globalThis.fetch, 'PUT')
+    expect(JSON.parse(putInit.body)).toEqual({ data: { label: 'My edit' } })
+  })
+
+  // Saves "Original" → "First" and runs `editDuringPut` while the PUT is still open.
+  async function saveWithEditDuringPut(store, editDuringPut) {
+    const putGate = deferred()
+    globalThis.fetch = mockStrapiFetch({
+      'GET /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1', label: 'Original' } }),
+      'PUT /api/cards/doc-1': () => putGate.promise,
+    })
+    const item = trackLabelEdit(store, { from: 'Original', to: 'First' })
+
+    const saving = store.saveOnlineUpdates({ profile: PROFILE })
+    await vi.waitFor(() => expect(requestsOf(globalThis.fetch, 'PUT')).toHaveLength(1))
+    editDuringPut(item)
+    putGate.resolve(okResponse({ data: { documentId: 'doc-1' } }))
+    await saving
+  }
+
+  test('an edit made while the save is running stays pending', async () => {
+    const store = useOnlineUpdatesStore()
+    await saveWithEditDuringPut(store, (item) => editLabel(store, item, 'Second'))
+
+    const entry = Object.values(store.pendingUpdatesById.value)[0]
+    expect(entry.changedFields).toEqual({ label: 'Second' })
+    expect(entry.baselineFields).toEqual({ label: 'First' })
+
+    globalThis.fetch = mockStrapiFetch({
+      'GET /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1', label: 'First' } }),
+      'PUT /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1' } }),
+    })
+    const next = await store.saveOnlineUpdates({ profile: PROFILE })
+    expect(next.ok).toBe(true)
+    expect(store.pendingUpdateCount.value).toBe(0)
+  })
+
+  test('a revert made while the save is running is sent with the next save', async () => {
+    const store = useOnlineUpdatesStore()
+    await saveWithEditDuringPut(store, (item) => {
+      editLabel(store, item, 'Original')
+      expect(store.pendingUpdateCount.value).toBe(0)
+    })
+
+    const entry = Object.values(store.pendingUpdatesById.value)[0]
+    expect(entry.changedFields).toEqual({ label: 'Original' })
+    expect(entry.baselineFields).toEqual({ label: 'First' })
+  })
+
+  test('an edit made while a draft is being created becomes an update of the new item', async () => {
+    const postGate = deferred()
+    globalThis.fetch = mockStrapiFetch({
+      'POST /api/cards': () => postGate.promise,
+    })
+    const store = useOnlineUpdatesStore()
+    const draft = {
+      label: 'First',
+      __onlineMeta: { isDraft: true, draftId: 'draft-1', itemsPath: '/api/cards' },
+    }
+    store.trackOnlineDraftCreate({ item: draft })
+    store.trackOnlineFieldChange({ item: draft, snapshotItem: {}, key: 'label', nextValue: 'First' })
+
+    const saving = store.saveOnlineUpdates({ profile: PROFILE })
+    await vi.waitFor(() => expect(requestsOf(globalThis.fetch, 'POST')).toHaveLength(1))
+    draft.label = 'Second'
+    store.trackOnlineFieldChange({ item: draft, snapshotItem: {}, key: 'label', nextValue: 'Second' })
+    postGate.resolve(okResponse({ data: { id: 5, documentId: 'new-1' } }))
+    await saving
+
+    expect(store.pendingCreatesById.value).toEqual({})
+    const entry = Object.values(store.pendingUpdatesById.value)[0]
+    expect(entry.id).toBe('new-1')
+    expect(entry.changedFields).toEqual({ label: 'Second' })
+    expect(entry.baselineFields).toEqual({ label: 'First' })
   })
 })

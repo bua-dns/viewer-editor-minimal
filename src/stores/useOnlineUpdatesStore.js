@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import {
   createCollectionItemInStrapi,
   fetchAllCollectionItemsFromStrapi,
+  fetchCollectionItemFromStrapi,
   getWikidataAutosuggestFieldKeysFromSettings,
   normalizeOnlineChangedFieldsForStrapi,
   normalizeStrapiItem,
@@ -12,6 +13,7 @@ import {
   updateCollectionItemInStrapi,
 } from '../services/strapiApi'
 import { computeReplacementChangesForItem } from '../composables/replacementRules'
+import { findConflictingFields } from '../composables/onlineSaveConflicts'
 import { useOnlineSettingsStore } from './useOnlineSettingsStore'
 
 const ONLINE_META_KEY = '__onlineMeta'
@@ -48,55 +50,69 @@ function clearOnlineUpdates() {
   lastSaveError.value = ''
 }
 
-function trackOnlineDraftCreate({ item }) {
+function resolveDraftEntry(item) {
   const onlineMeta = item?.[ONLINE_META_KEY]
-  if (!onlineMeta || typeof onlineMeta !== 'object') return false
-  if (onlineMeta.isDraft !== true) return false
-
-  const draftId = String(onlineMeta.draftId || '').trim()
-  const itemsPath = String(onlineMeta.itemsPath || '').trim()
-  if (!draftId || !itemsPath) return false
-
-  clearSaveFeedback()
+  const draftId = String(onlineMeta?.draftId || '').trim()
+  const itemsPath = String(onlineMeta?.itemsPath || '').trim()
+  if (!draftId || !itemsPath) return null
 
   const entryKey = createEntryKey(itemsPath, draftId)
-  const currentEntry = pendingCreatesById.value[entryKey] || {
-    draftId,
-    itemsPath,
-    item,
-    changedFields: {},
-  }
-  currentEntry.item = item
+  const entry = pendingCreatesById.value[entryKey] || { draftId, itemsPath, item, changedFields: {} }
+  entry.item = item
+  return { entryKey, entry }
+}
 
+function setPendingCreate(entryKey, entry) {
   pendingCreatesById.value = {
     ...pendingCreatesById.value,
-    [entryKey]: currentEntry,
+    [entryKey]: entry,
   }
+}
+
+function trackOnlineDraftCreate({ item }) {
+  if (item?.[ONLINE_META_KEY]?.isDraft !== true) return false
+
+  const draft = resolveDraftEntry(item)
+  if (!draft) return false
+
+  clearSaveFeedback()
+  setPendingCreate(draft.entryKey, draft.entry)
   return true
 }
 
-function trackOnlineDraftFieldChange({ item, onlineMeta, key, nextValue }) {
-  const draftId = String(onlineMeta.draftId || '').trim()
-  const itemsPath = String(onlineMeta.itemsPath || '').trim()
-  if (!draftId || !itemsPath) return false
+function trackOnlineDraftFieldChange({ item, key, nextValue }) {
+  const draft = resolveDraftEntry(item)
+  if (!draft) return false
 
   clearSaveFeedback()
-
-  const entryKey = createEntryKey(itemsPath, draftId)
-  const currentEntry = pendingCreatesById.value[entryKey] || {
-    draftId,
-    itemsPath,
-    item,
-    changedFields: {},
-  }
-  currentEntry.item = item
-  currentEntry.changedFields[key] = cloneValue(nextValue)
-
-  pendingCreatesById.value = {
-    ...pendingCreatesById.value,
-    [entryKey]: currentEntry,
-  }
+  draft.entry.changedFields[key] = cloneValue(nextValue)
+  setPendingCreate(draft.entryKey, draft.entry)
   return true
+}
+
+// `baselineFields` holds the server value each changed field had when it was loaded; the save
+// compares it with the current server value to detect edits made by someone else meanwhile.
+function createUpdateEntry({ id, itemsPath, item = null }) {
+  return { id, itemsPath, item, changedFields: {}, baselineFields: {} }
+}
+
+function setPendingUpdate(entryKey, entry) {
+  pendingUpdatesById.value = {
+    ...pendingUpdatesById.value,
+    [entryKey]: entry,
+  }
+}
+
+function recordFieldChange(entry, key, nextValue, baselineValue) {
+  if (isEqualValue(nextValue, baselineValue)) {
+    delete entry.changedFields[key]
+    delete entry.baselineFields[key]
+    return
+  }
+  entry.changedFields[key] = cloneValue(nextValue)
+  if (!Object.prototype.hasOwnProperty.call(entry.baselineFields, key)) {
+    entry.baselineFields[key] = cloneValue(baselineValue)
+  }
 }
 
 function trackOnlineFieldChange({ item, snapshotItem, key, nextValue }) {
@@ -105,39 +121,23 @@ function trackOnlineFieldChange({ item, snapshotItem, key, nextValue }) {
   if (!onlineMeta || typeof onlineMeta !== 'object') return false
 
   if (onlineMeta.isDraft === true) {
-    return trackOnlineDraftFieldChange({ item, onlineMeta, key, nextValue })
+    return trackOnlineDraftFieldChange({ item, key, nextValue })
   }
 
-  const id = onlineMeta.id
-  const itemsPath = onlineMeta.itemsPath
+  const { id, itemsPath } = onlineMeta
   if (!id || !itemsPath) return false
 
   clearSaveFeedback()
 
   const entryKey = createEntryKey(itemsPath, id)
-  const currentEntry = pendingUpdatesById.value[entryKey] || {
-    id,
-    itemsPath,
-    changedFields: {},
-  }
-
-  const baselineValue = snapshotItem?.[key]
-  if (isEqualValue(nextValue, baselineValue)) {
-    delete currentEntry.changedFields[key]
-  } else {
-    currentEntry.changedFields[key] = cloneValue(nextValue)
-  }
+  const currentEntry = pendingUpdatesById.value[entryKey] || createUpdateEntry({ id, itemsPath })
+  currentEntry.item = item
+  recordFieldChange(currentEntry, key, nextValue, snapshotItem?.[key])
 
   if (Object.keys(currentEntry.changedFields).length === 0) {
-    const nextEntries = { ...pendingUpdatesById.value }
-    delete nextEntries[entryKey]
-    pendingUpdatesById.value = nextEntries
-    return true
-  }
-
-  pendingUpdatesById.value = {
-    ...pendingUpdatesById.value,
-    [entryKey]: currentEntry,
+    removePendingUpdate(entryKey)
+  } else {
+    setPendingUpdate(entryKey, currentEntry)
   }
   return true
 }
@@ -232,88 +232,165 @@ function normalizeSaveErrorMessage(error, fallback) {
     : fallback
 }
 
-async function saveOnlineUpdates({ profile, token = '' }) {
+// A key missing from `changedFields` was reverted meanwhile; the item then holds the wanted value.
+function readCurrentValue(entry, key, sentValue) {
+  if (Object.prototype.hasOwnProperty.call(entry.changedFields, key)) return entry.changedFields[key]
+  const hasItem = entry.item && typeof entry.item === 'object'
+  return hasItem ? entry.item[key] : sentValue
+}
+
+/**
+ * After a successful write, drops the fields that were sent and still hold the sent value. A
+ * field edited (or reverted) while the request was running stays pending, with the sent value
+ * as baseline, because that is what the server holds now.
+ */
+function settleSentFields(entry, sentFields) {
+  Object.entries(sentFields).forEach(([key, sentValue]) => {
+    const currentValue = readCurrentValue(entry, key, sentValue)
+    if (isEqualValue(currentValue, sentValue)) {
+      delete entry.changedFields[key]
+      delete entry.baselineFields[key]
+      return
+    }
+    entry.changedFields[key] = cloneValue(currentValue)
+    entry.baselineFields[key] = cloneValue(sentValue)
+  })
+}
+
+function buildSaveContext({ profile, token }) {
   const { settings } = useOnlineSettingsStore()
-  const fieldConfigs = settings.value?.fields && typeof settings.value.fields === 'object'
-    ? settings.value.fields
+  const currentSettings = settings.value && typeof settings.value === 'object' ? settings.value : {}
+  const fieldConfigs = currentSettings.fields && typeof currentSettings.fields === 'object'
+    ? currentSettings.fields
     : {}
 
-  const updateEntries = Object.entries(pendingUpdatesById.value)
-  const createEntries = Object.entries(pendingCreatesById.value)
-  if (!updateEntries.length && !createEntries.length) {
-    saveStatus.value = 'idle'
-    lastSaveError.value = ''
-    return { ok: true, savedCount: 0, failedCount: 0 }
+  return {
+    profile,
+    token,
+    fieldConfigs,
+    scanFieldKey: resolveScanFieldFromSettings(currentSettings),
+    wikidataFieldKeys: getWikidataAutosuggestFieldKeysFromSettings(currentSettings),
+  }
+}
+
+async function loadServerItem(context, entry, fieldKeys) {
+  const row = await fetchCollectionItemFromStrapi({
+    profile: context.profile,
+    itemsPath: entry.itemsPath,
+    token: context.token,
+    id: entry.id,
+    populateFields: fieldKeys.filter((key) => context.wikidataFieldKeys.includes(key)),
+  })
+  const knownFields = { ...Object.fromEntries(fieldKeys.map((key) => [key, {}])), ...context.fieldConfigs }
+  return normalizeStrapiItem(row, knownFields, entry.itemsPath, context.scanFieldKey)
+}
+
+/**
+ * Refuses to overwrite fields that someone else changed since they were loaded. The conflicting
+ * server values become the new baseline, so saving again overwrites them deliberately.
+ */
+async function assertNoConflicts(context, entry, sentFields) {
+  const serverItem = await loadServerItem(context, entry, Object.keys(sentFields))
+  const conflictingKeys = findConflictingFields({
+    sentFields,
+    baselineFields: entry.baselineFields,
+    serverItem,
+  })
+  if (!conflictingKeys.length) return
+
+  conflictingKeys.forEach((key) => {
+    entry.baselineFields[key] = cloneValue(serverItem[key])
+  })
+  throw new Error(
+    `Item ${entry.id}: ${conflictingKeys.join(', ')} changed on the server since loading. `
+      + 'Reload to see the other version, or save again to overwrite it.',
+  )
+}
+
+async function saveUpdateEntry(context, entryKey, entry) {
+  const sentFields = cloneValue(entry.changedFields)
+  await assertNoConflicts(context, entry, sentFields)
+
+  await updateCollectionItemInStrapi({
+    profile: context.profile,
+    itemsPath: entry.itemsPath,
+    id: entry.id,
+    token: context.token,
+    changedFields: normalizeOnlineChangedFieldsForStrapi(sentFields, context.fieldConfigs),
+  })
+
+  // Edits during the request may have replaced the entry (e.g. revert, then another edit).
+  const liveEntry = pendingUpdatesById.value[entryKey] || entry
+  settleSentFields(liveEntry, sentFields)
+  if (Object.keys(liveEntry.changedFields).length === 0) {
+    removePendingUpdate(entryKey)
+  } else {
+    setPendingUpdate(entryKey, liveEntry)
+  }
+  return null
+}
+
+function assignCreatedIdentity(entry, createdRow, stableIdentifier) {
+  entry.item[ONLINE_META_KEY] = {
+    id: stableIdentifier.id,
+    idKind: stableIdentifier.idKind,
+    idValue: stableIdentifier.id,
+    itemsPath: entry.itemsPath,
+    updatedAt: createdRow?.updatedAt,
+  }
+}
+
+// Fields edited while the create request was running become a regular update of the new item.
+function carryOverEditsMadeDuringCreate(entry, sentFields, stableIdentifier) {
+  const leftover = createUpdateEntry({ id: stableIdentifier.id, itemsPath: entry.itemsPath, item: entry.item })
+  leftover.changedFields = cloneValue(entry.changedFields)
+  settleSentFields(leftover, sentFields)
+  if (!Object.keys(leftover.changedFields).length) return
+  setPendingUpdate(createEntryKey(entry.itemsPath, stableIdentifier.id), leftover)
+}
+
+async function saveCreateEntry(context, entryKey, entry) {
+  const sentFields = cloneValue(entry.changedFields)
+  const payload = await createCollectionItemInStrapi({
+    profile: context.profile,
+    itemsPath: entry.itemsPath,
+    token: context.token,
+    fields: pickNonEmptyOnlineFields(normalizeOnlineChangedFieldsForStrapi(sentFields, context.fieldConfigs)),
+  })
+  const createdRow = payload?.data && typeof payload.data === 'object' ? payload.data : null
+  const stableIdentifier = resolveStableIdentifierFromRow(createdRow)
+  if (!stableIdentifier) {
+    throw new Error('Create response does not contain a stable identifier (documentId or id).')
   }
 
-  saveStatus.value = 'saving'
-  lastSaveError.value = ''
+  removePendingCreate(entryKey)
+  const hasItem = entry.item && typeof entry.item === 'object'
+  if (!hasItem) return null
 
-  const failed = []
-  const createdItems = []
-  let savedCount = 0
+  assignCreatedIdentity(entry, createdRow, stableIdentifier)
+  carryOverEditsMadeDuringCreate(entry, sentFields, stableIdentifier)
+  return entry.item
+}
 
-  for (const [entryKey, entry] of createEntries) {
+async function saveEntries(entries, saveEntry, fallbackError) {
+  const results = { savedCount: 0, failed: [], savedItems: [] }
+  for (const [entryKey, entry] of entries) {
     try {
-      const createFields = pickNonEmptyOnlineFields(
-        normalizeOnlineChangedFieldsForStrapi(entry.changedFields, fieldConfigs),
-      )
-      const payload = await createCollectionItemInStrapi({
-        profile,
-        itemsPath: entry.itemsPath,
-        token,
-        fields: createFields,
-      })
-      const createdRow = payload?.data && typeof payload.data === 'object' ? payload.data : null
-      const stableIdentifier = resolveStableIdentifierFromRow(createdRow)
-      if (!stableIdentifier) {
-        throw new Error('Create response does not contain a stable identifier (documentId or id).')
-      }
-
-      const draftItem = entry.item
-      if (draftItem && typeof draftItem === 'object') {
-        draftItem[ONLINE_META_KEY] = {
-          id: stableIdentifier.id,
-          idKind: stableIdentifier.idKind,
-          idValue: stableIdentifier.id,
-          itemsPath: entry.itemsPath,
-          updatedAt: createdRow?.updatedAt,
-        }
-        createdItems.push(draftItem)
-      }
-
-      removePendingCreate(entryKey)
-      savedCount += 1
+      const savedItem = await saveEntry(entryKey, entry)
+      if (savedItem) results.savedItems.push(savedItem)
+      results.savedCount += 1
     } catch (error) {
-      failed.push({
+      results.failed.push({
         entryKey,
-        id: entry.draftId,
-        error: normalizeSaveErrorMessage(error, 'Could not create online item.'),
+        id: entry.id ?? entry.draftId,
+        error: normalizeSaveErrorMessage(error, fallbackError),
       })
     }
   }
+  return results
+}
 
-  for (const [entryKey, entry] of updateEntries) {
-    try {
-      const changedFields = normalizeOnlineChangedFieldsForStrapi(entry.changedFields, fieldConfigs)
-      await updateCollectionItemInStrapi({
-        profile,
-        itemsPath: entry.itemsPath,
-        id: entry.id,
-        token,
-        changedFields,
-      })
-      removePendingUpdate(entryKey)
-      savedCount += 1
-    } catch (error) {
-      failed.push({
-        entryKey,
-        id: entry.id,
-        error: normalizeSaveErrorMessage(error, 'Could not save online changes.'),
-      })
-    }
-  }
-
+function finishSave({ savedCount, failed, createdItems }) {
   if (!failed.length) {
     saveStatus.value = 'success'
     lastSaveError.value = ''
@@ -330,6 +407,37 @@ async function saveOnlineUpdates({ profile, token = '' }) {
     createdItems,
     error: lastSaveError.value,
   }
+}
+
+async function saveOnlineUpdates({ profile, token = '' }) {
+  const createEntries = Object.entries(pendingCreatesById.value)
+  const updateEntries = Object.entries(pendingUpdatesById.value)
+  if (!updateEntries.length && !createEntries.length) {
+    saveStatus.value = 'idle'
+    lastSaveError.value = ''
+    return { ok: true, savedCount: 0, failedCount: 0 }
+  }
+
+  saveStatus.value = 'saving'
+  lastSaveError.value = ''
+
+  const context = buildSaveContext({ profile, token })
+  const creates = await saveEntries(
+    createEntries,
+    (entryKey, entry) => saveCreateEntry(context, entryKey, entry),
+    'Could not create online item.',
+  )
+  const updates = await saveEntries(
+    updateEntries,
+    (entryKey, entry) => saveUpdateEntry(context, entryKey, entry),
+    'Could not save online changes.',
+  )
+
+  return finishSave({
+    savedCount: creates.savedCount + updates.savedCount,
+    failed: [...creates.failed, ...updates.failed],
+    createdItems: creates.savedItems,
+  })
 }
 
 const pendingUpdateCount = computed(
