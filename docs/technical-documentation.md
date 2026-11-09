@@ -102,14 +102,18 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
   `../viewer-editor-projects/<project>/`. Ein anderer Ort wird in der (ungetrackten) `.env.local` dieses
   Repos gesetzt: `VIEWER_EDITOR_PROJECTS_DIR=<pfad>`. Fehlt das Projekt, bricht der Build ab und nennt die
   vorhandenen Projekte.
-- **Projektordner:** `project.json` (optional: `base`, Default `./`; `title` für `<title>`; `favicon` als
+- **Projektordner:** `project.json` (optional: `base`, siehe unten; `title` für `<title>`; `favicon` als
   Pfad im Projekt-`public/`), `public/` und optional `.env` / `.env.local`.
 - **Overlay:** `public/` des Projekts wird über das generische `public/` gelegt; eine Projektdatei ersetzt
   die generische Datei mit demselben Pfad. Das Ergebnis liegt in `.vite/project-public/<project>/` und dient
   als `publicDir`. Im Dev-Server wird es bei Änderungen in einem der beiden Ordner neu erzeugt (Full Reload).
 - **Laufzeitdateien bleiben Dateien:** `app-config/*.json` landen unverändert im Build und lassen sich auf dem
   Server ohne Rebuild austauschen.
-- **`base: "./"`** macht den Build pfadunabhängig; die Seiten-URL muss dann mit `/` enden.
+- **Pfad `<server>/<project>/`:** Ohne `base` in `project.json` laufen Dev-Server und Preview unter
+  `/<project>/` (z. B. `http://localhost:5173/xylothek/`). Der Build ist relativ (`./`): Den Inhalt von
+  `dist-projects/<project>/` in einen Ordner `<project>` auf dem Server legen, dann läuft die App unter
+  `<server-url>/<project>/`, egal unter welchem Serverpfad. Die Seiten-URL muss mit `/` enden. Ein `base` in
+  `project.json` überschreibt beides.
 - **Secrets:** `envDir` ist der Projektordner. `VITE_*`-Werte landen lesbar im Bundle; Secrets gehören ohne
   `VITE_`-Präfix in die `.env.local` des Projekts und sind nur zur Build-Zeit verfügbar. Der Build warnt bei
   `VITE_*`-Namen, die nach Secret aussehen (`TOKEN`, `SECRET`, `PASSWORD`, `PRIVATE`, `API_KEY`).

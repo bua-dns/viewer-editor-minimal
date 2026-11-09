@@ -58,6 +58,14 @@ describe('resolveProject', () => {
     expect(project.title).toBe('Xylothek')
   })
 
+  test('runs under /<project>/ by default: absolute on the dev server, relative in the build', () => {
+    writeFile('viewer-editor-projects/xylothek/project.json', '{"title":"Xylothek"}')
+    const root = path.join(tempRoot, 'tool')
+
+    expect(resolveProject({ mode: 'xylothek', root, command: 'serve' }).base).toBe('/xylothek/')
+    expect(resolveProject({ mode: 'xylothek', root, command: 'build' }).base).toBe('./')
+  })
+
   test('VIEWER_EDITOR_PROJECTS_DIR overrides the convention', () => {
     writeFile('elsewhere/demo/project.json', '{}')
 
@@ -86,7 +94,7 @@ describe('resolveProject', () => {
 
 describe('readProjectConfig', () => {
   test('uses defaults when project.json is missing', () => {
-    expect(readProjectConfig(tempRoot)).toEqual({ base: './', title: '', favicon: '' })
+    expect(readProjectConfig(tempRoot)).toEqual({ base: '', title: '', favicon: '' })
   })
 
   test('strips a leading slash from the favicon path', () => {

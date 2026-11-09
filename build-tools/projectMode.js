@@ -11,7 +11,7 @@ export const PROJECTS_DIR_ENV_KEY = 'VIEWER_EDITOR_PROJECTS_DIR'
 const PROJECT_FILE = 'project.json'
 const PROJECT_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]*$/i
 const SECRET_LOOKING_KEY = /TOKEN|SECRET|PASSWORD|PRIVATE|API_?KEY/i
-const DEFAULT_PROJECT_CONFIG = { base: './', title: '', favicon: '' }
+const DEFAULT_PROJECT_CONFIG = { base: '', title: '', favicon: '' }
 
 export function isProjectMode(mode) {
   return Boolean(mode) && !GENERIC_MODES.has(mode)
@@ -52,15 +52,23 @@ export function readProjectConfig(projectDir) {
   }
 
   return {
-    base: readStringOption(parsed, 'base', fileName) || DEFAULT_PROJECT_CONFIG.base,
+    base: readStringOption(parsed, 'base', fileName),
     title: readStringOption(parsed, 'title', fileName),
     favicon: readStringOption(parsed, 'favicon', fileName).replace(/^\/+/, ''),
   }
 }
 
+// Without a `base` in project.json the app runs under `<server>/<project>/`: the dev and
+// preview servers use `/<project>/`; the build is relative (`./`), so the uploaded folder
+// works under any server path.
+export function defaultBase(name, command) {
+  return command === 'serve' ? `/${name}/` : './'
+}
+
 // Returns null for the generic build, else everything vite.config.js needs for the project.
 // `env` holds the build-tool variables (VIEWER_EDITOR_PROJECTS_DIR), not the project's.
-export function resolveProject({ mode, root, env = {} }) {
+// `command` is Vite's `serve` (dev, preview) or `build`.
+export function resolveProject({ mode, root, env = {}, command = 'build' }) {
   if (!isProjectMode(mode)) return null
   if (!PROJECT_NAME_PATTERN.test(mode)) {
     throw new Error(`Invalid project name "${mode}": use letters, digits, "-" and "_" only.`)
@@ -74,13 +82,15 @@ export function resolveProject({ mode, root, env = {} }) {
     throw new Error(`Project "${mode}" not found in ${projectsDir}. ${hint}`)
   }
 
+  const config = readProjectConfig(dir)
   return {
+    ...config,
+    base: config.base || defaultBase(mode, command),
     name: mode,
     dir,
     publicDir: path.join(dir, 'public'),
     mergedPublicDir: path.join(root, '.vite', 'project-public', mode),
     outDir: path.join('dist-projects', mode),
-    ...readProjectConfig(dir),
   }
 }
 

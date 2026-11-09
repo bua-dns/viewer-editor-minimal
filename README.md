@@ -58,8 +58,8 @@ Deploy-Hinweis:
 Projekt-Builds (Konfiguration aus dem Config-Repo `../viewer-editor-projects/<project>/`):
 
 ```bash
-pnpm dev --mode xylothek
-pnpm build --mode xylothek      # Ausgabe: dist-projects/xylothek/
+pnpm dev --mode xylothek        # http://localhost:5173/xylothek/
+pnpm build --mode xylothek      # Ausgabe: dist-projects/xylothek/ -> auf dem Server nach <server>/xylothek/
 ```
 
 Details: [technische Dokumentation, Projekt-Modi](docs/technical-documentation.md#projekt-modi---mode-project).

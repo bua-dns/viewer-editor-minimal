@@ -4,9 +4,9 @@ import vue from '@vitejs/plugin-vue'
 import { mergePublicDirs, projectModePlugin, resolveProject } from './build-tools/projectMode.js'
 
 // Without --mode <project>: the generic build. With it: see build-tools/projectMode.js.
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
   const root = process.cwd()
-  const project = resolveProject({ mode, root, env: loadEnv(mode, root, 'VIEWER_EDITOR_') })
+  const project = resolveProject({ command, mode, root, env: loadEnv(mode, root, 'VIEWER_EDITOR_') })
 
   if (!project) {
     return {
