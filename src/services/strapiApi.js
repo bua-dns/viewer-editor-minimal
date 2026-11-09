@@ -21,32 +21,83 @@ function createHttpError(message, status, payload) {
   return error
 }
 
-export async function strapiFetchJson({ profile, path, method = 'GET', token = '', body = undefined }) {
+export const READ_TIMEOUT_MS = 30_000
+export const WRITE_TIMEOUT_MS = 60_000
+
+let unauthorizedHandler = null
+
+/** Called with the error whenever a request that carried a token is answered with 401. */
+export function setUnauthorizedHandler(handler) {
+  unauthorizedHandler = typeof handler === 'function' ? handler : null
+}
+
+function buildRequestSignal(signal, timeoutMs) {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  if (!signal) return timeoutSignal
+  return AbortSignal.any([signal, timeoutSignal])
+}
+
+/**
+ * A timeout or a network failure leaves the outcome open: a write may have reached the server.
+ * `outcomeUnknown` marks that case for callers that must not simply repeat a create.
+ */
+function toTransportError(error, timeoutMs) {
+  if (error?.name === 'AbortError') return error
+  const isTimeout = error?.name === 'TimeoutError'
+  const message = isTimeout
+    ? `No answer from the server within ${Math.round(timeoutMs / 1000)} s.`
+    : 'The server could not be reached.'
+  const transportError = createHttpError(message, 0, null)
+  transportError.cause = error
+  transportError.outcomeUnknown = true
+  return transportError
+}
+
+function buildRequestHeaders(token, hasBody) {
+  const headers = { Accept: 'application/json' }
+  if (hasBody) headers['Content-Type'] = 'application/json'
+  if (token) headers.Authorization = `Bearer ${token}`
+  return headers
+}
+
+function readBackendErrorMessage(payload, status) {
+  return payload?.error?.message || payload?.message || `Request failed with HTTP ${status}.`
+}
+
+export async function strapiFetchJson({
+  profile,
+  path,
+  method = 'GET',
+  token = '',
+  body = undefined,
+  signal = undefined,
+  timeoutMs = method === 'GET' ? READ_TIMEOUT_MS : WRITE_TIMEOUT_MS,
+}) {
   const requestUrl = joinBaseUrlAndPath(profile.baseUrl, path)
-  const headers = {
-    Accept: 'application/json',
-  }
 
-  if (body !== undefined) {
-    headers['Content-Type'] = 'application/json'
+  let response
+  try {
+    response = await fetch(requestUrl, {
+      method,
+      headers: buildRequestHeaders(token, body !== undefined),
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: buildRequestSignal(signal, timeoutMs),
+    })
+  } catch (error) {
+    throw toTransportError(error, timeoutMs)
   }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`
-  }
-
-  const response = await fetch(requestUrl, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
 
   const payload = await parseJsonResponseSafe(response)
 
   if (!response.ok) {
-    const backendMessage = payload?.error?.message || payload?.message
-    const message = backendMessage || `Request failed with HTTP ${response.status}.`
-    throw createHttpError(message, response.status, payload)
+    const httpError = createHttpError(readBackendErrorMessage(payload, response.status), response.status, payload)
+    if (response.status === 401 && token && unauthorizedHandler) unauthorizedHandler(httpError)
+    throw httpError
+  }
+
+  // A 2xx without a JSON body is usually a proxy or SPA fallback page, not Strapi (204 = no body).
+  if (payload === null && response.status !== 204) {
+    throw createHttpError(`The answer from ${path} is not JSON (HTTP ${response.status}).`, response.status, null)
   }
 
   return payload
@@ -200,6 +251,27 @@ export function resolveItemsPathFromSettings(settings = {}) {
   if (legacyItemsPath) return legacyItemsPath
 
   return ''
+}
+
+/**
+ * Optional text field of the collection that receives a client-generated key on create, so a
+ * create whose answer was lost can be found instead of being sent twice. '' = not configured.
+ */
+export function resolveCreateKeyFieldFromSettings(settings = {}) {
+  if (!isPlainObject(settings)) return ''
+  return String(settings.createKeyField || '').trim()
+}
+
+/** The first row whose `fieldKey` equals `value`, or null. */
+export async function findCollectionItemByFieldValue({ profile, itemsPath, token = '', fieldKey, value }) {
+  const payload = await strapiFetchJson({
+    profile,
+    path: buildItemsPathWithPopulate(itemsPath, { page: 1, pageSize: 1, filtersEq: { [fieldKey]: value } }),
+    method: 'GET',
+    token,
+  })
+  const rows = Array.isArray(payload?.data) ? payload.data : []
+  return rows[0] || null
 }
 
 function buildPathWithAdditionalQueryParams(path, entries = []) {
@@ -398,6 +470,28 @@ function buildEmptyValueFilterEntries(fieldKey) {
   ]
 }
 
+/**
+ * GETs `buildPath(populateFields)`. When Strapi rejects one of the populate keys (e.g. a field that
+ * is not a relation/component), drops that key and tries again. Every retry removes one key, so
+ * there are at most `populateFields.length + 1` requests.
+ */
+async function fetchDroppingInvalidPopulateKeys({ profile, token, populateFields, buildPath }) {
+  let remaining = [...populateFields]
+  const droppedKeys = []
+
+  for (;;) {
+    try {
+      const payload = await strapiFetchJson({ profile, path: buildPath(remaining), method: 'GET', token })
+      return { payload, populateFields: remaining, droppedKeys }
+    } catch (error) {
+      const invalidKey = parseInvalidStrapiQueryKey(error)
+      if (!invalidKey || !remaining.includes(invalidKey)) throw error
+      droppedKeys.push(invalidKey)
+      remaining = remaining.filter((fieldName) => fieldName !== invalidKey)
+    }
+  }
+}
+
 export async function fetchAllCollectionItemsFromStrapi({
   profile,
   itemsPath,
@@ -420,39 +514,15 @@ export async function fetchAllCollectionItemsFromStrapi({
   let pageCount = 1
 
   while (page <= pageCount) {
-    let payload = null
-
-    while (!payload) {
-      const pagedPath = buildItemsPathWithPopulate(itemsPath, {
-        page,
-        pageSize,
-        populateFields: effectivePopulateFields,
-        fieldKeys,
-        filtersEq,
-        filterEmptyField,
-      })
-
-      try {
-        payload = await strapiFetchJson({
-          profile,
-          path: pagedPath,
-          method: 'GET',
-          token,
-        })
-      } catch (error) {
-        const invalidKey = parseInvalidStrapiQueryKey(error)
-        if (!invalidKey) {
-          throw error
-        }
-
-        const hasPopulateKey = effectivePopulateFields.some((fieldName) => fieldName === invalidKey)
-        if (!hasPopulateKey) {
-          throw error
-        }
-
-        effectivePopulateFields = effectivePopulateFields.filter((fieldName) => fieldName !== invalidKey)
-      }
-    }
+    const result = await fetchDroppingInvalidPopulateKeys({
+      profile,
+      token,
+      populateFields: effectivePopulateFields,
+      buildPath: (populate) =>
+        buildItemsPathWithPopulate(itemsPath, { page, pageSize, populateFields: populate, fieldKeys, filtersEq, filterEmptyField }),
+    })
+    const { payload } = result
+    effectivePopulateFields = result.populateFields
 
     const rows = Array.isArray(payload?.data) ? payload.data : null
     if (!rows) {
@@ -510,39 +580,16 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
   }
 
   const wikidataFieldKeys = getWikidataAutosuggestFieldKeysFromSettings(settings)
-  let effectivePopulateFields = [...wikidataFieldKeys]
-  const droppedPopulateKeys = []
-  let payload = null
-
-  while (!payload) {
-    const probePathAttempt = buildItemsPathWithPopulate(itemsPath, {
-      page: 1,
-      pageSize: 1,
-      populateFields: effectivePopulateFields,
-    })
-
-    try {
-      payload = await strapiFetchJson({
-        profile,
-        path: probePathAttempt,
-        method: 'GET',
-        token,
-      })
-    } catch (error) {
-      const invalidKey = parseInvalidStrapiQueryKey(error)
-      if (!invalidKey) {
-        throw error
-      }
-
-      const hasPopulateKey = effectivePopulateFields.some((fieldName) => fieldName === invalidKey)
-      if (!hasPopulateKey) {
-        throw error
-      }
-
-      droppedPopulateKeys.push(invalidKey)
-      effectivePopulateFields = effectivePopulateFields.filter((fieldName) => fieldName !== invalidKey)
-    }
-  }
+  const {
+    payload,
+    populateFields: effectivePopulateFields,
+    droppedKeys: droppedPopulateKeys,
+  } = await fetchDroppingInvalidPopulateKeys({
+    profile,
+    token,
+    populateFields: wikidataFieldKeys,
+    buildPath: (populate) => buildItemsPathWithPopulate(itemsPath, { page: 1, pageSize: 1, populateFields: populate }),
+  })
 
   const probePath = buildItemsPathWithPopulate(itemsPath, {
     page: 1,

@@ -1,5 +1,7 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
+  setUnauthorizedHandler,
+  strapiFetchJson,
   buildItemsPathWithPopulate,
   buildStrapiUpdatePayload,
   checkDataModelImplementationInStrapi,
@@ -136,6 +138,7 @@ describe('strapiApi helpers', () => {
 
     expect(globalThis.fetch).toHaveBeenCalledWith('https://cms.example.org/project/api/index-cards/doc-1', {
       method: 'PUT',
+      signal: expect.any(AbortSignal),
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -305,6 +308,7 @@ describe('strapiApi helpers', () => {
     expect(result.settings.version).toBe(1)
     expect(globalThis.fetch).toHaveBeenCalledWith('https://cms.example.org/project/api/viewer-setting', {
       method: 'PUT',
+      signal: expect.any(AbortSignal),
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -556,5 +560,93 @@ describe('strapiApi helpers', () => {
     expect(rows).toHaveLength(1)
     const secondCallUrl = globalThis.fetch.mock.calls[1][0]
     expect(secondCallUrl).not.toContain('populate%5B0%5D=location')
+  })
+})
+
+describe('strapiFetchJson transport rules', () => {
+  const profile = { baseUrl: 'https://cms.example.org/project' }
+
+  afterEach(() => {
+    setUnauthorizedHandler(null)
+  })
+
+  test('fails once instead of looping when a 2xx answer has no JSON body (review F1)', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('Unexpected token <')
+      },
+    })
+
+    await expect(
+      fetchAllCollectionItemsFromStrapi({ profile, itemsPath: '/api/index-cards', populateFields: ['location'] }),
+    ).rejects.toThrow('not JSON (HTTP 200)')
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  test('the data-model check also fails once on a non-JSON answer', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { settings: { itemsPath: '/api/index-cards' } } }),
+      })
+      .mockResolvedValue({ ok: true, status: 200, json: async () => null })
+
+    await expect(checkDataModelImplementationInStrapi({ profile, token: 'jwt-1' })).rejects.toThrow('not JSON')
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  test('accepts 204 without a body for writes', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => {
+        throw new SyntaxError('Unexpected end of JSON input')
+      },
+    })
+
+    await expect(strapiFetchJson({ profile, path: '/api/x', method: 'DELETE' })).resolves.toBeNull()
+  })
+
+  test('turns a timeout into an error whose outcome is unknown (review F6)', async () => {
+    globalThis.fetch = vi.fn((_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => reject(init.signal.reason))
+      }),
+    )
+
+    const error = await strapiFetchJson({ profile, path: '/api/x', timeoutMs: 20 }).catch((caught) => caught)
+
+    expect(error.message).toBe('No answer from the server within 0 s.')
+    expect(error.outcomeUnknown).toBe(true)
+  })
+
+  test('marks a network failure as outcome unknown', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+
+    const error = await strapiFetchJson({ profile, path: '/api/x', method: 'POST', body: {} }).catch((caught) => caught)
+
+    expect(error.message).toBe('The server could not be reached.')
+    expect(error.outcomeUnknown).toBe(true)
+  })
+
+  test('reports a 401 on an authenticated request to the unauthorized handler (review F10)', async () => {
+    const onUnauthorized = vi.fn()
+    setUnauthorizedHandler(onUnauthorized)
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: 'Missing or invalid credentials' } }),
+    })
+
+    await expect(strapiFetchJson({ profile, path: '/api/x', token: 'expired' })).rejects.toMatchObject({ status: 401 })
+    await expect(strapiFetchJson({ profile, path: '/api/auth/local', method: 'POST', body: {} })).rejects.toMatchObject({
+      status: 401,
+    })
+
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
   })
 })

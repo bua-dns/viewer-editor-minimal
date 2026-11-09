@@ -1,4 +1,11 @@
 const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php'
+export const WIKIDATA_TIMEOUT_MS = 10_000
+
+// A hanging Wikidata request must not block the field: every request ends after the timeout.
+function withTimeout(signal) {
+  const timeoutSignal = AbortSignal.timeout(WIKIDATA_TIMEOUT_MS)
+  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal
+}
 
 function isAbortError(error) {
   return Boolean(error) && (error.name === 'AbortError' || error.code === 20)
@@ -283,7 +290,7 @@ async function fetchEntityClaimsById(ids, requiredProperties, options = {}) {
 
   const idChunks = chunkArray(ids, 50)
   const requests = idChunks.map((chunk) =>
-    fetch(buildGetEntitiesUrl(chunk, requiredProperties), { signal }).then(async (response) => {
+    fetch(buildGetEntitiesUrl(chunk, requiredProperties), { signal: withTimeout(signal) }).then(async (response) => {
       if (!response.ok) {
         throw new Error(`Wikidata request failed (${response.status})`)
       }
@@ -361,7 +368,7 @@ async function fetchEntityLocalizedTexts(entityId, options = {}) {
     }
   }
 
-  const response = await fetch(buildGetEntityTermsUrl(normalizedEntityId, languages), { signal })
+  const response = await fetch(buildGetEntityTermsUrl(normalizedEntityId, languages), { signal: withTimeout(signal) })
   if (!response.ok) {
     throw new Error(`Wikidata request failed (${response.status})`)
   }
@@ -474,7 +481,7 @@ export function useWikidataSearch() {
           resultLanguage,
           limit,
         }),
-        { signal },
+        { signal: withTimeout(signal) },
       ).then(async (response) => {
         if (!response.ok) {
           throw new Error(`Wikidata request failed (${response.status})`)

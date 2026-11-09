@@ -97,6 +97,7 @@ describe('useOnlineSettingsStore', () => {
     expect(settingsStore.settings.value.fields.label.label).toBe('Label')
     expect(globalThis.fetch).toHaveBeenCalledWith('https://cms.example.org/project/api/viewer-setting', {
       method: 'PUT',
+      signal: expect.any(AbortSignal),
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
