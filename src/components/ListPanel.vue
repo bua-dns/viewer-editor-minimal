@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { isCreatedItem } from '../composables/createdItems'
+import ListItems from './ListItems.vue'
 
 const props = defineProps({
   itemLabel: {
@@ -195,50 +195,6 @@ function onEditedSortToggleChange(event) {
   emit('update:edited-items-first', event.target.checked)
 }
 
-function onSuspendEditingChange(uid, event) {
-  emit('toggle-suspend-editing', { uid, checked: event.target.checked })
-}
-
-function onItemKeydown(event, uid) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    onSelectItem(uid)
-  }
-}
-
-function resolveItemCaption(item) {
-  const configuredCaptionKey = props.itemCaptionFieldKey
-  if (configuredCaptionKey && item && Object.prototype.hasOwnProperty.call(item, configuredCaptionKey)) {
-    const configuredCaption = String(item[configuredCaptionKey] ?? '').trim()
-    if (configuredCaption) return configuredCaption
-  }
-  const inventoryNumber = String(item?.inventory_number ?? '').trim()
-  if (inventoryNumber) return inventoryNumber
-  if ((item?.__onlineMeta?.isDraft === true || isCreatedItem(item)) && props.newItemFallbackLabel) {
-    return props.newItemFallbackLabel
-  }
-  return ''
-}
-
-function hasNonEmptyValue(value) {
-  if (value == null) return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (Array.isArray(value)) return value.length > 0
-  if (typeof value === 'object') return Object.keys(value).length > 0
-  return true
-}
-
-function isEditedItem(item) {
-  if (!props.markAsEditedBasisField || !item) return false
-  return hasNonEmptyValue(item[props.markAsEditedBasisField])
-}
-
-function isSuspendEditingItem(item) {
-  const itemIndex = item?._index
-  if (!Number.isInteger(itemIndex)) return false
-  return props.suspendedItemIndices.includes(itemIndex)
-}
-
 function normalizeHierarchyValue(value) {
   if (value == null) return ''
   return String(value).trim()
@@ -404,196 +360,54 @@ function hasHierarchyCount(value) {
               <span class="hierarchy-level2-meta">{{ group.items.length }}</span>
             </button>
 
-            <ul v-if="isHierarchyLevel2Expanded(group.value) && props.hasScanField" class="card-grid hierarchy-group-items">
-              <li v-for="item in group.items" :key="item._uid">
-                <div
-                  class="item-card"
-                  role="button"
-                  tabindex="0"
-                  :class="{ active: props.selectedViewItem && props.selectedViewItem._uid === item._uid }"
-                  @click.stop="onSelectItem(item._uid)"
-                  @keydown="onItemKeydown($event, item._uid)"
-                >
-                  <div class="card-media">
-                    <img
-                      v-if="props.looksLikeImageUrl(props.rawItems[item._index]?.scan) && !props.hasListImageFailed(item._uid)"
-                      :src="props.rawItems[item._index]?.scan"
-                      loading="lazy"
-                      decoding="async"
-                      :alt="props.scanPreviewAlt"
-                      @error="onListImageFailed(item._uid)"
-                    />
-                    <div v-else class="scan-fallback">{{ props.scanUnavailableLabel }}</div>
-                  </div>
-                  <div class="card-caption">
-                    <span>{{ resolveItemCaption(props.rawItems[item._index]) || `#${item._index + 1}` }}</span>
-                    <span class="item-controls-right">
-                      <label v-if="!isEditedItem(props.rawItems[item._index])" class="suspend-editing-toggle" @click.stop>
-                        <span>{{ props.suspendEditingLabel }}</span>
-                        <input
-                          type="checkbox"
-                          :checked="isSuspendEditingItem(item)"
-                          :disabled="!props.hasData"
-                          @change="onSuspendEditingChange(item._uid, $event)"
-                        />
-                      </label>
-                      <span
-                        v-if="isEditedItem(props.rawItems[item._index])"
-                        class="edited-item-indicator"
-                        role="img"
-                        :aria-label="props.editedItemIconLabel"
-                        :title="props.editedItemIconLabel"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                          class="feather feather-edit-3">
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                      </span>
-                    </span>
-                  </div>
-                </div>
-              </li>
-            </ul>
-
-            <ul v-else-if="isHierarchyLevel2Expanded(group.value)" class="item-list hierarchy-group-items">
-              <li v-for="item in group.items" :key="item._uid">
-                <div
-                  class="item-list-row"
-                  role="button"
-                  tabindex="0"
-                  :class="{ active: props.selectedViewItem && props.selectedViewItem._uid === item._uid }"
-                  @click.stop="onSelectItem(item._uid)"
-                  @keydown="onItemKeydown($event, item._uid)"
-                >
-                  <span class="item-list-index">#{{ item._index + 1 }}</span>
-                  <span class="item-list-caption">{{ resolveItemCaption(props.rawItems[item._index]) || '-' }}</span>
-                  <span class="item-controls-right">
-                    <label v-if="!isEditedItem(props.rawItems[item._index])" class="suspend-editing-toggle" @click.stop>
-                      <span>{{ props.suspendEditingLabel }}</span>
-                      <input
-                        type="checkbox"
-                        :checked="isSuspendEditingItem(item)"
-                        :disabled="!props.hasData"
-                        @change="onSuspendEditingChange(item._uid, $event)"
-                      />
-                    </label>
-                    <span
-                      v-if="isEditedItem(props.rawItems[item._index])"
-                      class="edited-item-indicator"
-                      role="img"
-                      :aria-label="props.editedItemIconLabel"
-                      :title="props.editedItemIconLabel"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="feather feather-edit-3">
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                      </svg>
-                    </span>
-                  </span>
-                </div>
-              </li>
-            </ul>
+            <ListItems
+              v-if="isHierarchyLevel2Expanded(group.value)"
+              :items="group.items"
+              :as-cards="props.hasScanField"
+              list-class="hierarchy-group-items"
+              :raw-items="props.rawItems"
+              :selected-view-item="props.selectedViewItem"
+              :has-data="props.hasData"
+              :suspended-item-indices="props.suspendedItemIndices"
+              :item-caption-field-key="props.itemCaptionFieldKey"
+              :mark-as-edited-basis-field="props.markAsEditedBasisField"
+              :edited-item-icon-label="props.editedItemIconLabel"
+              :suspend-editing-label="props.suspendEditingLabel"
+              :scan-preview-alt="props.scanPreviewAlt"
+              :scan-unavailable-label="props.scanUnavailableLabel"
+              :new-item-fallback-label="props.newItemFallbackLabel"
+              :looks-like-image-url="props.looksLikeImageUrl"
+              :has-list-image-failed="props.hasListImageFailed"
+              @select-item="onSelectItem"
+              @list-image-failed="onListImageFailed"
+              @toggle-suspend-editing="emit('toggle-suspend-editing', $event)"
+            />
           </section>
         </template>
       </div>
       <p v-else-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
       <p v-else-if="props.filteredViewItems.length === 0" class="meta">{{ props.noSearchResultsLabel }}</p>
-      <ul v-else-if="props.hasScanField" class="card-grid">
-        <li v-for="item in props.filteredViewItems" :key="item._uid">
-          <div
-            class="item-card"
-            role="button"
-            tabindex="0"
-            :class="{ active: props.selectedViewItem && props.selectedViewItem._uid === item._uid }"
-            @click.stop="onSelectItem(item._uid)"
-            @keydown="onItemKeydown($event, item._uid)"
-          >
-            <div class="card-media">
-              <img
-                v-if="props.looksLikeImageUrl(props.rawItems[item._index]?.scan) && !props.hasListImageFailed(item._uid)"
-                :src="props.rawItems[item._index]?.scan"
-                loading="lazy"
-                decoding="async"
-                :alt="props.scanPreviewAlt"
-                @error="onListImageFailed(item._uid)"
-              />
-              <div v-else class="scan-fallback">{{ props.scanUnavailableLabel }}</div>
-            </div>
-            <div class="card-caption">
-              <span>{{ resolveItemCaption(props.rawItems[item._index]) || `#${item._index + 1}` }}</span>
-              <span class="item-controls-right">
-                <label v-if="!isEditedItem(props.rawItems[item._index])" class="suspend-editing-toggle" @click.stop>
-                  <span>{{ props.suspendEditingLabel }}</span>
-                  <input
-                    type="checkbox"
-                    :checked="isSuspendEditingItem(item)"
-                    :disabled="!props.hasData"
-                    @change="onSuspendEditingChange(item._uid, $event)"
-                  />
-                </label>
-                <span
-                  v-if="isEditedItem(props.rawItems[item._index])"
-                  class="edited-item-indicator"
-                  role="img"
-                  :aria-label="props.editedItemIconLabel"
-                  :title="props.editedItemIconLabel"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="feather feather-edit-3">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                  </svg>
-                </span>
-              </span>
-            </div>
-          </div>
-        </li>
-      </ul>
-      <ul v-else class="item-list">
-        <li v-for="item in props.filteredViewItems" :key="item._uid">
-          <div
-            class="item-list-row"
-            role="button"
-            tabindex="0"
-            :class="{ active: props.selectedViewItem && props.selectedViewItem._uid === item._uid }"
-            @click.stop="onSelectItem(item._uid)"
-            @keydown="onItemKeydown($event, item._uid)"
-          >
-            <span class="item-list-index">#{{ item._index + 1 }}</span>
-            <span class="item-list-caption">{{ resolveItemCaption(props.rawItems[item._index]) || '-' }}</span>
-            <span class="item-controls-right">
-              <label v-if="!isEditedItem(props.rawItems[item._index])" class="suspend-editing-toggle" @click.stop>
-                <span>{{ props.suspendEditingLabel }}</span>
-                <input
-                  type="checkbox"
-                  :checked="isSuspendEditingItem(item)"
-                  :disabled="!props.hasData"
-                  @change="onSuspendEditingChange(item._uid, $event)"
-                />
-              </label>
-              <span
-                v-if="isEditedItem(props.rawItems[item._index])"
-                class="edited-item-indicator"
-                role="img"
-                :aria-label="props.editedItemIconLabel"
-                :title="props.editedItemIconLabel"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  class="feather feather-edit-3">
-                  <path d="M12 20h9"></path>
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                </svg>
-              </span>
-            </span>
-          </div>
-        </li>
-      </ul>
+      <ListItems
+        v-else
+        :items="props.filteredViewItems"
+        :as-cards="props.hasScanField"
+        :raw-items="props.rawItems"
+        :selected-view-item="props.selectedViewItem"
+        :has-data="props.hasData"
+        :suspended-item-indices="props.suspendedItemIndices"
+        :item-caption-field-key="props.itemCaptionFieldKey"
+        :mark-as-edited-basis-field="props.markAsEditedBasisField"
+        :edited-item-icon-label="props.editedItemIconLabel"
+        :suspend-editing-label="props.suspendEditingLabel"
+        :scan-preview-alt="props.scanPreviewAlt"
+        :scan-unavailable-label="props.scanUnavailableLabel"
+        :new-item-fallback-label="props.newItemFallbackLabel"
+        :looks-like-image-url="props.looksLikeImageUrl"
+        :has-list-image-failed="props.hasListImageFailed"
+        @select-item="onSelectItem"
+        @list-image-failed="onListImageFailed"
+        @toggle-suspend-editing="emit('toggle-suspend-editing', $event)"
+      />
     </template>
   </section>
 </template>
@@ -752,163 +566,6 @@ function hasHierarchyCount(value) {
   margin-top: 0;
 }
 
-.card-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--ve-space-3);
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
-
-.suspend-editing-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--ve-color-text-muted);
-  font-size: 0.85rem;
-}
-
-.item-controls-right {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--ve-space-2);
-}
-
-:global(.content-grid-selected) .card-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.item-card {
-  width: 100%;
-  display: grid;
-  gap: var(--ve-space-2);
-  text-align: left;
-  cursor: pointer;
-  background: var(--ve-color-surface-card);
-  color: var(--ve-color-text-default);
-  border: 1px solid var(--ve-color-border-default);
-  padding: var(--ve-space-2);
-}
-
-.item-card:focus-visible,
-.item-list-row:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-primary) 55%, var(--ve-color-white));
-  outline-offset: 2px;
-}
-
-.item-card:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary) 10%, var(--ve-color-surface-card));
-  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--ve-color-border-default));
-}
-
-.item-card.active {
-  background: var(--color-primary);
-  color: var(--ve-color-white);
-  border-color: var(--color-primary);
-}
-
-.card-media {
-  border-radius: 10px;
-  overflow: hidden;
-  min-height: 240px;
-  background: var(--ve-color-surface-base);
-  border: 1px solid var(--ve-color-border-soft);
-  display: grid;
-  place-items: center;
-}
-
-.card-media img {
-  width: 100%;
-  height: 240px;
-  object-fit: contain;
-  display: block;
-}
-
-.card-caption {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ve-space-2);
-  font-weight: 600;
-  line-height: 1.3;
-  padding: 0.15rem 0.1rem;
-  word-break: break-word;
-}
-
-.scan-fallback {
-  display: grid;
-  place-items: center;
-  min-height: 120px;
-  border: 1px dashed var(--ve-color-border-soft);
-  border-radius: 10px;
-  color: var(--ve-color-text-soft);
-  background: var(--ve-color-surface-base);
-}
-
-.item-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: var(--ve-space-2);
-}
-
-.item-list-row {
-  width: 100%;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--ve-space-2);
-  align-items: center;
-  text-align: left;
-  cursor: pointer;
-  background: var(--ve-color-surface-card);
-  color: var(--ve-color-text-default);
-  border: 1px solid var(--ve-color-border-default);
-  border-radius: 8px;
-  padding: 0.5rem 0.65rem;
-}
-
-.item-list-row:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--ve-color-surface-card));
-  border-color: color-mix(in srgb, var(--color-primary) 28%, var(--ve-color-border-default));
-}
-
-.item-list-row.active {
-  background: var(--color-primary);
-  color: var(--ve-color-white);
-  border-color: var(--color-primary);
-}
-
-.item-list-index {
-  font-family: var(--ve-font-family-mono);
-  font-size: 0.8rem;
-  color: var(--ve-color-text-soft);
-}
-
-.item-list-row.active .item-list-index {
-  color: color-mix(in srgb, var(--ve-color-white) 85%, transparent);
-}
-
-.item-list-caption {
-  font-weight: 600;
-  line-height: 1.3;
-  word-break: break-word;
-}
-
-.edited-item-indicator {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--ve-color-text-soft);
-}
-
-.item-list-row.active .edited-item-indicator,
-.item-card.active .edited-item-indicator {
-  color: color-mix(in srgb, var(--ve-color-white) 90%, transparent);
-}
-
 @media (max-width: 768px) {
   .list-panel-head {
     flex-direction: column;
@@ -933,10 +590,6 @@ function hasHierarchyCount(value) {
 
   .search-wrap input {
     min-width: 0;
-  }
-
-  :global(.content-grid-selected) .card-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>
