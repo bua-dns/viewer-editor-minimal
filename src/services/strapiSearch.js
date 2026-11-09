@@ -1,5 +1,9 @@
 // Collection-wide text search with plain Strapi filters (`$containsi`), no server extension needed.
-import { fetchAllCollectionItemsFromStrapi, parseInvalidStrapiQueryKey } from './strapiApi'
+import { fetchAllCollectionItemsFromStrapi, parseInvalidStrapiQueryKey, TOO_MANY_ITEMS } from './strapiApi'
+
+// A short query can match most of a large collection; above this many hits nothing is loaded and the
+// user is asked to refine the search.
+export const MAX_SEARCH_HITS = 500
 
 // Field types whose values are plain strings in Strapi. A field without a type counts as `normal`
 // (the registry's fallback). Wikidata fields are relations/components and are not searched.
@@ -46,13 +50,29 @@ function createSearchError(message) {
   return error
 }
 
+function createTooManyHitsError({ total, maxItems }) {
+  const count = total === null ? `More than ${maxItems}` : String(total)
+  const error = createSearchError(`${count} hits - too many to load (limit ${maxItems}). Please refine the search.`)
+  error.code = TOO_MANY_ITEMS
+  return error
+}
+
 /**
  * Loads every item matching all `tokens`. When Strapi rejects one of the search fields as an invalid
  * key (not filterable in the data model), that field is dropped and the search runs again; every
- * retry removes one field, so there are at most `fieldKeys.length` attempts.
+ * retry removes one field, so there are at most `fieldKeys.length` attempts. More than `maxHits`
+ * hits are refused with an error that names their number.
  * Returns `{ rows, searchedFieldKeys, droppedFieldKeys }`.
  */
-export async function searchCollectionItemsInStrapi({ profile, itemsPath, token = '', populateFields = [], tokens, fieldKeys }) {
+export async function searchCollectionItemsInStrapi({
+  profile,
+  itemsPath,
+  token = '',
+  populateFields = [],
+  tokens,
+  fieldKeys,
+  maxHits = MAX_SEARCH_HITS,
+}) {
   let remaining = [...fieldKeys]
   const droppedFieldKeys = []
 
@@ -64,9 +84,11 @@ export async function searchCollectionItemsInStrapi({ profile, itemsPath, token 
         token,
         populateFields,
         extraFilterEntries: buildContainsFilterEntries(tokens, remaining),
+        maxItems: maxHits,
       })
       return { rows, searchedFieldKeys: remaining, droppedFieldKeys }
     } catch (error) {
+      if (error?.code === TOO_MANY_ITEMS) throw createTooManyHitsError(error)
       const invalidKey = parseInvalidStrapiQueryKey(error)
       if (!invalidKey || !remaining.includes(invalidKey)) throw error
       droppedFieldKeys.push(invalidKey)
