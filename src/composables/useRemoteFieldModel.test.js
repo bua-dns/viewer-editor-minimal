@@ -68,6 +68,31 @@ describe('useRemoteFieldModel', () => {
     expect(state.fieldModel.value).toMatchObject({ source: '', fields: [], status: 'idle' })
   })
 
+  test('loadStructuredFieldKeys loads the model on demand, once, and returns the structured keys', async () => {
+    const state = setup()
+    state.fetchFieldModel.mockResolvedValue({
+      source: 'schema',
+      fields: [
+        { key: 'label', strapiType: 'string', isStructured: false },
+        { key: 'place', strapiType: 'relation', isStructured: true },
+        { key: 'extra', strapiType: 'json', isStructured: true },
+      ],
+    })
+
+    const [first, second] = await Promise.all([state.loadStructuredFieldKeys(), state.loadStructuredFieldKeys()])
+
+    expect(first).toEqual(['place', 'extra'])
+    expect(second).toEqual(['place', 'extra'])
+    expect(state.fetchFieldModel).toHaveBeenCalledTimes(1)
+  })
+
+  test('loadStructuredFieldKeys returns no keys when the model cannot be loaded', async () => {
+    const state = setup()
+    state.fetchFieldModel.mockRejectedValueOnce(new Error('Forbidden'))
+
+    await expect(state.loadStructuredFieldKeys()).resolves.toEqual([])
+  })
+
   test('reports a failed load', async () => {
     const state = setup({ needed: true })
     state.fetchFieldModel.mockRejectedValueOnce(new Error('Forbidden'))

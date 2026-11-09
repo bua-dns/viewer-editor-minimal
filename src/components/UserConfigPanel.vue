@@ -96,6 +96,15 @@ const addFieldSelectTitle = computed(() => {
   return selectedEntry ? fieldEntryTitle(selectedEntry) : ''
 })
 
+// "Add all" leaves out structured fields (relations, components, JSON): as text fields they can
+// neither be edited nor searched. They can still be added one by one from the dropdown.
+const addAllFieldEntries = computed(() => unconfiguredFieldEntries.value.filter((entry) => !entry.isStructured))
+const addAllTitle = computed(() =>
+  addAllFieldEntries.value.length < unconfiguredFieldEntries.value.length
+    ? t('dataKeysAddAllSkipsStructured', 'Structured fields (relations, components, JSON) are not added.')
+    : '',
+)
+
 function fieldOptionLabel(entry) {
   return entry.strapiType ? `${entry.key} (${entry.strapiType})` : entry.key
 }
@@ -197,7 +206,7 @@ function addFieldEntries(entries) {
 }
 
 function onAddAllFieldEntries() {
-  addFieldEntries(unconfiguredFieldEntries.value)
+  addFieldEntries(addAllFieldEntries.value)
   selectedFieldOption.value = ''
 }
 
@@ -320,7 +329,12 @@ function onRemoveHierarchyField(index) {
           <button type="button" :disabled="!canAddField" @click.stop="onAddField">
             {{ t('addFieldButton', 'Hinzufuegen') }}
           </button>
-          <button v-if="unconfiguredFieldEntries.length > 1" type="button" @click.stop="onAddAllFieldEntries">
+          <button
+            v-if="addAllFieldEntries.length > 1"
+            type="button"
+            :title="addAllTitle"
+            @click.stop="onAddAllFieldEntries"
+          >
             {{ t('dataKeysAddAll', 'Add all') }}
           </button>
           <button

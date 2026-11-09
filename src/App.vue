@@ -343,8 +343,8 @@ const configurationNoDataHint = computed(() =>
     : '',
 )
 
-// The online collection's fields (Strapi data model), offered in the configuration tab for adding.
-const { fieldModel: remoteFieldModel, reload: reloadRemoteFieldModel } = useRemoteFieldModel({
+// The fields of the Strapi data model: offered for adding; the search skips the structured ones.
+const { fieldModel: remoteFieldModel, reload: reloadRemoteFieldModel, loadStructuredFieldKeys } = useRemoteFieldModel({
   appMode, isAuthenticated, connectionProfile, token, onlineSettings,
   isNeeded: () => activeTab.value === 'configuration',
 })
@@ -494,7 +494,8 @@ async function loadOnlineHierarchyLevel1(normalizedLevel1Value) {
 }
 
 async function runOnlineSearch(query) {
-  const result = await replaceOnlineItems((settings) => searchOnlineItems({ settings, query }))
+  const searchHits = (settings) => searchOnlineItems({ settings, query, loadExcludedFieldKeys: loadStructuredFieldKeys })
+  const result = await replaceOnlineItems(searchHits)
   // Loading the hits clears the query; keep it as the local filter over them.
   if (result.ok) searchQuery.value = query
   return result

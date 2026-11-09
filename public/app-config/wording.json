@@ -1015,6 +1015,10 @@
     "de": "Alle hinzufügen",
     "en": "Add all"
   },
+  "dataKeysAddAllSkipsStructured": {
+    "de": "Strukturierte Felder (Relationen, Komponenten, JSON) werden nicht hinzugefügt.",
+    "en": "Structured fields (relations, components, JSON) are not added."
+  },
   "dataKeysNoConfigNote": {
     "de": "Diese Datenquelle hat noch keine Feldkonfiguration. Fügen Sie die Felder hinzu, die Sie bearbeiten möchten, und wenden Sie die Konfiguration an.",
     "en": "This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration."

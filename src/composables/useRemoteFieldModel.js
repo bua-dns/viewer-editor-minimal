@@ -16,7 +16,7 @@ function contextKey(context) {
  *   `connectionProfile`, `token`, `onlineSettings`); `isNeeded()` says whether to load now;
  *   `fetchFieldModel` is injected in tests.
  * @returns `fieldModel`: `{ source: '' | 'schema' | 'sample', fields, status, errorMessage }` with
- *   status `idle | loading | ready | error`; and `reload()`.
+ *   status `idle | loading | ready | error`; `reload()`; and `loadStructuredFieldKeys()`.
  */
 export function useRemoteFieldModel({
   appMode,
@@ -49,18 +49,11 @@ export function useRemoteFieldModel({
     status.value = 'idle'
   }
 
-  async function load({ force = false } = {}) {
-    const context = getContext()
-    const key = contextKey(context)
-    if (!key) {
-      reset()
-      return
-    }
-    const hasCurrentModel = key === loadedKey && status.value !== 'error'
-    if (hasCurrentModel && !force) return
+  // The running or finished load of `loadedKey`, so a caller can wait for it.
+  let currentLoad = Promise.resolve()
 
+  async function fetchInto(context) {
     const isCurrent = loads.start()
-    loadedKey = key
     status.value = 'loading'
     errorMessage.value = ''
     try {
@@ -76,6 +69,30 @@ export function useRemoteFieldModel({
     }
   }
 
+  function load({ force = false } = {}) {
+    const context = getContext()
+    const key = contextKey(context)
+    if (!key) {
+      reset()
+      return Promise.resolve()
+    }
+    const hasCurrentModel = key === loadedKey && status.value !== 'error'
+    if (hasCurrentModel && !force) return currentLoad
+
+    loadedKey = key
+    currentLoad = fetchInto(context)
+    return currentLoad
+  }
+
+  /**
+   * The keys of the structured fields (relation, media, component, JSON, ...), loading the model
+   * first when it is not there yet. Empty when the model cannot be loaded; never throws.
+   */
+  async function loadStructuredFieldKeys() {
+    await load()
+    return model.value.fields.filter((field) => field?.isStructured).map((field) => field.key)
+  }
+
   watch(
     () => [isNeeded(), contextKey(getContext())],
     ([needed]) => {
@@ -86,5 +103,5 @@ export function useRemoteFieldModel({
 
   const fieldModel = computed(() => ({ ...model.value, status: status.value, errorMessage: errorMessage.value }))
 
-  return { fieldModel, reload: () => load({ force: true }) }
+  return { fieldModel, reload: () => load({ force: true }), loadStructuredFieldKeys }
 }
