@@ -265,4 +265,45 @@ describe('useOnlineItemsStore', () => {
     expect(store.items.value).toEqual([])
     expect(store.hierarchyFields.value).toEqual(['level_1', 'level_2'])
   })
+
+  describe('unassigned level-1 group', () => {
+    const settings = {
+      itemsPath: '/api/index-cards',
+      hierarchyFields: ['level_1', 'level_2'],
+      fields: { level_1: { type: 'normal' }, label: { type: 'normal' } },
+    }
+    const rows = [
+      { documentId: 'a', level_1: null, label: 'one' },
+      { documentId: 'b', level_1: '  ', label: 'two' },
+    ]
+
+    function itemsResponse(data) {
+      return { ok: true, status: 200, json: async () => ({ data, meta: { pagination: { pageCount: 1 } } }) }
+    }
+
+    test('filters on the server for null or empty level-1 values', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(itemsResponse(rows))
+
+      const result = await useOnlineItemsStore().fetchOnlineItemsForHierarchyLevel1({ settings, level1Value: '' })
+
+      expect(result.ok).toBe(true)
+      expect(result.items.map((item) => item.label)).toEqual(['one', 'two'])
+      const query = new URLSearchParams(String(globalThis.fetch.mock.calls[0][0]).split('?')[1])
+      expect(query.get('filters[$or][0][level_1][$null]')).toBe('true')
+      expect(query.get('filters[$or][1][level_1][$eq]')).toBe('')
+    })
+
+    test('falls back to an unfiltered load when the server rejects the filter', async () => {
+      globalThis.fetch = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: { message: 'Invalid filter' } }) })
+        .mockResolvedValueOnce(itemsResponse([...rows, { documentId: 'c', level_1: 'A', label: 'three' }]))
+
+      const result = await useOnlineItemsStore().fetchOnlineItemsForHierarchyLevel1({ settings, level1Value: '' })
+
+      expect(result.ok).toBe(true)
+      expect(result.items.map((item) => item.label)).toEqual(['one', 'two'])
+      expect(String(globalThis.fetch.mock.calls[1][0])).not.toContain('filters')
+    })
+  })
 })

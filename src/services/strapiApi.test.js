@@ -5,6 +5,7 @@ import {
   checkDataModelImplementationInStrapi,
   fetchViewerSettingsFromStrapi,
   fetchAllCollectionItemsFromStrapi,
+  fetchCollectionItemFromStrapi,
   getWikidataAutosuggestFieldKeysFromSettings,
   normalizeOnlineChangedFieldsForStrapi,
   normalizeStrapiItem,
@@ -164,6 +165,44 @@ describe('strapiApi helpers', () => {
     expect(path).toContain('populate%5B1%5D=collectors')
     expect(path).toContain('fields%5B0%5D=level_1')
     expect(path).toContain('filters%5Blevel_1%5D%5B%24eq%5D=A')
+  })
+
+  test('builds a null-or-empty filter for filterEmptyField', () => {
+    const path = buildItemsPathWithPopulate('/api/index-cards', { filterEmptyField: 'level_1' })
+    const query = new URLSearchParams(path.split('?')[1])
+
+    expect(query.get('filters[$or][0][level_1][$null]')).toBe('true')
+    expect(query.get('filters[$or][1][level_1][$eq]')).toBe('')
+  })
+
+  test('fetches a single item by id with populate for the given fields', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { documentId: 'doc 1', label: 'A' } }),
+    })
+
+    const row = await fetchCollectionItemFromStrapi({
+      profile: { baseUrl: 'https://cms.example.org' },
+      itemsPath: '/api/index-cards?sort=label:asc',
+      token: 'jwt-1',
+      id: 'doc 1',
+      populateFields: ['locations'],
+    })
+
+    expect(row).toEqual({ documentId: 'doc 1', label: 'A' })
+    const [requestUrl, requestInit] = globalThis.fetch.mock.calls[0]
+    expect(requestUrl).toBe('https://cms.example.org/api/index-cards/doc%201?populate%5B0%5D=locations')
+    expect(requestInit.method).toBe('GET')
+  })
+
+  test('rejects a single-item response without data object', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: null }) })
+
+    await expect(fetchCollectionItemFromStrapi({
+      profile: { baseUrl: 'https://cms.example.org' },
+      itemsPath: '/api/index-cards',
+      id: 'doc-1',
+    })).rejects.toThrow('object at data')
   })
 
   test('extracts wikidata autosuggest field keys from settings', () => {

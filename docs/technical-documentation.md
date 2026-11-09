@@ -837,6 +837,10 @@ Alle Item-Requests werden über `buildItemsPathWithPopulate(itemsPath, options)`
 | `populateFields` | `populate[0]`, `populate[1]`, … | Nachladen komplexer Felder. Befüllt aus `getWikidataAutosuggestFieldKeysFromSettings(settings)`, also allen Feldern mit Typ `wikidata-autosuggest` bzw. `wikidata_autosuggest`. |
 | `fieldKeys` | `fields[0]`, `fields[1]`, … | Projektion auf einzelne Felder (genutzt für Level-1-Werte, um keine Voll-Items zu laden) |
 | `filtersEq` | `filters[<key>][$eq]=<value>` | Serverseitige Filterung, genutzt für das Nachladen eines Level-1-Wertes |
+| `filterEmptyField` | `filters[$or][0][<key>][$null]=true`, `filters[$or][1][<key>][$eq]=` | Items ohne Wert im Feld (null oder leer), genutzt für den `isUnassigned`-Bucket |
+
+Einzelne Items lädt `fetchCollectionItemFromStrapi(...)` (`GET <itemsPath>/<id>` mit optionalem
+`populate[n]`); der Update-Flow nutzt das für die Konfliktprüfung (siehe [12.8](#128-update-flow-bestehende-items)).
 
 `fetchAllCollectionItemsFromStrapi(...)` paginiert bis `meta.pagination.pageCount` und sammelt alle
 Zeilen ein. Meldet Strapi einen ungültigen Query-Key (`invalid key <name>`) und ist dieser Name ein
@@ -862,9 +866,14 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
   Trefferzahl gebaut, alphabetisch sortiert; Items ohne Level-1-Wert landen in einem
   `isUnassigned`-Bucket am Ende.
 - **Nachladen je Level-1-Wert** (`fetchOnlineItemsForHierarchyLevel1`): Request mit
-  `filters[<level1Feld>][$eq]=<Wert>`; zusätzlich wird clientseitig nachgefiltert. Für den
-  `isUnassigned`-Bucket (leerer Wert) entfällt der Filter und es werden clientseitig die Items ohne
-  Level-1-Wert behalten.
+  `filters[<level1Feld>][$eq]=<Wert>`; zusätzlich wird clientseitig nachgefiltert. Der
+  `isUnassigned`-Bucket (leerer Wert) filtert serverseitig über `filterEmptyField` (null oder leerer
+  String). Lehnt Strapi diesen Filter mit HTTP 400 ab (z. B. bei einem Nicht-Text-Feld), wird die
+  Collection ungefiltert geladen; clientseitig bleiben in beiden Fällen nur Items ohne Level-1-Wert
+  (auch reine Leerzeichen zählen als leer).
+- **Wechsel des Level-1-Buckets** lädt die Items neu und verwirft dabei ausstehende Online-Änderungen
+  (`clearOnlineUpdates`). Gibt es welche, fragt die App vorher nach (`onlineDiscardPendingConfirm`);
+  bei Abbruch bleibt der aktuelle Bucket samt Änderungen stehen.
 - Die Level-1-Boxen werden im Hierarchie-Modus sofort gerendert, auch wenn noch keine Item-Karten geladen sind.
 
 **Offline-Modus (lokale JSON-Datei).** Die Hierarchie kommt aus der angewendeten User-Config
@@ -932,6 +941,19 @@ Strapi-Instanz.
   `PUT <itemsPath>/<documentId>` mit `{ data: <changedFields> }`, gebaut über
   `buildStrapiUpdatePayload(...)`; Wikidata-Felder werden dabei über
   `normalizeOnlineChangedFieldsForStrapi(...)` in die Strapi-Komponentenform gebracht.
+- **Konfliktprüfung:** Je geändertem Feld merkt sich der Eintrag den beim Laden gesehenen
+  Serverwert (`baselineFields`). Vor jedem `PUT` lädt der Save das Item neu
+  (`fetchCollectionItemFromStrapi`) und vergleicht feldweise (`src/composables/onlineSaveConflicts.js`):
+  Hat sich ein Feld auf dem Server geändert und entspricht weder dem geladenen noch dem zu sendenden
+  Wert, wird das Item nicht geschrieben und der Save meldet die Felder. Die Serverwerte werden dabei zur
+  neuen Baseline - ein zweites Speichern überschreibt also bewusst. Der Vergleich ist feldweise statt
+  über `updatedAt`, weil bei Draft & Publish der gelesene und der geschriebene Stand verschiedene
+  Zeitstempel tragen; Änderungen anderer an *anderen* Feldern sind kein Konflikt (es wird nur das Delta
+  gesendet). Leere Werte (`null`, `''`, `[]`) gelten als gleich, Zahlen gleich ihrer String-Form.
+- **Änderungen während des Speicherns:** Nach dem `PUT` werden nur die Felder aus dem Pending-Stand
+  entfernt, die noch den gesendeten Wert haben. Ein währenddessen erneut geändertes oder zurückgesetztes
+  Feld bleibt pending (mit dem gesendeten Wert als Baseline). Für Entwürfe gilt dasselbe: Änderungen
+  während des `POST` werden zu einem regulären Update des neu angelegten Items.
 - Bei Vollerfolg synchronisiert `markAsSaved(...)` die Baseline; bei Teilfehlern bleibt ein
   konsistenter, retry-fähiger Pending-Stand erhalten.
 - Im selben Speichervorgang werden geänderte **Ersetzungsregeln** nach Strapi geschrieben

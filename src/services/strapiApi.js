@@ -343,7 +343,7 @@ export function normalizeOnlineChangedFieldsForStrapi(changedFields = {}, fieldC
 
 export function buildItemsPathWithPopulate(
   itemsPath,
-  { page = 1, pageSize = 100, populateFields = [], fieldKeys = [], filtersEq = {} } = {},
+  { page = 1, pageSize = 100, populateFields = [], fieldKeys = [], filtersEq = {}, filterEmptyField = '' } = {},
 ) {
   const queryEntries = [
     ['pagination[page]', page],
@@ -374,15 +374,28 @@ export function buildItemsPathWithPopulate(
     queryEntries.push([`fields[${index}]`, fieldName])
   })
 
-  if (filtersEq && typeof filtersEq === 'object' && !Array.isArray(filtersEq)) {
-    Object.entries(filtersEq).forEach(([fieldKey, fieldValue]) => {
-      const normalizedFieldKey = String(fieldKey || '').trim()
-      if (!normalizedFieldKey) return
-      queryEntries.push([`filters[${normalizedFieldKey}][$eq]`, fieldValue ?? ''])
-    })
-  }
+  queryEntries.push(...buildEqualityFilterEntries(filtersEq))
+  queryEntries.push(...buildEmptyValueFilterEntries(filterEmptyField))
 
   return buildPathWithAdditionalQueryParams(itemsPath, queryEntries)
+}
+
+function buildEqualityFilterEntries(filtersEq) {
+  if (!isPlainObject(filtersEq)) return []
+  return Object.entries(filtersEq)
+    .map(([fieldKey, fieldValue]) => [String(fieldKey || '').trim(), fieldValue])
+    .filter(([fieldKey]) => fieldKey)
+    .map(([fieldKey, fieldValue]) => [`filters[${fieldKey}][$eq]`, fieldValue ?? ''])
+}
+
+// Matches items whose field is null or an empty string (the "unassigned" hierarchy group).
+function buildEmptyValueFilterEntries(fieldKey) {
+  const normalizedFieldKey = String(fieldKey || '').trim()
+  if (!normalizedFieldKey) return []
+  return [
+    [`filters[$or][0][${normalizedFieldKey}][$null]`, 'true'],
+    [`filters[$or][1][${normalizedFieldKey}][$eq]`, ''],
+  ]
 }
 
 export async function fetchAllCollectionItemsFromStrapi({
@@ -393,6 +406,7 @@ export async function fetchAllCollectionItemsFromStrapi({
   populateFields = [],
   fieldKeys = [],
   filtersEq = {},
+  filterEmptyField = '',
 }) {
   const collected = []
   let effectivePopulateFields = Array.from(
@@ -415,6 +429,7 @@ export async function fetchAllCollectionItemsFromStrapi({
         populateFields: effectivePopulateFields,
         fieldKeys,
         filtersEq,
+        filterEmptyField,
       })
 
       try {
@@ -717,17 +732,8 @@ export async function updateCollectionItemInStrapi({
   changedFields,
   method = 'PUT',
 }) {
-  const normalizedPath = stripQueryAndHash(itemsPath)
-  const normalizedId = String(id || '').trim()
-  if (!normalizedPath) {
-    throw createHttpError('Items path is required for online item update.', 400, { itemsPath })
-  }
-  if (!normalizedId) {
-    throw createHttpError('Item identifier is required for online item update.', 400, { id })
-  }
-
+  const itemPath = buildItemPath(itemsPath, id, 'update')
   const payload = buildStrapiUpdatePayload(changedFields)
-  const itemPath = `${normalizedPath.replace(/\/+$/, '')}/${encodeURIComponent(normalizedId)}`
 
   return strapiFetchJson({
     profile,
@@ -736,6 +742,38 @@ export async function updateCollectionItemInStrapi({
     token,
     body: payload,
   })
+}
+
+function buildItemPath(itemsPath, id, action) {
+  const normalizedPath = stripQueryAndHash(itemsPath)
+  const normalizedId = String(id || '').trim()
+  if (!normalizedPath) {
+    throw createHttpError(`Items path is required for online item ${action}.`, 400, { itemsPath })
+  }
+  if (!normalizedId) {
+    throw createHttpError(`Item identifier is required for online item ${action}.`, 400, { id })
+  }
+  return `${normalizedPath.replace(/\/+$/, '')}/${encodeURIComponent(normalizedId)}`
+}
+
+/** Loads one item in its current server state (raw row, not normalized). */
+export async function fetchCollectionItemFromStrapi({ profile, itemsPath, token = '', id, populateFields = [] }) {
+  const itemPath = buildItemPath(itemsPath, id, 'fetch')
+  const populateEntries = Array.from(new Set(populateFields))
+    .filter(Boolean)
+    .map((fieldName, index) => [`populate[${index}]`, fieldName])
+
+  const payload = await strapiFetchJson({
+    profile,
+    path: buildPathWithAdditionalQueryParams(itemPath, populateEntries),
+    method: 'GET',
+    token,
+  })
+
+  if (!isPlainObject(payload?.data)) {
+    throw createHttpError('Item response must contain an object at data.', 500, payload)
+  }
+  return payload.data
 }
 
 export function hasNonEmptyOnlineFieldValue(value) {

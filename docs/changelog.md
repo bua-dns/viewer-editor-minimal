@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11 - Safer online saving
+
+- Switching the level-1 group with unsaved online changes now asks before discarding them.
+- Saving checks each changed field against the server first. If someone else changed it since it was
+  loaded, the item is not written and the save names the fields; saving again overwrites deliberately.
+  Each updated item costs one extra `GET` per save.
+- Edits made while a save is running are no longer lost; they stay pending for the next save.
+- The "unassigned" level-1 group is filtered on the server (null or empty) instead of loading the
+  whole collection; it falls back to the old behaviour if Strapi rejects the filter.
+- The footer credit is rendered as text, not HTML. Line breaks in the `footerIdentityCredit` wording
+  are written as `\n`; a `<br>` in an older backend override still works.
+
 ## 2026-09 - Two config layers: basic config and data source
 
 - Config now has two layers. The **basic config** is one runtime file,
