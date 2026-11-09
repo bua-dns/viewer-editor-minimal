@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11 - Online robustness (anti-pattern review)
+
+- When the login expires, unsaved online changes are kept. The header shows `Login` and `Logout`; logging in
+  again as the same user continues where you left off and saving works again. Another user loads the data
+  afresh.
+- Logout, switching to offline, the "Configuration only" toggle and a connection profile with another address
+  now ask before discarding unsaved online changes.
+- Clicking level-1 groups in quick succession can no longer replace the group you are working in; the boxes
+  are disabled while a group loads.
+- A Wikidata entity picked just before moving to another item is no longer written to the next item.
+- If Wikidata data (statements, labels) could not be loaded for a picked entity, the entity says so and offers
+  `Reload data`.
+- Requests to Strapi time out (30 s reads, 60 s writes), as do Wikidata and config requests (10 s). An answer
+  that is not JSON (e.g. a proxy page) is now an error instead of an endless loop of requests.
+- New optional setting `createKeyField`: protects new items from being created twice when the answer to a save
+  is lost. Without it, the error message warns that the item may already exist.
+- List images load lazily. Dependencies updated within their major versions.
+
 ## 2026-11 - Project modes
 
 - `pnpm dev --mode <project>` and `pnpm build --mode <project>` build the app for one project. The project
