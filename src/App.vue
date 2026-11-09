@@ -30,6 +30,8 @@ import { useOnlineSettingsStore } from './stores/useOnlineSettingsStore'
 import { useOnlineItemsStore } from './stores/useOnlineItemsStore'
 import { useOnlineUpdatesStore } from './stores/useOnlineUpdatesStore'
 import { resolveItemsPathFromSettings } from './services/strapiApi'
+import { usePendingOnlineChangesGuard } from './composables/usePendingOnlineChangesGuard'
+import { createRequestSequence } from './composables/requestSequence'
 import {
   buildHierarchyLevel1Options,
   buildHierarchyLevel2Options,
@@ -73,7 +75,10 @@ const {
 } = useAppConfigStore()
 const { connectionProfile, initializeConnectionProfile } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
-const { token, isAuthenticated, restoreSession } = useAuthStore()
+const { token, isAuthenticated, hasOnlineSession, sessionUserId, restoreSession } = useAuthStore()
+const { isOnlineSession, hasPendingOnlineChanges, confirmDiscardPendingOnlineChanges } = usePendingOnlineChangesGuard()
+// Loads that replace the online items (data source, level-1 group): only the latest may write.
+const onlineItemsLoads = createRequestSequence()
 const {
   settings: onlineSettings,
   fetchOnlineSettings,
@@ -90,7 +95,9 @@ const {
   hierarchyFields: onlineHierarchyFields,
   hierarchyLevel1Options: onlineHierarchyLevel1Options,
   selectedHierarchyLevel1Value,
+  itemsStatus: onlineItemsStatus,
 } = useOnlineItemsStore()
+const isOnlineItemsLoading = computed(() => isOnlineSession.value && onlineItemsStatus.value === 'loading')
 const {
   pendingUpdateCount,
   hasPendingUpdates,
@@ -213,7 +220,7 @@ const expandedHierarchyLevel2Values = ref([])
 // Offline: it comes from the applied user config (imported file or Configuration tab) and all
 // items are already in memory, so boxes and groups are counted from `rawItems`.
 const hierarchicalFields = computed(() => {
-  if (appMode.value === 'online' && isAuthenticated.value) {
+  if (isOnlineSession.value) {
     return resolveHierarchyFieldsFromSettings(onlineSettings.value)
   }
   return normalizeHierarchyFieldList(appliedHierarchyFields.value)
@@ -224,7 +231,7 @@ const hierarchyEnabled = computed(() => Boolean(hierarchyLevel1FieldKey.value &&
 
 const hierarchyLevel1Options = computed(() => {
   if (!hierarchyEnabled.value) return []
-  if (appMode.value === 'online' && isAuthenticated.value) {
+  if (isOnlineSession.value) {
     return onlineHierarchyLevel1Options.value
   }
   return buildHierarchyLevel1Options(
@@ -236,14 +243,14 @@ const hierarchyLevel1Options = computed(() => {
 
 const selectedHierarchyLevel1 = computed({
   get() {
-    if (appMode.value === 'online' && isAuthenticated.value) {
+    if (isOnlineSession.value) {
       return selectedHierarchyLevel1Value.value
     }
     return offlineSelectedHierarchyLevel1Value.value
   },
   set(nextValue) {
     const normalized = normalizeHierarchyValue(nextValue)
-    if (appMode.value === 'online' && isAuthenticated.value) {
+    if (isOnlineSession.value) {
       selectedHierarchyLevel1Value.value = normalized
       return
     }
@@ -353,7 +360,7 @@ function onFieldChange(key, value, configuredType) {
   const changed = updateField(key, value, configuredType)
   if (!changed) return
 
-  if (appMode.value !== 'online' || !isAuthenticated.value) return
+  if (!isOnlineSession.value) return
   if (!Number.isInteger(selectedIndex)) return
 
   const currentItem = rawItems.value[selectedIndex]
@@ -372,7 +379,7 @@ function onFieldChange(key, value, configuredType) {
 }
 
 const canCreateOnlineItem = computed(
-  () => appMode.value === 'online' && isAuthenticated.value && Boolean(activeItemsPath.value),
+  () => isOnlineSession.value && Boolean(activeItemsPath.value),
 )
 
 function onCreateOnlineItem() {
@@ -427,26 +434,21 @@ function onCollapseAllHierarchyLevel2() {
   expandedHierarchyLevel2Values.value = []
 }
 
-function confirmDiscardPendingOnlineUpdates() {
-  if (!hasPendingUpdates.value) return true
-  return globalThis.confirm(
-    t('onlineDiscardPendingConfirm', 'Unsaved online changes will be discarded. Continue?'),
-  )
-}
-
 // Loads the items of one level-1 group from the server. Returns false when nothing was loaded.
 async function loadOnlineHierarchyLevel1(normalizedLevel1Value) {
   if (!connectionProfile.value) return false
   if (!onlineSettings.value || typeof onlineSettings.value !== 'object') return false
-  // Loading another group replaces the items and drops the pending online changes.
-  if (!confirmDiscardPendingOnlineUpdates()) return false
+  // Loading another group replaces the items and drops the pending item changes.
+  if (!confirmDiscardPendingOnlineChanges({ includeReplacements: false })) return false
   clearSelection()
 
+  const isCurrent = onlineItemsLoads.start()
   const result = await fetchOnlineItemsForHierarchyLevel1({
     settings: onlineSettings.value,
     level1Value: normalizedLevel1Value,
   })
-  if (!result.ok) return false
+  // A group clicked later (or a reload of the data source) has taken over meanwhile.
+  if (!isCurrent() || !result.ok) return false
 
   initializeFromJsonArray(result.items, `online:${result.itemsPath}`)
   clearOnlineUpdates()
@@ -466,7 +468,7 @@ async function onSelectHierarchyLevel1(value) {
 
   const normalizedLevel1Value = normalizeHierarchyValue(value)
 
-  if (appMode.value === 'online' && isAuthenticated.value) {
+  if (isOnlineSession.value) {
     const isLoaded = await loadOnlineHierarchyLevel1(normalizedLevel1Value)
     if (!isLoaded) return
   } else {
@@ -477,11 +479,6 @@ async function onSelectHierarchyLevel1(value) {
   selectedHierarchyLevel1.value = normalizedLevel1Value
   initializeExpandedHierarchyLevel2(normalizedLevel1Value)
 }
-
-const hasPendingOnlineChanges = computed(() => {
-  if (appMode.value !== 'online' || !isAuthenticated.value) return false
-  return hasPendingUpdates.value || hasReplacementsChanges.value
-})
 
 async function persistReplacementRulesIfChanged() {
   if (!hasReplacementsChanges.value) return
@@ -918,11 +915,10 @@ watch(
 
 watch(
   [
-    () => appMode.value,
-    () => isAuthenticated.value,
+    () => isOnlineSession.value,
     () => hierarchyLevel1Options.value.map((entry) => `${entry.value}:${entry.count}`).join('|'),
   ],
-  ([nextMode, nextAuthenticated]) => {
+  ([nextIsOnlineSession]) => {
     if (!hierarchyEnabled.value) {
       hasSelectedHierarchyLevel1.value = false
       selectedHierarchyLevel1.value = ''
@@ -930,7 +926,7 @@ watch(
       return
     }
 
-    if (nextMode === 'online' && nextAuthenticated) {
+    if (nextIsOnlineSession) {
       return
     }
 
@@ -1008,73 +1004,84 @@ watch(
   },
 )
 
+function resetHierarchySelection() {
+  hasSelectedHierarchyLevel1.value = false
+  selectedHierarchyLevel1.value = ''
+  expandedHierarchyLevel2Values.value = []
+}
+
+function closeOnlineDataSource() {
+  clearOnlineWording()
+  clearDataSourceViewerSettings()
+  clearOnlineSettings()
+  clearOnlineItems()
+  clearOnlineUpdates()
+  resetHierarchySelection()
+}
+
+// A stale load may already have written the online stores; once the session is closed, clear them again.
+function discardStaleOnlineLoad() {
+  if (!isOnlineSession.value) closeOnlineDataSource()
+}
+
+// Loads settings, then (unless config-only) the items. `isCurrent` turns false when the mode,
+// session, user or profile changes meanwhile; the stale run then stops before writing.
+async function loadOnlineDataSource({ configOnly, isCurrent }) {
+  const result = await fetchOnlineSettings()
+  if (!isCurrent()) return discardStaleOnlineLoad()
+  if (!result.ok) {
+    clearOnlineWording()
+    clearDataSourceViewerSettings()
+    return
+  }
+
+  setOnlineWording(result.wording)
+  const itemsPathFromSettings = resolveItemsPathFromSettings(result.settings)
+  initializeFromJsonArray([], itemsPathFromSettings ? `online:${itemsPathFromSettings}` : 'online:settings')
+  clearOnlineItems()
+  clearOnlineUpdates()
+  initializeReplacements(result.replacements)
+  resetHierarchySelection()
+
+  const applyResult = applyImportedConfigPayload(result.settings)
+  if (!applyResult.ok) {
+    clearDataSourceViewerSettings()
+    markOnlineSettingsInvalid(applyResult.error)
+    return
+  }
+
+  setDataSourceViewerSettings(result.settings)
+  applyUserConfigToRawItems(rawItems.value)
+  if (configOnly) return
+
+  const itemsResult = await fetchOnlineItems({ settings: result.settings })
+  if (!isCurrent()) return discardStaleOnlineLoad()
+  if (!itemsResult.ok) return
+
+  initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
+  applyUserConfigToRawItems(rawItems.value)
+  clearOnlineUpdates()
+  resetHierarchySelection()
+}
+
+// An expired session keeps `hasOnlineSession`, so logging in again as the same user keeps the
+// loaded data and the unsaved changes; another user (`sessionUserId`) loads the data afresh.
 watch(
   [
     () => appMode.value,
-    () => isAuthenticated.value,
+    () => hasOnlineSession.value,
+    () => sessionUserId.value,
     () => onlineConfigOnly.value,
     () => connectionProfile.value?.baseUrl || '',
     () => connectionProfile.value?.configPath || '',
   ],
-  async ([nextMode, nextAuthenticated, nextOnlineConfigOnly]) => {
-    if (nextMode !== 'online' || !nextAuthenticated) {
-      clearOnlineWording()
-      clearDataSourceViewerSettings()
-      clearOnlineSettings()
-      clearOnlineItems()
-      clearOnlineUpdates()
-      hasSelectedHierarchyLevel1.value = false
-      selectedHierarchyLevel1.value = ''
-      expandedHierarchyLevel2Values.value = []
+  ([nextMode, nextHasSession, , nextOnlineConfigOnly]) => {
+    const isCurrent = onlineItemsLoads.start()
+    if (nextMode !== 'online' || !nextHasSession) {
+      closeOnlineDataSource()
       return
     }
-
-    const result = await fetchOnlineSettings()
-    if (!result.ok) {
-      clearOnlineWording()
-      clearDataSourceViewerSettings()
-      return
-    }
-
-    setOnlineWording(result.wording)
-
-    const itemsPathFromSettings = resolveItemsPathFromSettings(result.settings)
-
-    initializeFromJsonArray([], itemsPathFromSettings ? `online:${itemsPathFromSettings}` : 'online:settings')
-    clearOnlineItems()
-    clearOnlineUpdates()
-    initializeReplacements(result.replacements)
-    hasSelectedHierarchyLevel1.value = false
-    selectedHierarchyLevel1.value = ''
-    expandedHierarchyLevel2Values.value = []
-
-    const applyResult = applyImportedConfigPayload(result.settings)
-    if (!applyResult.ok) {
-      clearDataSourceViewerSettings()
-      markOnlineSettingsInvalid(applyResult.error)
-      return
-    }
-
-    setDataSourceViewerSettings(result.settings)
-    applyUserConfigToRawItems(rawItems.value)
-
-    if (nextOnlineConfigOnly) {
-      return
-    }
-
-    const itemsResult = await fetchOnlineItems({ settings: result.settings })
-    if (!itemsResult.ok) return
-
-    initializeFromJsonArray(itemsResult.items, `online:${itemsResult.itemsPath}`)
-    applyUserConfigToRawItems(rawItems.value)
-    clearOnlineUpdates()
-    hasSelectedHierarchyLevel1.value = false
-    selectedHierarchyLevel1.value = ''
-    expandedHierarchyLevel2Values.value = []
-
-    if (itemsResult.hierarchyEnabled) {
-      return
-    }
+    loadOnlineDataSource({ configOnly: nextOnlineConfigOnly, isCurrent })
   },
 )
 
@@ -1172,7 +1179,7 @@ watch(
           :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
           :hierarchy-fields="hierarchicalFields"
-          :hierarchy-level1-options="hierarchyLevel1Options"
+          :hierarchy-level1-options="hierarchyLevel1Options" :hierarchy-loading="isOnlineItemsLoading"
           :selected-hierarchy-level1="selectedHierarchyLevel1"
           :has-selected-hierarchy-level1="hasSelectedHierarchyLevel1"
           :expanded-hierarchy-level2-values="expandedHierarchyLevel2Values"
@@ -1205,7 +1212,7 @@ watch(
              :no-search-results-label="t('noSearchResults', 'Keine Treffer zur Suchanfrage.')"
              :new-item-fallback-label="t('onlineNewItemFallback', 'New item')"
              :hierarchy-fields="hierarchicalFields"
-             :hierarchy-level1-options="hierarchyLevel1Options"
+             :hierarchy-level1-options="hierarchyLevel1Options" :hierarchy-loading="isOnlineItemsLoading"
              :selected-hierarchy-level1="selectedHierarchyLevel1"
              :has-selected-hierarchy-level1="hasSelectedHierarchyLevel1"
              :expanded-hierarchy-level2-values="expandedHierarchyLevel2Values"
