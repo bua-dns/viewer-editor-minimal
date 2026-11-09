@@ -27,6 +27,16 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  // Collection search state, `panelState` of useCollectionSearch.
+  search: {
+    type: Object,
+    default: () => ({}),
+  },
+  // Labels for the collection search: scopeGlobal, submit, resultsTitle, back, running, droppedFields.
+  searchLabels: {
+    type: Object,
+    default: () => ({}),
+  },
   showEditedSortToggle: {
     type: Boolean,
     default: false,
@@ -168,6 +178,9 @@ const emit = defineEmits([
   'list-image-failed',
   'toggle-suspend-editing',
   'update:search-query',
+  'submit-search',
+  'update:search-scope-override',
+  'leave-search-results',
   'update:edited-items-first',
   'create-item',
   'hierarchy-select-level1',
@@ -189,6 +202,16 @@ function onListImageFailed(uid) {
 
 function onSearchInput(event) {
   emit('update:search-query', event.target.value)
+}
+
+function onSearchKeydown(event) {
+  if (event.key !== 'Enter') return
+  event.preventDefault()
+  emit('submit-search')
+}
+
+function onSearchScopeChange(event) {
+  emit('update:search-scope-override', event.target.checked)
 }
 
 function onEditedSortToggleChange(event) {
@@ -280,6 +303,13 @@ function isHierarchyLevel2Expanded(value) {
 function hasHierarchyCount(value) {
   return Number.isFinite(value)
 }
+
+// Where a search hit lives in the hierarchy, e.g. "Box A / Drawer 3".
+function resolveItemLocation(rawItem) {
+  const level1Value = normalizeHierarchyValue(rawItem?.[hierarchyLevel1FieldKey.value])
+  const level2Value = normalizeHierarchyValue(rawItem?.[hierarchyLevel2FieldKey.value])
+  return `${level1Value || props.hierarchyUnassignedLabel} / ${level2Value || props.hierarchyUnassignedLabel}`
+}
 </script>
 
 <template>
@@ -301,9 +331,28 @@ function hasHierarchyCount(value) {
             :value="props.searchQuery"
             type="search"
             :placeholder="props.searchPlaceholder"
-            :disabled="!props.hasData"
+            :disabled="!props.search.enabled"
             @input="onSearchInput"
+            @keydown="onSearchKeydown"
           />
+        </label>
+        <button
+          v-if="props.search.needsSubmit"
+          type="button"
+          class="search-submit-btn"
+          :disabled="props.search.running"
+          @click="emit('submit-search')"
+        >
+          {{ props.searchLabels.submit }}
+        </button>
+        <label v-if="props.search.showScopeSwitch" class="search-scope-toggle">
+          <input
+            type="checkbox"
+            :checked="props.search.scopeGlobal"
+            :disabled="!props.search.canOverrideScope"
+            @change="onSearchScopeChange"
+          />
+          <span>{{ props.searchLabels.scopeGlobal }}</span>
         </label>
         <label v-if="props.showEditedSortToggle" class="edited-sort-toggle">
           <input
@@ -336,53 +385,103 @@ function hasHierarchyCount(value) {
             </button>
           </div>
 
-          <p v-if="props.hasSelectedHierarchyLevel1 && hierarchyLevel2Groups.length === 0" class="meta">
-            {{ props.noSearchResultsLabel }}
-          </p>
-          <p v-else-if="!props.hasSelectedHierarchyLevel1" class="meta">
-            {{ props.hierarchySelectLevel1Label }}
-          </p>
+          <p v-if="props.search.error" class="meta search-error">{{ props.search.error }}</p>
 
-          <div v-if="hierarchyLevel2Groups.length" class="hierarchy-level2-actions">
-            <button type="button" class="hierarchy-collapse-btn" @click="onCollapseAllHierarchyLevel2">
-              {{ props.hierarchyCollapseAllLabel }}
-            </button>
-          </div>
-
-          <section v-for="group in hierarchyLevel2Groups" :key="`level2-${group.value || '__unassigned__'}`" class="hierarchy-level2-group">
-            <button
-              type="button"
-              class="hierarchy-level2-header"
-              :class="{ expanded: isHierarchyLevel2Expanded(group.value) }"
-              @click="onToggleHierarchyLevel2(group.value)"
-            >
-              <span>{{ group.label }}</span>
-              <span class="hierarchy-level2-meta">{{ group.items.length }}</span>
-            </button>
-
-            <ListItems
-              v-if="isHierarchyLevel2Expanded(group.value)"
-              :items="group.items"
-              :as-cards="props.hasScanField"
-              list-class="hierarchy-group-items"
-              :raw-items="props.rawItems"
-              :selected-view-item="props.selectedViewItem"
-              :has-data="props.hasData"
-              :suspended-item-indices="props.suspendedItemIndices"
-              :item-caption-field-key="props.itemCaptionFieldKey"
-              :mark-as-edited-basis-field="props.markAsEditedBasisField"
-              :edited-item-icon-label="props.editedItemIconLabel"
-              :suspend-editing-label="props.suspendEditingLabel"
-              :scan-preview-alt="props.scanPreviewAlt"
-              :scan-unavailable-label="props.scanUnavailableLabel"
-              :new-item-fallback-label="props.newItemFallbackLabel"
-              :looks-like-image-url="props.looksLikeImageUrl"
-              :has-list-image-failed="props.hasListImageFailed"
-              @select-item="onSelectItem"
-              @list-image-failed="onListImageFailed"
-              @toggle-suspend-editing="emit('toggle-suspend-editing', $event)"
-            />
+          <section v-if="props.search.showResults || props.search.running" class="search-results">
+            <div class="search-results-head">
+              <h3>
+                {{ props.searchLabels.resultsTitle }}
+                <span v-if="props.search.showResults" class="search-results-count">{{ props.filteredViewItems.length }}</span>
+              </h3>
+              <button
+                v-if="props.search.showResults"
+                type="button"
+                class="hierarchy-collapse-btn"
+                @click="emit('leave-search-results')"
+              >
+                {{ props.searchLabels.back }}
+              </button>
+            </div>
+            <p v-if="props.search.running" class="meta">{{ props.searchLabels.running }}</p>
+            <template v-else>
+              <p v-if="props.search.droppedFieldKeys?.length" class="meta">
+                {{ props.searchLabels.droppedFields }} {{ props.search.droppedFieldKeys.join(', ') }}
+              </p>
+              <p v-if="props.filteredViewItems.length === 0" class="meta">{{ props.noSearchResultsLabel }}</p>
+              <ListItems
+                v-else
+                :items="props.filteredViewItems"
+                :as-cards="props.hasScanField"
+                :resolve-item-location="resolveItemLocation"
+                :raw-items="props.rawItems"
+                :selected-view-item="props.selectedViewItem"
+                :has-data="props.hasData"
+                :suspended-item-indices="props.suspendedItemIndices"
+                :item-caption-field-key="props.itemCaptionFieldKey"
+                :mark-as-edited-basis-field="props.markAsEditedBasisField"
+                :edited-item-icon-label="props.editedItemIconLabel"
+                :suspend-editing-label="props.suspendEditingLabel"
+                :scan-preview-alt="props.scanPreviewAlt"
+                :scan-unavailable-label="props.scanUnavailableLabel"
+                :new-item-fallback-label="props.newItemFallbackLabel"
+                :looks-like-image-url="props.looksLikeImageUrl"
+                :has-list-image-failed="props.hasListImageFailed"
+                @select-item="onSelectItem"
+                @list-image-failed="onListImageFailed"
+                @toggle-suspend-editing="emit('toggle-suspend-editing', $event)"
+              />
+            </template>
           </section>
+
+          <template v-else>
+            <p v-if="props.hasSelectedHierarchyLevel1 && hierarchyLevel2Groups.length === 0" class="meta">
+              {{ props.noSearchResultsLabel }}
+            </p>
+            <p v-else-if="!props.hasSelectedHierarchyLevel1" class="meta">
+              {{ props.hierarchySelectLevel1Label }}
+            </p>
+
+            <div v-if="hierarchyLevel2Groups.length" class="hierarchy-level2-actions">
+              <button type="button" class="hierarchy-collapse-btn" @click="onCollapseAllHierarchyLevel2">
+                {{ props.hierarchyCollapseAllLabel }}
+              </button>
+            </div>
+
+            <section v-for="group in hierarchyLevel2Groups" :key="`level2-${group.value || '__unassigned__'}`" class="hierarchy-level2-group">
+              <button
+                type="button"
+                class="hierarchy-level2-header"
+                :class="{ expanded: isHierarchyLevel2Expanded(group.value) }"
+                @click="onToggleHierarchyLevel2(group.value)"
+              >
+                <span>{{ group.label }}</span>
+                <span class="hierarchy-level2-meta">{{ group.items.length }}</span>
+              </button>
+
+              <ListItems
+                v-if="isHierarchyLevel2Expanded(group.value)"
+                :items="group.items"
+                :as-cards="props.hasScanField"
+                list-class="hierarchy-group-items"
+                :raw-items="props.rawItems"
+                :selected-view-item="props.selectedViewItem"
+                :has-data="props.hasData"
+                :suspended-item-indices="props.suspendedItemIndices"
+                :item-caption-field-key="props.itemCaptionFieldKey"
+                :mark-as-edited-basis-field="props.markAsEditedBasisField"
+                :edited-item-icon-label="props.editedItemIconLabel"
+                :suspend-editing-label="props.suspendEditingLabel"
+                :scan-preview-alt="props.scanPreviewAlt"
+                :scan-unavailable-label="props.scanUnavailableLabel"
+                :new-item-fallback-label="props.newItemFallbackLabel"
+                :looks-like-image-url="props.looksLikeImageUrl"
+                :has-list-image-failed="props.hasListImageFailed"
+                @select-item="onSelectItem"
+                @list-image-failed="onListImageFailed"
+                @toggle-suspend-editing="emit('toggle-suspend-editing', $event)"
+              />
+            </section>
+          </template>
         </template>
       </div>
       <p v-else-if="!props.hasData" class="meta">{{ props.listEmptyAfterUploadLabel }}</p>
@@ -473,6 +572,57 @@ function hasHierarchyCount(value) {
 
 .search-wrap input {
   min-width: 260px;
+}
+
+.search-submit-btn {
+  border: 1px solid var(--color-primary);
+  background: var(--ve-color-surface-card);
+  color: var(--color-primary);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.search-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.search-scope-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ve-color-text-muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.search-results {
+  display: grid;
+  gap: var(--ve-space-3);
+}
+
+.search-results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ve-space-2);
+}
+
+.search-results-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.search-results-count {
+  font-family: var(--ve-font-family-mono);
+  font-size: 0.85rem;
+  color: var(--ve-color-text-soft);
+}
+
+.search-error {
+  color: var(--ve-color-danger);
 }
 
 .hierarchy-wrap {

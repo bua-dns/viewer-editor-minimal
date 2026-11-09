@@ -4,6 +4,7 @@ import { computeReplacementChanges, countChangedFields } from './replacementRule
 import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 import { markItemAsCreated } from './createdItems'
 import { tokenizeSearchQuery } from './searchQuery'
+import { hasNonEmptyValue } from './valueChecks'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -547,14 +548,6 @@ export function useViewerData(options = {}) {
     isEditableSimpleValue,
     looksLikeImageUrl,
   }
-}
-
-function hasNonEmptyValue(value) {
-  if (value == null) return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (Array.isArray(value)) return value.length > 0
-  if (typeof value === 'object') return Object.keys(value).length > 0
-  return true
 }
 
 export const __test = {

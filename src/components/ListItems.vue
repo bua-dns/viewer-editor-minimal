@@ -2,6 +2,7 @@
 // Renders a list of view items as scan cards (when the data has a scan field) or as compact rows.
 // Used by ListPanel for the flat list, the hierarchy groups and the search results.
 import { isCreatedItem } from '../composables/createdItems'
+import { hasNonEmptyValue } from '../composables/valueChecks'
 
 const props = defineProps({
   items: {
@@ -98,7 +99,8 @@ function onItemKeydown(event, uid) {
 
 function resolveConfiguredCaption(item) {
   const key = props.itemCaptionFieldKey
-  if (!key || !item || !Object.prototype.hasOwnProperty.call(item, key)) return ''
+  if (!key || !item) return ''
+  if (!Object.prototype.hasOwnProperty.call(item, key)) return ''
   return String(item[key] ?? '').trim()
 }
 
@@ -113,14 +115,6 @@ function resolveItemCaption(item) {
   if (inventoryNumber) return inventoryNumber
   if (isNewItem(item) && props.newItemFallbackLabel) return props.newItemFallbackLabel
   return ''
-}
-
-function hasNonEmptyValue(value) {
-  if (value == null) return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (Array.isArray(value)) return value.length > 0
-  if (typeof value === 'object') return Object.keys(value).length > 0
-  return true
 }
 
 function isEditedItem(item) {

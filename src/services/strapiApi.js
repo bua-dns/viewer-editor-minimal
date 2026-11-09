@@ -512,10 +512,8 @@ export async function fetchAllCollectionItemsFromStrapi({
   token = '',
   pageSize = 100,
   populateFields = [],
-  fieldKeys = [],
-  filtersEq = {},
-  filterEmptyField = '',
-  extraFilterEntries = [],
+  // fieldKeys, filtersEq, filterEmptyField, extraFilterEntries: see buildItemsPathWithPopulate
+  ...queryOptions
 }) {
   const collected = []
   let effectivePopulateFields = Array.from(
@@ -534,15 +532,7 @@ export async function fetchAllCollectionItemsFromStrapi({
       token,
       populateFields: effectivePopulateFields,
       buildPath: (populate) =>
-        buildItemsPathWithPopulate(itemsPath, {
-          page,
-          pageSize,
-          populateFields: populate,
-          fieldKeys,
-          filtersEq,
-          filterEmptyField,
-          extraFilterEntries,
-        }),
+        buildItemsPathWithPopulate(itemsPath, { ...queryOptions, page, pageSize, populateFields: populate }),
     })
     const { payload } = result
     effectivePopulateFields = result.populateFields
