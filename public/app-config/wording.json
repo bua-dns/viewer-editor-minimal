@@ -923,9 +923,13 @@
     "de": "Änderungen verwerfen und auf Import zurücksetzen?",
     "en": "Discard changes and reset to imported data?"
   },
+  "onlineDiscardPendingConfirm": {
+    "de": "Ungespeicherte Online-Änderungen werden verworfen. Fortfahren?",
+    "en": "Unsaved online changes will be discarded. Continue?"
+  },
   "footerIdentityCredit": {
-    "de": "Ein Tool von Digitales Netzwerk Sammlungen<br>Berlin University Alliance",
-    "en": "A tool by the Digital Network for Collections<br>Berlin University Alliance"
+    "de": "Ein Tool von Digitales Netzwerk Sammlungen\nBerlin University Alliance",
+    "en": "A tool by the Digital Network for Collections\nBerlin University Alliance"
   },
   "footerBucAria": {
     "de": "Berlin University Collections",
