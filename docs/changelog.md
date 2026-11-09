@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11 - Search across the whole collection
+
+- With a category hierarchy, the search is no longer limited to the selected level-1 category when you want
+  more: without a selected category it searches the whole collection; inside a category it stays local, and
+  the new switch `Whole collection` next to the search field overrides that.
+- Hits are listed with their category (`level 1 / level 2`) and can be opened, edited and saved as usual.
+  `Back to categories` returns to the selected category.
+- Online the search runs on the Strapi server (Enter or `Search`), over all text fields and the two
+  hierarchy fields; Wikidata fields are not searched. Fields Strapi cannot filter are skipped and named.
+  Unsaved changes are confirmed before the hits replace the loaded items, as with a category switch.
+- The result counter and prev/next now count only what the list shows (offline they used to include hits
+  in other categories).
+
 ## 2026-11 - Online robustness (anti-pattern review)
 
 - When the login expires, unsaved online changes are kept. The header shows `Login` and `Logout`; logging in

@@ -143,7 +143,10 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 ### Komponenten (`src/components/`)
 
 - `ListPanel.vue` - Karten-/Listenpanel inkl. trennbarem Kopf-/Body-Rendering, Hierarchie-UI
-  (Level-1-Boxen, einklappbare Level-2-Gruppen), Suspend-Checkbox, Edit-Icon und Create-Button
+  (Level-1-Boxen, einklappbare Level-2-Gruppen), Suchfeld mit Bereichsschalter und Trefferansicht
+  der bestandsweiten Suche, Create-Button
+- `ListItems.vue` - eine Liste von View-Items als Scan-Karten oder Zeilen (Suspend-Checkbox, Edit-Icon,
+  optional der Ort eines Treffers); genutzt für flache Liste, Level-2-Gruppen und Suchtreffer
 - `ItemFieldEditor.vue` - Sidebar-Feldeditor; rendert Felder über die Registry und optional die
   Raw-Data-Dev-Preview
 - `UserConfigPanel.vue` - User-Config-GUI (Feldliste, globale Optionen, Anwenden)
@@ -179,6 +182,10 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 - `usePendingOnlineChangesGuard.js` - Online-Sitzung, ungespeicherte Online-Änderungen und die Rückfrage vor dem Verwerfen
 - `requestSequence.js` - "neuester Request gewinnt" für Ladevorgänge, die gemeinsamen State schreiben
+- `searchQuery.js` - gemeinsame Suchregeln: Tokenisierung, Mindestlänge drei Zeichen
+- `useCollectionSearch.js` - Suchbereich in der Hierarchie (Kategorie oder gesamter Bestand), Zustand der
+  Trefferansicht, navigierbare Items (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie))
+- `valueChecks.js` - `hasNonEmptyValue` (Grundlage für "bearbeitet")
 
 ### Stores (`src/stores/`)
 
@@ -196,7 +203,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `useAuthStore.js` - Strapi-FE-User-Auth (Login/Logout/Session-Restore)
 - `useOnlineSettingsStore.js` - Laden **und Zurückschreiben** der Online-Settings inkl. Backend-Wording
 - `useOnlineItemsStore.js` - Laden der Online-Items: Hierarchie-Erkennung, Level-1-Optionen
-  (aus Strapi oder `firstLevelStaticList`), gefiltertes Nachladen je Level-1-Wert, Sanitizing
+  (aus Strapi oder `firstLevelStaticList`), gefiltertes Nachladen je Level-1-Wert, bestandsweite
+  Serversuche (`searchOnlineItems`), Sanitizing
 - `useOnlineUpdatesStore.js` - Delta-Tracking für Updates, Draft-Creates und Ersetzungsläufe über die
   gesamte Collection, Save-Orchestrator, Save-Status
 
@@ -210,6 +218,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `strapiApi.js` - gesamter Strapi-HTTP-Zugriff: Login, `/api/users/me`, Settings lesen/schreiben,
   Query-Aufbau (Pagination/Populate/Fields/Filter), paginiertes Item-Fetching, Item-Create/Update,
   Item- und Wikidata-Normalisierung, Datenmodell-Prüfung
+- `strapiSearch.js` - bestandsweite Textsuche mit Strapi-Filtern (`$containsi`): durchsuchbare Felder,
+  Filteraufbau, Wiederholung ohne abgelehnte Felder
 
 ### Assets (`src/assets/`)
 
@@ -412,8 +422,9 @@ Die zentrale Logik liegt in `useViewerData()` (`src/composables/useViewerData.js
 ### 6.3 Suche
 
 - `toSearchText(item)` kombiniert alle Feldwerte zu einem lowercase String.
-- `tokenize(query)` normalisiert und splittet die Suchanfrage.
-- **Die Suche greift erst ab drei Zeichen** (`normalizedQuery.length > 2`); kürzere Eingaben filtern nicht.
+- `tokenizeSearchQuery(query)` (`searchQuery.js`) normalisiert und splittet die Suchanfrage; dieselben
+  Regeln gelten für die Serversuche (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie)).
+- **Die Suche greift erst ab drei Zeichen** (`MIN_SEARCH_QUERY_LENGTH`); kürzere Eingaben filtern nicht.
 - Ein Datensatz matcht nur, wenn **alle** Tokens in `_searchText` vorkommen (AND-Verknüpfung).
 - Beispiel: `"oak berlin"` liefert nur Items, deren `_searchText` sowohl `oak` als auch `berlin` enthält.
 
@@ -432,6 +443,35 @@ Sortiert wird in drei Stufen:
 3. **Originalreihenfolge** (`orderIndex`) als stabiler Tie-Break.
 
 "Bearbeitet" wird über `markAsEditedBasis` bestimmt (siehe [7.2](#72-globale-optionen)).
+
+### 6.5 Bestandsweite Suche in der Hierarchie
+
+Ohne Hierarchie deckt die lokale Suche alle geladenen Items ab. Mit Hierarchie bestimmt
+`useCollectionSearch` den **Suchbereich**:
+
+- **Ist eine Level-1-Kategorie gewählt**, sucht die Suche nur in ihr (wie bisher).
+- **Ist keine gewählt**, sucht sie im gesamten Bestand.
+- Der Schalter **Gesamter Bestand** neben dem Suchfeld erzwingt innerhalb einer Kategorie die
+  bestandsweite Suche. Ohne Auswahl ist er angehakt und gesperrt. Er wird nicht gespeichert.
+
+Im bestandsweiten Bereich ersetzt eine **Trefferansicht** den Level-2-Baum: eine flache Liste mit dem
+Ort jedes Treffers (`Level-1 / Level-2`, leere Werte als "Ohne Zuordnung") und dem Knopf
+`Zurück zu den Kategorien`.
+
+- **Offline** liegen alle Items im Speicher; die Trefferansicht filtert live (ab drei Zeichen). Zurück
+  leert die Suchanfrage. Zurück und das Abschalten des Schalters schließen das geöffnete Item, weil es
+  außerhalb der wieder gezeigten Kategorie liegen kann.
+- **Online** startet die Suche erst mit Enter oder dem Knopf `Suchen` (jede Suche ist ein paginierter
+  Server-Durchlauf). `searchOnlineItems` sucht serverseitig (siehe [12.4](#124-query-aufbau)); die Treffer
+  ersetzen die geladenen Items über denselben Weg wie ein Kategoriewechsel (`replaceOnlineItems` in
+  `App.vue`): Rückfrage bei ungespeicherten Änderungen, Request-Sequenz, Config-Apply. Die Suchanfrage
+  bleibt danach als lokaler Filter über den Treffern stehen. Treffer lassen sich bearbeiten und speichern
+  wie Items einer Kategorie. Zurück (Knopf, leere Anfrage + Enter, Abschalten des Schalters) lädt die
+  gewählte Kategorie neu bzw. leert die Liste ohne Auswahl; ein Klick auf eine Level-1-Box verlässt die
+  Treffer ebenfalls. Es gibt **keine Obergrenze** für die Trefferzahl.
+
+Trefferzähler im Listenkopf und Vor/Zurück folgen dem, was die Liste zeigt (`navigableViewItems`): in einer
+Kategorie nur deren Treffer, in der Trefferansicht alle.
 
 ---
 
@@ -907,6 +947,15 @@ Alle Item-Requests werden über `buildItemsPathWithPopulate(itemsPath, options)`
 | `fieldKeys` | `fields[0]`, `fields[1]`, … | Projektion auf einzelne Felder (genutzt für Level-1-Werte, um keine Voll-Items zu laden) |
 | `filtersEq` | `filters[<key>][$eq]=<value>` | Serverseitige Filterung, genutzt für das Nachladen eines Level-1-Wertes |
 | `filterEmptyField` | `filters[$or][0][<key>][$null]=true`, `filters[$or][1][<key>][$eq]=` | Items ohne Wert im Feld (null oder leer), genutzt für den `isUnassigned`-Bucket |
+| `extraFilterEntries` | beliebige fertige Paare, z. B. `filters[$and][t][$or][f][<key>][$containsi]=<token>` | Bestandsweite Suche (`strapiSearch.js`) |
+
+**Bestandsweite Suche** (`searchCollectionItemsInStrapi`): Jedes Token muss in mindestens einem
+durchsuchbaren Feld vorkommen (UND über Tokens, ODER über Felder, Groß-/Kleinschreibung egal) - dieselbe
+Semantik wie die lokale Suche. Durchsucht werden die Felder aus `settings.fields` mit Typ `normal`, `text`,
+`candidate` oder ohne Typ sowie die beiden Hierarchie-Felder; nicht durchsucht werden `checkbox`, `integer`
+und `wikidata-autosuggest` (Relationen/Komponenten). Lehnt Strapi ein Feld als `invalid key` ab, wird es
+entfernt und die Suche wiederholt (höchstens einmal je Feld); die Trefferansicht nennt die entfernten Felder.
+Bleibt kein Feld übrig, schlägt die Suche mit einer Meldung fehl.
 
 Einzelne Items lädt `fetchCollectionItemFromStrapi(...)` (`GET <itemsPath>/<id>` mit optionalem
 `populate[n]`); der Update-Flow nutzt das für die Konfliktprüfung (siehe [12.8](#128-update-flow-bestehende-items)).
@@ -1267,13 +1316,13 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand 2026-11-09: 23 Testdateien, 271 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
+Stand 2026-11-09: 27 Testdateien, 302 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
 ### Composables
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `tokenize`, `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
+| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
 | `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
@@ -1282,6 +1331,9 @@ Stand 2026-11-09: 23 Testdateien, 271 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
 | `composables/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `composables/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
+| `composables/useCollectionSearch.test.js` | Suchbereich: lokal in einer Kategorie, bestandsweit ohne Auswahl, Schalter überschreibt; ohne Hierarchie keine Trefferansicht; Panel-Zustand (Suchfeld online ohne Items aktiv); offline: nur Kategorie-Treffer navigierbar, Trefferansicht live, Zurück leert Anfrage und schließt das Item, Schalter aus behält die Anfrage; online: Suche erst bei Submit, nicht in einer Kategorie ohne Schalter, Fehler/Abbruch behalten die Kategorieansicht, entfernte Felder, leere Anfrage kehrt zurück, abgebrochene Rückkehr bleibt in den Treffern, Schalter aus lädt die Kategorie neu |
+| `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
 | `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
 
@@ -1290,6 +1342,7 @@ Stand 2026-11-09: 23 Testdateien, 271 Tests, alle grün. Komponenten (`.vue`) ha
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
+| `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; andere Fehler werden durchgereicht |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores
@@ -1325,6 +1378,9 @@ Stand 2026-11-09: 23 Testdateien, 271 Tests, alle grün. Komponenten (`.vue`) ha
 - Logout widerruft das JWT nicht serverseitig (siehe [12.2](#122-login-modal)).
 - Im Online-Modus ohne Hierarchie werden alle Items paginiert vollständig geladen; es gibt kein
   virtuelles Scrolling.
+- Die bestandsweite Online-Suche nutzt `$containsi` über alle durchsuchbaren Felder; die Datenbank prüft
+  dafür jede Zeile. Bei sehr großen Collections ist sie entsprechend langsam (nicht gemessen), und sie hat
+  keine Trefferobergrenze. Wikidata-Felder werden nicht durchsucht.
 
 ---
 
