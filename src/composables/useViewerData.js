@@ -5,6 +5,7 @@ import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../f
 import { markItemAsCreated } from './createdItems'
 import { tokenizeSearchQuery } from './searchQuery'
 import { hasNonEmptyValue } from './valueChecks'
+import { parseCsvRecords, splitCsvLine, toCsvCell } from './csvFormat'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -92,54 +93,13 @@ function parseJsonPayload(text) {
   }
 }
 
-function splitCsvLine(line, delimiter = ',') {
-  const values = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i]
-
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"'
-        i += 1
-      } else {
-        inQuotes = !inQuotes
-      }
-      continue
-    }
-
-    if (char === delimiter && !inQuotes) {
-      values.push(current)
-      current = ''
-      continue
-    }
-
-    current += char
-  }
-
-  values.push(current)
-  return values
-}
-
 function parseCsvText(text) {
-  const normalized = text.replace(/^\uFEFF/, '')
-  const lines = normalized
-    .split('\n')
-    .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
-    .filter((line) => line.length > 0)
-
-  if (!lines.length) {
+  const records = parseCsvRecords(text)
+  if (!records.length) {
     return { ok: false, error: 'CSV ist leer.' }
   }
 
-  const headerRow = splitCsvLine(lines[0])
-  if (!headerRow.length) {
-    return { ok: false, error: 'CSV-Header fehlt.' }
-  }
-
-  const headers = headerRow.map((header) => {
+  const headers = records[0].cells.map((header) => {
     const trimmed = String(header || '').trim()
     if (trimmed.toLowerCase() === 'scan') return 'scan'
     return trimmed
@@ -154,16 +114,14 @@ function parseCsvText(text) {
     return { ok: false, error: `CSV-Spaltenname doppelt: ${duplicateHeader}` }
   }
 
-  const rows = lines.slice(1)
-  const data = rows.map((line, rowIndex) => {
-    const values = splitCsvLine(line)
-    if (values.length > headers.length) {
-      throw new Error(`Zeile ${rowIndex + 2} hat mehr Spalten als der Header.`)
+  const data = records.slice(1).map(({ cells, lineNumber }) => {
+    if (cells.length > headers.length) {
+      throw new Error(`Zeile ${lineNumber} hat mehr Spalten als der Header.`)
     }
 
     const item = {}
     headers.forEach((header, index) => {
-      item[header] = values[index] ?? ''
+      item[header] = cells[index] ?? ''
     })
     return item
   })
@@ -174,14 +132,6 @@ function parseCsvText(text) {
 function looksLikeImageUrl(value) {
   if (typeof value !== 'string') return false
   return /^(?:https?:\/\/|\/).+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(value.trim())
-}
-
-function toCsvCell(value) {
-  const text = String(value ?? '')
-  if (/[,"\n\r]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`
-  }
-  return text
 }
 
 function createCsvTextFromItems(items) {
