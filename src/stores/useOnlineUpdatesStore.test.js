@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { useOnlineUpdatesStore } from './useOnlineUpdatesStore'
+import { useOnlineSettingsStore } from './useOnlineSettingsStore'
 
 const PROFILE = { baseUrl: 'https://cms.example.org' }
 
@@ -453,5 +454,88 @@ describe('useOnlineUpdatesStore save safety', () => {
     expect(entry.id).toBe('new-1')
     expect(entry.changedFields).toEqual({ label: 'Second' })
     expect(entry.baselineFields).toEqual({ label: 'First' })
+  })
+})
+
+describe('useOnlineUpdatesStore creates with an unknown outcome (review F6)', () => {
+  const settingsStore = useOnlineSettingsStore()
+
+  beforeEach(() => {
+    useOnlineUpdatesStore().clearOnlineUpdates()
+  })
+
+  afterEach(() => {
+    settingsStore.clearOnlineSettings()
+  })
+
+  function trackDraft(store) {
+    const draft = {
+      label: 'New',
+      __onlineMeta: { isDraft: true, draftId: 'draft-1', itemsPath: '/api/cards' },
+    }
+    store.trackOnlineDraftCreate({ item: draft })
+    store.trackOnlineFieldChange({ item: draft, snapshotItem: {}, key: 'label', nextValue: 'New' })
+    return draft
+  }
+
+  test('without createKeyField the error warns that the item may exist', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    const store = useOnlineUpdatesStore()
+    trackDraft(store)
+
+    const result = await store.saveOnlineUpdates({ profile: PROFILE })
+
+    expect(result.ok).toBe(false)
+    expect(store.lastSaveError.value).toContain('may have been stored anyway')
+    expect(store.lastSaveError.value).toContain('Check the collection before saving again')
+    expect(store.pendingUpdateCount.value).toBe(1)
+  })
+
+  test('with createKeyField the next save finds the stored item instead of posting again', async () => {
+    settingsStore.settings.value = { itemsPath: '/api/cards', createKeyField: 'client_key' }
+    let sentKey = ''
+    globalThis.fetch = mockStrapiFetch({
+      'POST /api/cards': (init) => {
+        sentKey = JSON.parse(init.body).data.client_key
+        return Promise.reject(new TypeError('Failed to fetch'))
+      },
+      'GET /api/cards': () => okResponse({ data: [{ id: 7, documentId: 'stored-1', client_key: sentKey }] }),
+    })
+    const store = useOnlineUpdatesStore()
+    const draft = trackDraft(store)
+
+    const first = await store.saveOnlineUpdates({ profile: PROFILE })
+    const second = await store.saveOnlineUpdates({ profile: PROFILE })
+
+    expect(first.ok).toBe(false)
+    expect(sentKey).not.toBe('')
+    expect(second.ok).toBe(true)
+    expect(requestsOf(globalThis.fetch, 'POST')).toHaveLength(1)
+    const lookupUrl = decodeURIComponent(requestsOf(globalThis.fetch, 'GET')[0][0])
+    expect(lookupUrl).toContain(`filters[client_key][$eq]=${sentKey}`)
+    expect(draft.__onlineMeta.id).toBe('stored-1')
+    expect(store.pendingUpdateCount.value).toBe(0)
+  })
+
+  test('with createKeyField a create that was not stored is posted again with the same key', async () => {
+    settingsStore.settings.value = { itemsPath: '/api/cards', createKeyField: 'client_key' }
+    const sentKeys = []
+    globalThis.fetch = vi.fn(async (_url, init = {}) => {
+      if (init.method === 'POST') {
+        sentKeys.push(JSON.parse(init.body).data.client_key)
+        if (sentKeys.length === 1) throw new TypeError('Failed to fetch')
+        return okResponse({ data: { id: 8, documentId: 'new-8' } })
+      }
+      return okResponse({ data: [] })
+    })
+    const store = useOnlineUpdatesStore()
+    trackDraft(store)
+
+    await store.saveOnlineUpdates({ profile: PROFILE })
+    const second = await store.saveOnlineUpdates({ profile: PROFILE })
+
+    expect(second.ok).toBe(true)
+    expect(sentKeys).toHaveLength(2)
+    expect(sentKeys[1]).toBe(sentKeys[0])
   })
 })

@@ -3,10 +3,12 @@ import {
   createCollectionItemInStrapi,
   fetchAllCollectionItemsFromStrapi,
   fetchCollectionItemFromStrapi,
+  findCollectionItemByFieldValue,
   getWikidataAutosuggestFieldKeysFromSettings,
   normalizeOnlineChangedFieldsForStrapi,
   normalizeStrapiItem,
   pickNonEmptyOnlineFields,
+  resolveCreateKeyFieldFromSettings,
   resolveItemsPathFromSettings,
   resolveScanFieldFromSettings,
   resolveStableIdentifierFromRow,
@@ -270,6 +272,7 @@ function buildSaveContext({ profile, token }) {
     fieldConfigs,
     scanFieldKey: resolveScanFieldFromSettings(currentSettings),
     wikidataFieldKeys: getWikidataAutosuggestFieldKeysFromSettings(currentSettings),
+    createKeyField: resolveCreateKeyFieldFromSettings(currentSettings),
   }
 }
 
@@ -349,15 +352,61 @@ function carryOverEditsMadeDuringCreate(entry, sentFields, stableIdentifier) {
   setPendingUpdate(createEntryKey(entry.itemsPath, stableIdentifier.id), leftover)
 }
 
-async function saveCreateEntry(context, entryKey, entry) {
-  const sentFields = cloneValue(entry.changedFields)
-  const payload = await createCollectionItemInStrapi({
+function generateCreateKey() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID()
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+}
+
+function describeUnknownCreateOutcome(error, canCheckForDuplicate) {
+  const advice = canCheckForDuplicate
+    ? 'Saving again first checks whether it exists.'
+    : 'Check the collection before saving again, otherwise it may be created twice.'
+  return new Error(`${error.message} The new item may have been stored anyway. ${advice}`, { cause: error })
+}
+
+/**
+ * With a `createKeyField`, every create carries a generated key. After a create whose answer was
+ * lost (timeout, network), the next save looks the key up instead of creating the item again.
+ */
+async function findEarlierCreate(context, entry) {
+  if (!context.createKeyField || !entry.createOutcomeUnknown) return null
+  return findCollectionItemByFieldValue({
     profile: context.profile,
     itemsPath: entry.itemsPath,
     token: context.token,
-    fields: pickNonEmptyOnlineFields(normalizeOnlineChangedFieldsForStrapi(sentFields, context.fieldConfigs)),
+    fieldKey: context.createKeyField,
+    value: entry.createKey,
   })
-  const createdRow = payload?.data && typeof payload.data === 'object' ? payload.data : null
+}
+
+async function postCreate(context, entry, sentFields) {
+  const fields = pickNonEmptyOnlineFields(normalizeOnlineChangedFieldsForStrapi(sentFields, context.fieldConfigs))
+  if (context.createKeyField) {
+    entry.createKey = entry.createKey || generateCreateKey()
+    fields[context.createKeyField] = entry.createKey
+  }
+  entry.lastSentFields = sentFields
+
+  try {
+    const payload = await createCollectionItemInStrapi({
+      profile: context.profile,
+      itemsPath: entry.itemsPath,
+      token: context.token,
+      fields,
+    })
+    return payload?.data && typeof payload.data === 'object' ? payload.data : null
+  } catch (error) {
+    if (!error?.outcomeUnknown) throw error
+    entry.createOutcomeUnknown = true
+    throw describeUnknownCreateOutcome(error, Boolean(context.createKeyField))
+  }
+}
+
+async function saveCreateEntry(context, entryKey, entry) {
+  const earlierRow = await findEarlierCreate(context, entry)
+  // Found: the lost request stored what it sent, so that is what later edits are compared with.
+  const sentFields = earlierRow ? entry.lastSentFields : cloneValue(entry.changedFields)
+  const createdRow = earlierRow || (await postCreate(context, entry, sentFields))
   const stableIdentifier = resolveStableIdentifierFromRow(createdRow)
   if (!stableIdentifier) {
     throw new Error('Create response does not contain a stable identifier (documentId or id).')
