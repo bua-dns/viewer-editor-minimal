@@ -2,10 +2,12 @@
 
 ## 2026-11 - Add fields from the Strapi data model
 
-- Online, the `Configuration` tab now lists every field of the collection's Strapi data model that is not
-  configured yet, with its Strapi type, an `Add` button each and `Add all`. Before, fields added to the data
-  model in Strapi never showed up, because the loaded items only carry the configured fields.
-- The `Add field` input suggests the same fields while typing; free names still work.
+- `Add field` in the `Configuration` tab is now a dropdown of the fields that are not configured yet.
+  Online it lists every field of the collection's Strapi data model, with its Strapi type. Before, fields
+  added to the data model in Strapi never showed up, because the loaded items only carry the configured
+  fields. Offline it lists the keys of the loaded data.
+- `Custom field name ...` at the end of the dropdown opens a text input for free names; `Add all` adds every
+  offered field.
 - Added fields get a matching type: Strapi `text`/`richtext` → `text`, `integer` → `integer`, `boolean` →
   `checkbox`, everything else `normal`. Relations, media, components and JSON are marked as structured.
 - `Reload data model` fetches the model again after a change in Strapi.

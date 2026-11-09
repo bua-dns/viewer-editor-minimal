@@ -491,13 +491,14 @@ bzw. `viewer-setting.settings`, siehe [4.1](#41-zwei-ebenen)). Jeder Import setz
 (reines JSON-Array, CSV) startet ohne Felder - außer offline beim ersten Laden, siehe oben; es wird nichts
 aus den Datenschlüsseln abgeleitet und nichts im Browser zwischengespeichert.
 
-Oberhalb der Feldliste zeigt der Tab die **Schlüssel in den Daten ohne Konfiguration** (aus
-`availableFieldKeys`, ohne reservierte Schlüssel) mit je einem Button `Hinzufügen` und `Alle hinzufügen`
-(`addUserConfigFieldsFromDataKeys`). Online kommen davor die **Felder des Strapi-Datenmodells** hinzu
-(siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)), mit ihrem Strapi-Typ als Badge und
-einem Button `Datenmodell neu laden`; denn online enthalten die geladenen Items nur die schon
-konfigurierten Felder, neue Strapi-Felder tauchen dort nie auf. Dieselbe Liste speist die Vorschläge
-(`<datalist>`) des Eingabefelds `Feld hinzufügen`; freie Namen bleiben möglich. Hinzugefügte Felder erhalten
+`Feld hinzufügen` ist ein **Dropdown der noch nicht konfigurierten Felder**: online die Felder des
+Strapi-Datenmodells mit ihrem Strapi-Typ (`label (string)`, siehe
+[12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)), danach die Schlüssel der geladenen
+Items (`availableFieldKeys`, ohne reservierte Schlüssel). Online ist das Datenmodell nötig, weil die
+geladenen Items nur die schon konfigurierten Felder enthalten; neue Strapi-Felder tauchen dort nie auf.
+Die letzte Option `Eigener Feldname ...` blendet ein Textfeld für freie Namen ein; gibt es nichts
+anzubieten (offline ohne Daten), steht nur das Textfeld da. Daneben `Alle hinzufügen`
+(`addUserConfigFieldsFromDataKeys`) und online `Datenmodell neu laden`. Hinzugefügte Felder erhalten
 den zum Strapi-Typ passenden Viewer-Typ (`text`/`richtext` → `text`, `integer`/`biginteger` → `integer`,
 `boolean` → `checkbox`, sonst `normal`); wirksam werden sie mit `Konfiguration anwenden`. Nicht konfigurierte Schlüssel bleiben in den Daten erhalten: `Konfiguration
 anwenden` entfernt nur Felder, die zuvor angewendet und dann aus der Konfiguration gelöscht wurden.
@@ -1176,7 +1177,7 @@ liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedTyp
 
 Ausgelassen werden die Strapi-Systemfelder (`id`, `documentId`, `createdAt`, `updatedAt`,
 `publishedAt`, `createdBy`, `updatedBy`, `locale`, `localizations`). `isStructured` markiert
-`relation`, `media`, `component`, `dynamiczone`, `json` und `blocks` (gestrichelter Badge, Tooltip), da
+`relation`, `media`, `component`, `dynamiczone`, `json` und `blocks` (Tooltip am Dropdown), da
 der Viewer solche Werte nur teilweise bearbeitet. Ein 403 meldet nicht ab (nur 401 tut das).
 
 `useRemoteFieldModel` lädt das Modell erst, wenn der Tab `Konfiguration` offen ist und eine angemeldete

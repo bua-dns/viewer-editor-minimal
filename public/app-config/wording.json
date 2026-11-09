@@ -1011,10 +1011,6 @@
     "de": "Quelle: Grundkonfiguration (die Datenquelle setzt keinen dieser Werte).",
     "en": "Source: basic config (the data source sets none of these values)."
   },
-  "dataKeysWithoutConfigLabel": {
-    "de": "Schlüssel in den Daten ohne Konfiguration",
-    "en": "Keys in the data without configuration"
-  },
   "dataKeysAddAll": {
     "de": "Alle hinzufügen",
     "en": "Add all"
@@ -1034,10 +1030,6 @@
   "configNoDataHint": {
     "de": "Keine Daten geladen. Die Konfiguration wird mit den Daten gespeichert: eine JSON- oder CSV-Datei laden oder neu beginnen und danach das JSON herunterladen. Eine hier vorbereitete Konfiguration bleibt erhalten, wenn die Daten keine eigene mitbringen.",
     "en": "No data loaded. The configuration is saved with the data: load a JSON or CSV file, or start from scratch, and download the JSON afterwards. A configuration drafted here is kept when the data has none of its own."
-  },
-  "remoteFieldsWithoutConfigLabel": {
-    "de": "Felder im Datenmodell (Strapi) ohne Konfiguration",
-    "en": "Fields of the data model (Strapi) without configuration"
   },
   "remoteFieldModelLoading": {
     "de": "Datenmodell wird aus Strapi geladen ...",
@@ -1062,5 +1054,17 @@
   "remoteFieldStructuredNote": {
     "de": "strukturierter Wert, im Viewer nur teilweise bearbeitbar",
     "en": "structured value, the viewer edits it only partly"
+  },
+  "addFieldSelectFromModel": {
+    "de": "- Feld aus dem Datenmodell wählen -",
+    "en": "- Choose a field of the data model -"
+  },
+  "addFieldSelectFromData": {
+    "de": "- Feld aus den Daten wählen -",
+    "en": "- Choose a field from the data -"
+  },
+  "addFieldCustomOption": {
+    "de": "Eigener Feldname ...",
+    "en": "Custom field name ..."
   }
 }
