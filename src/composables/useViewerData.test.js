@@ -27,10 +27,6 @@ describe('useViewerData helpers', () => {
     expect(result.ok).toBe(false)
   })
 
-  test('tokenize splits search query', () => {
-    expect(__test.tokenize('  Alpha  beta  ')).toEqual(['alpha', 'beta'])
-  })
-
   test('looksLikeImageUrl detects image links', () => {
     expect(__test.looksLikeImageUrl('https://example.com/a.jpg')).toBe(true)
     expect(__test.looksLikeImageUrl('/sample-card-1.jpg')).toBe(true)

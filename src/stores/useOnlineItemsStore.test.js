@@ -306,4 +306,67 @@ describe('useOnlineItemsStore', () => {
       expect(String(globalThis.fetch.mock.calls[1][0])).not.toContain('filters')
     })
   })
+
+  describe('searchOnlineItems', () => {
+    const settings = {
+      itemsPath: '/api/items',
+      hierarchyFields: ['box', 'drawer'],
+      fields: {
+        label: { type: 'normal' },
+        done: { type: 'checkbox' },
+      },
+    }
+
+    test('searches the whole collection over text and hierarchy fields', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            { documentId: 'a', label: 'Oak tree', box: 'A' },
+            { documentId: 'b', label: 'Old oak', box: 'B' },
+          ],
+          meta: { pagination: { pageCount: 1 } },
+        }),
+      })
+
+      const store = useOnlineItemsStore()
+      store.selectedHierarchyLevel1Value.value = 'A'
+      const result = await store.searchOnlineItems({ settings, query: '  Oak ' })
+
+      expect(result.ok).toBe(true)
+      expect(result.items.map((item) => item.label)).toEqual(['Oak tree', 'Old oak'])
+      expect(store.selectedHierarchyLevel1Value.value).toBe('A')
+      const query = new URL(String(globalThis.fetch.mock.calls[0][0])).searchParams
+      expect(query.get('filters[$and][0][$or][0][label][$containsi]')).toBe('oak')
+      expect(query.get('filters[$and][0][$or][1][box][$containsi]')).toBe('oak')
+      expect(query.get('filters[$and][0][$or][2][drawer][$containsi]')).toBe('oak')
+      expect([...query.keys()].some((key) => key.includes('[done]'))).toBe(false)
+    })
+
+    test('refuses a query shorter than three characters without a request', async () => {
+      globalThis.fetch = vi.fn()
+      const store = useOnlineItemsStore()
+
+      const result = await store.searchOnlineItems({ settings, query: 'ab' })
+
+      expect(result.ok).toBe(false)
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+    })
+
+    test('reports a failed search and clears the items', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: { message: 'Server down' } }),
+      })
+      const store = useOnlineItemsStore()
+      store.items.value = [{ label: 'old' }]
+
+      const result = await store.searchOnlineItems({ settings, query: 'oak' })
+
+      expect(result).toEqual({ ok: false, error: 'Server down' })
+      expect(store.items.value).toEqual([])
+      expect(store.itemsStatus.value).toBe('error')
+    })
+  })
 })

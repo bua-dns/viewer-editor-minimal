@@ -32,10 +32,10 @@ import { useOnlineUpdatesStore } from './stores/useOnlineUpdatesStore'
 import { resolveItemsPathFromSettings } from './services/strapiApi'
 import { usePendingOnlineChangesGuard } from './composables/usePendingOnlineChangesGuard'
 import { createRequestSequence } from './composables/requestSequence'
+import { useCollectionSearch } from './composables/useCollectionSearch'
 import {
   buildHierarchyLevel1Options,
   buildHierarchyLevel2Options,
-  isItemInHierarchyLevel1,
   normalizeHierarchyFieldList,
   normalizeHierarchyValue,
   resolveHierarchyFieldsFromSettings,
@@ -90,6 +90,7 @@ const {
 const {
   fetchOnlineItems,
   fetchOnlineItemsForHierarchyLevel1,
+  searchOnlineItems,
   clearOnlineItems,
   activeItemsPath,
   hierarchyFields: onlineHierarchyFields,
@@ -207,10 +208,6 @@ async function onApplyReplacements() {
   await applyReplacementsNow()
 }
 
-const resultCountLabel = computed(() => {
-  if (!hasData.value) return '0 / 0'
-  return `${filteredViewItems.value.length} / ${rawItems.value.length}`
-})
 
 const offlineSelectedHierarchyLevel1Value = ref('')
 const hasSelectedHierarchyLevel1 = ref(false)
@@ -258,19 +255,38 @@ const selectedHierarchyLevel1 = computed({
   },
 })
 
-// Items reachable by prev/next and the suspend auto-advance: with an active level-1 selection only
-// that category, as the list shows. Offline `rawItems` hold every category; online they already
-// hold only the loaded bucket, so the filter changes nothing there.
-const navigableViewItems = computed(() => {
-  if (!hierarchyEnabled.value || !hasSelectedHierarchyLevel1.value) return filteredViewItems.value
-  return filteredViewItems.value.filter((viewItem) =>
-    isItemInHierarchyLevel1(
-      rawItems.value[viewItem._index],
-      hierarchyLevel1FieldKey.value,
-      selectedHierarchyLevel1.value,
-    ),
-  )
+// Search scope in the hierarchy view (local inside a category, else the whole collection) and the
+// items reachable by prev/next and the suspend auto-advance: the hits the list shows.
+const collectionSearch = useCollectionSearch({
+  isOnlineSession,
+  hasData,
+  hierarchyEnabled,
+  hasSelectedHierarchyLevel1,
+  selectedHierarchyLevel1,
+  hierarchyLevel1FieldKey,
+  searchQuery,
+  filteredViewItems,
+  rawItems,
+  runOnlineSearch,
+  returnToCategories,
+  // Declared further down (it needs the navigable items); called only on user actions.
+  clearSelection: () => clearSelection(),
 })
+const { navigableViewItems, panelState: searchPanelState } = collectionSearch
+
+const resultCountLabel = computed(() => {
+  if (!hasData.value) return '0 / 0'
+  return `${navigableViewItems.value.length} / ${rawItems.value.length}`
+})
+
+const searchPanelLabels = computed(() => ({
+  scopeGlobal: t('searchScopeGlobalLabel', 'Whole collection'),
+  submit: t('searchSubmitLabel', 'Search'),
+  resultsTitle: t('searchResultsTitle', 'Hits in the whole collection'),
+  back: t('searchBackToCategoriesLabel', 'Back to categories'),
+  running: t('searchRunningLabel', 'Searching ...'),
+  droppedFields: t('searchDroppedFieldsLabel', 'Not searched on the server:'),
+}))
 
 function initializeExpandedHierarchyLevel2(nextSelectedLevel1 = selectedHierarchyLevel1.value) {
   if (!hierarchyEnabled.value) {
@@ -434,21 +450,20 @@ function onCollapseAllHierarchyLevel2() {
   expandedHierarchyLevel2Values.value = []
 }
 
-// Loads the items of one level-1 group from the server. Returns false when nothing was loaded.
-async function loadOnlineHierarchyLevel1(normalizedLevel1Value) {
-  if (!connectionProfile.value) return false
-  if (!onlineSettings.value || typeof onlineSettings.value !== 'object') return false
-  // Loading another group replaces the items and drops the pending item changes.
-  if (!confirmDiscardPendingOnlineChanges({ includeReplacements: false })) return false
+// Replaces the loaded online items with what `loadItems(settings)` returns (a level-1 group, the
+// hits of a search, or nothing). Resolves to that result; `ok` is false when nothing was loaded.
+async function replaceOnlineItems(loadItems) {
+  if (!connectionProfile.value) return { ok: false }
+  if (!onlineSettings.value || typeof onlineSettings.value !== 'object') return { ok: false }
+  // Replacing the items drops the pending item changes.
+  if (!confirmDiscardPendingOnlineChanges({ includeReplacements: false })) return { ok: false }
   clearSelection()
 
   const isCurrent = onlineItemsLoads.start()
-  const result = await fetchOnlineItemsForHierarchyLevel1({
-    settings: onlineSettings.value,
-    level1Value: normalizedLevel1Value,
-  })
-  // A group clicked later (or a reload of the data source) has taken over meanwhile.
-  if (!isCurrent() || !result.ok) return false
+  const result = await loadItems(onlineSettings.value)
+  // A group clicked later, a newer search or a reload of the data source has taken over meanwhile.
+  if (!isCurrent()) return { ok: false }
+  if (!result.ok) return result
 
   initializeFromJsonArray(result.items, `online:${result.itemsPath}`)
   clearOnlineUpdates()
@@ -456,11 +471,36 @@ async function loadOnlineHierarchyLevel1(normalizedLevel1Value) {
   const applyResult = applyImportedConfigPayload(onlineSettings.value)
   if (!applyResult.ok) {
     markOnlineSettingsInvalid(applyResult.error)
-    return false
+    return { ok: false }
   }
 
   applyUserConfigToRawItems(rawItems.value)
-  return true
+  return result
+}
+
+// Loads the items of one level-1 group from the server. Returns false when nothing was loaded.
+async function loadOnlineHierarchyLevel1(normalizedLevel1Value) {
+  const result = await replaceOnlineItems((settings) =>
+    fetchOnlineItemsForHierarchyLevel1({ settings, level1Value: normalizedLevel1Value }),
+  )
+  return result.ok
+}
+
+async function runOnlineSearch(query) {
+  const result = await replaceOnlineItems((settings) => searchOnlineItems({ settings, query }))
+  // Loading the hits clears the query; keep it as the local filter over them.
+  if (result.ok) searchQuery.value = query
+  return result
+}
+
+// Leaves the online search hits: reloads the selected level-1 group, or empties the list.
+async function returnToCategories() {
+  if (hasSelectedHierarchyLevel1.value) {
+    const isLoaded = await loadOnlineHierarchyLevel1(selectedHierarchyLevel1.value)
+    if (isLoaded) initializeExpandedHierarchyLevel2()
+    return { ok: isLoaded }
+  }
+  return replaceOnlineItems(async () => ({ ok: true, items: [], itemsPath: activeItemsPath.value }))
 }
 
 async function onSelectHierarchyLevel1(value) {
@@ -475,6 +515,7 @@ async function onSelectHierarchyLevel1(value) {
     clearSelection()
   }
 
+  collectionSearch.clearSearchResults()
   hasSelectedHierarchyLevel1.value = true
   selectedHierarchyLevel1.value = normalizedLevel1Value
   initializeExpandedHierarchyLevel2(normalizedLevel1Value)
@@ -1008,6 +1049,7 @@ function resetHierarchySelection() {
   hasSelectedHierarchyLevel1.value = false
   selectedHierarchyLevel1.value = ''
   expandedHierarchyLevel2Values.value = []
+  collectionSearch.clearSearchResults()
 }
 
 function closeOnlineDataSource() {
@@ -1165,6 +1207,7 @@ watch(
       <section v-if="activeTab === 'edit'" ref="editStickyTopRef" class="edit-sticky-top">
         <ListPanel :item-label="t('itemsLabel', 'Items')" :import-file-name="importFileName"
           :result-count-label="resultCountLabel" :search-query="searchQuery" :search-label="t('searchLabel', 'Suche')"
+          :search="searchPanelState" :search-labels="searchPanelLabels"
           :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
           :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
           :suspended-item-indices="suspendedItemIndices"
@@ -1189,7 +1232,8 @@ watch(
           :render-body="false" :show-create-item-button="canCreateItem"
           :create-item-label="t('onlineCreateItem', 'New item')"
           :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateItem"
-          @update:search-query="searchQuery = $event"
+          @update:search-query="searchQuery = $event" @submit-search="collectionSearch.submitSearch"
+          @update:search-scope-override="collectionSearch.setScopeOverride"
           @update:edited-items-first="editedItemsFirst = $event" @toggle-suspend-editing="onSuspendEditingToggle" />
       </section>
 
@@ -1199,6 +1243,7 @@ watch(
           :class="{ 'content-grid-selected': !!selectedRawItem, 'content-grid-extended': !!selectedRawItem && isExtendedEditMode }">
           <ListPanel v-if="!isExtendedEditMode" :item-label="t('itemsLabel', 'Items')"
             :import-file-name="importFileName" :result-count-label="resultCountLabel" :search-query="searchQuery"
+            :search="searchPanelState" :search-labels="searchPanelLabels"
             :search-label="t('searchLabel', 'Suche')"
             :search-placeholder="t('searchPlaceholder', 'Volltext ueber alle Felder')" :has-data="hasData"
             :filtered-view-items="filteredViewItems" :selected-view-item="selectedViewItem" :raw-items="rawItems"
@@ -1223,6 +1268,7 @@ watch(
              :render-body="true" @clear-selection="clearSelection" @select-item="selectItem"
              @update:search-query="searchQuery = $event" @list-image-failed="listImageFailed"
              @toggle-suspend-editing="onSuspendEditingToggle" @hierarchy-select-level1="onSelectHierarchyLevel1"
+             @leave-search-results="collectionSearch.leaveSearchResults"
              @hierarchy-toggle-level2="onToggleHierarchyLevel2" @hierarchy-collapse-all="onCollapseAllHierarchyLevel2" />
 
           <aside v-if="selectedRawItem" class="sidebar-panel">

@@ -383,7 +383,7 @@ function normalizeOnlineFieldValueForStrapi(value, fieldConfig) {
   return value.map((entity) => normalizeWikidataEntityForStrapi(entity))
 }
 
-function parseInvalidStrapiQueryKey(error) {
+export function parseInvalidStrapiQueryKey(error) {
   const message = String(error?.message || '').trim()
   const match = message.match(/invalid key\s+([A-Za-z0-9_\-]+)/i)
   if (!match) return ''
@@ -420,7 +420,15 @@ export function normalizeOnlineChangedFieldsForStrapi(changedFields = {}, fieldC
 
 export function buildItemsPathWithPopulate(
   itemsPath,
-  { page = 1, pageSize = 100, populateFields = [], fieldKeys = [], filtersEq = {}, filterEmptyField = '' } = {},
+  {
+    page = 1,
+    pageSize = 100,
+    populateFields = [],
+    fieldKeys = [],
+    filtersEq = {},
+    filterEmptyField = '',
+    extraFilterEntries = [],
+  } = {},
 ) {
   const queryEntries = [
     ['pagination[page]', page],
@@ -453,6 +461,7 @@ export function buildItemsPathWithPopulate(
 
   queryEntries.push(...buildEqualityFilterEntries(filtersEq))
   queryEntries.push(...buildEmptyValueFilterEntries(filterEmptyField))
+  if (Array.isArray(extraFilterEntries)) queryEntries.push(...extraFilterEntries)
 
   return buildPathWithAdditionalQueryParams(itemsPath, queryEntries)
 }
@@ -503,9 +512,8 @@ export async function fetchAllCollectionItemsFromStrapi({
   token = '',
   pageSize = 100,
   populateFields = [],
-  fieldKeys = [],
-  filtersEq = {},
-  filterEmptyField = '',
+  // fieldKeys, filtersEq, filterEmptyField, extraFilterEntries: see buildItemsPathWithPopulate
+  ...queryOptions
 }) {
   const collected = []
   let effectivePopulateFields = Array.from(
@@ -524,7 +532,7 @@ export async function fetchAllCollectionItemsFromStrapi({
       token,
       populateFields: effectivePopulateFields,
       buildPath: (populate) =>
-        buildItemsPathWithPopulate(itemsPath, { page, pageSize, populateFields: populate, fieldKeys, filtersEq, filterEmptyField }),
+        buildItemsPathWithPopulate(itemsPath, { ...queryOptions, page, pageSize, populateFields: populate }),
     })
     const { payload } = result
     effectivePopulateFields = result.populateFields

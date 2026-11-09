@@ -827,6 +827,30 @@
     "de": "Keine Treffer zur Suchanfrage.",
     "en": "No matches for this search."
   },
+  "searchScopeGlobalLabel": {
+    "de": "Gesamter Bestand",
+    "en": "Whole collection"
+  },
+  "searchSubmitLabel": {
+    "de": "Suchen",
+    "en": "Search"
+  },
+  "searchResultsTitle": {
+    "de": "Treffer im gesamten Bestand",
+    "en": "Hits in the whole collection"
+  },
+  "searchBackToCategoriesLabel": {
+    "de": "Zurück zu den Kategorien",
+    "en": "Back to categories"
+  },
+  "searchRunningLabel": {
+    "de": "Suche läuft ...",
+    "en": "Searching ..."
+  },
+  "searchDroppedFieldsLabel": {
+    "de": "Auf dem Server nicht durchsucht:",
+    "en": "Not searched on the server:"
+  },
   "hierarchyUnassignedLabel": {
     "de": "Ohne Zuordnung",
     "en": "Unassigned"
