@@ -186,6 +186,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `useCollectionSearch.js` - Suchbereich in der Hierarchie (Kategorie oder gesamter Bestand), Zustand der
   Trefferansicht, navigierbare Items (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie))
 - `valueChecks.js` - `hasNonEmptyValue` (Grundlage für "bearbeitet")
+- `useRemoteFieldModel.js` - lädt das Felder-Datenmodell der Online-Collection, sobald der Tab
+  `Konfiguration` offen ist, einmal je Verbindung/Token/Collection (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
 
 ### Stores (`src/stores/`)
 
@@ -220,6 +222,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
   Item- und Wikidata-Normalisierung, Datenmodell-Prüfung
 - `strapiSearch.js` - bestandsweite Textsuche mit Strapi-Filtern (`$containsi`): durchsuchbare Felder,
   Filteraufbau, Wiederholung ohne abgelehnte Felder
+- `strapiDataModel.js` - Felder der Collection hinter `itemsPath`: aus dem Content-Type-Schema oder,
+  ohne Leserecht darauf, aus einem Beispiel-Item
 
 ### Assets (`src/assets/`)
 
@@ -489,8 +493,13 @@ aus den Datenschlüsseln abgeleitet und nichts im Browser zwischengespeichert.
 
 Oberhalb der Feldliste zeigt der Tab die **Schlüssel in den Daten ohne Konfiguration** (aus
 `availableFieldKeys`, ohne reservierte Schlüssel) mit je einem Button `Hinzufügen` und `Alle hinzufügen`
-(`addUserConfigFieldsFromDataKeys`). Hinzugefügte Schlüssel erhalten Typ `normal`; wirksam werden sie mit
-`Konfiguration anwenden`. Nicht konfigurierte Schlüssel bleiben in den Daten erhalten: `Konfiguration
+(`addUserConfigFieldsFromDataKeys`). Online kommen davor die **Felder des Strapi-Datenmodells** hinzu
+(siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)), mit ihrem Strapi-Typ als Badge und
+einem Button `Datenmodell neu laden`; denn online enthalten die geladenen Items nur die schon
+konfigurierten Felder, neue Strapi-Felder tauchen dort nie auf. Dieselbe Liste speist die Vorschläge
+(`<datalist>`) des Eingabefelds `Feld hinzufügen`; freie Namen bleiben möglich. Hinzugefügte Felder erhalten
+den zum Strapi-Typ passenden Viewer-Typ (`text`/`richtext` → `text`, `integer`/`biginteger` → `integer`,
+`boolean` → `checkbox`, sonst `normal`); wirksam werden sie mit `Konfiguration anwenden`. Nicht konfigurierte Schlüssel bleiben in den Daten erhalten: `Konfiguration
 anwenden` entfernt nur Felder, die zuvor angewendet und dann aus der Konfiguration gelöscht wurden.
 
 Offline ist der Tab immer nutzbar, auch ohne geladene Daten; dann steht über dem Formular ein Hinweis, dass
@@ -1151,6 +1160,30 @@ Viewer erwartete Form der Wikidata-Felder liefert. Ablauf:
 auf, sperrt den Button während des Laufs und rendert das Ergebnis als Statusmeldung
 (`formatDataModelCheckStatus`).
 
+### 12.11 Datenmodell der Collection (Felder zum Hinzufügen)
+
+`fetchCollectionFieldModelFromStrapi({ profile, token, itemsPath })` in `services/strapiDataModel.js`
+liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedType, isStructured }] }`:
+
+1. **Schema:** `GET /api/content-type-builder/content-types`, davon der Content-Type, dessen
+   `schema.pluralName` dem letzten Segment von `itemsPath` entspricht (`/api/index-cards` →
+   `index-cards`). Liefert alle Attribute mit Typ, auch Relationen, Medien und Komponenten. Braucht für
+   die Rolle des Editors die Strapi-Berechtigung **Content-type-builder → `getContentTypes`**.
+2. **Beispiel-Item (Fallback):** Ist das Schema nicht lesbar (z. B. 403) oder kein Content-Type passt,
+   wird ein Item mit `pagination[pageSize]=1&populate=*` gelesen (bei Fehler ohne `populate`). Strapi
+   liefert skalare Felder auch mit `null`; Typen werden aus den Werten geraten, `null` bleibt ohne Typ.
+   Relationen ohne Leserecht und Felder einer leeren Collection fehlen. Die UI sagt das.
+
+Ausgelassen werden die Strapi-Systemfelder (`id`, `documentId`, `createdAt`, `updatedAt`,
+`publishedAt`, `createdBy`, `updatedBy`, `locale`, `localizations`). `isStructured` markiert
+`relation`, `media`, `component`, `dynamiczone`, `json` und `blocks` (gestrichelter Badge, Tooltip), da
+der Viewer solche Werte nur teilweise bearbeitet. Ein 403 meldet nicht ab (nur 401 tut das).
+
+`useRemoteFieldModel` lädt das Modell erst, wenn der Tab `Konfiguration` offen ist und eine angemeldete
+Online-Sitzung mit `itemsPath` besteht, und behält es, bis sich Basis-URL, Token oder `itemsPath` ändern
+oder `Datenmodell neu laden` geklickt wird. Ein veralteter Ladevorgang schreibt nicht
+(`requestSequence`).
+
 ---
 
 ## 13 Wikidata-Autosuggest
@@ -1316,7 +1349,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand 2026-11-09: 27 Testdateien, 302 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
+Stand 2026-11-09: 29 Testdateien, 315 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
 ### Composables
 
@@ -1336,6 +1369,7 @@ Stand 2026-11-09: 27 Testdateien, 302 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
 | `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
+| `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; Fehlerstatus mit Meldung |
 
 ### Fields und Services
 
@@ -1343,6 +1377,7 @@ Stand 2026-11-09: 27 Testdateien, 302 Tests, alle grün. Komponenten (`.vue`) ha
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
 | `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; andere Fehler werden durchgereicht |
+| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores
