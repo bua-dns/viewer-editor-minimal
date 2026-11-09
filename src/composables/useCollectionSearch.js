@@ -6,7 +6,8 @@ import { isItemInHierarchyLevel1 } from './hierarchyConfig'
  * Search scope in the hierarchy view. Inside a selected level-1 category the search is local to it;
  * without a selection it covers the whole collection. A switch overrides the local default.
  *
- * - Offline all items are in memory, so the whole-collection search is a live filter.
+ * - Offline all items are in memory, so the whole-collection search is a live filter. Leaving it
+ *   calls `clearSelection()`, because the open item may lie outside the category shown again.
  * - Online it is a server search, started explicitly (`submitSearch`), whose hits replace the
  *   loaded items. `runOnlineSearch(query)` and `returnToCategories()` are supplied by the caller,
  *   which owns the item loading and the pending-changes guard; both resolve to `{ ok, error? }`.
@@ -23,6 +24,7 @@ export function useCollectionSearch({
   rawItems,
   runOnlineSearch,
   returnToCategories,
+  clearSelection,
 }) {
   const scopeOverride = ref(false)
   // The query whose server hits are loaded; empty while the category view is shown.
@@ -74,6 +76,7 @@ export function useCollectionSearch({
   async function leaveSearchResults() {
     if (!isOnlineSession.value) {
       searchQuery.value = ''
+      clearSelection()
       return
     }
     if (!onlineResultsQuery.value) return
@@ -105,11 +108,16 @@ export function useCollectionSearch({
   }
 
   async function setScopeOverride(value) {
+    const wasShowingResults = showSearchResults.value
     scopeOverride.value = Boolean(value)
-    // Online, back to the local scope inside a category: load that category again. Offline the
-    // category view returns by itself, with the query kept as its filter.
     const isBackToLocalScope = !scopeOverride.value && hasSelectedHierarchyLevel1.value
-    if (isOnlineSession.value && isBackToLocalScope) await leaveSearchResults()
+    if (!isBackToLocalScope) return
+    // Online the category is loaded again. Offline it returns by itself, the query kept as its filter.
+    if (isOnlineSession.value) {
+      await leaveSearchResults()
+    } else if (wasShowingResults) {
+      clearSelection()
+    }
   }
 
   return {

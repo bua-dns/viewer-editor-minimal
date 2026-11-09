@@ -20,6 +20,7 @@ function setup({ online = false, hasSelection = false, selected = 'A', query = '
   )
   const deps = {
     isOnlineSession: ref(online),
+    hasData: ref(!online),
     hierarchyEnabled: ref(true),
     hasSelectedHierarchyLevel1: ref(hasSelection),
     selectedHierarchyLevel1: ref(selected),
@@ -29,6 +30,7 @@ function setup({ online = false, hasSelection = false, selected = 'A', query = '
     rawItems,
     runOnlineSearch: vi.fn(async () => ({ ok: true, droppedFieldKeys: [] })),
     returnToCategories: vi.fn(async () => ({ ok: true })),
+    clearSelection: vi.fn(),
   }
   return { deps, search: useCollectionSearch(deps) }
 }
@@ -58,6 +60,19 @@ describe('useCollectionSearch scope', () => {
   })
 })
 
+describe('useCollectionSearch panel state', () => {
+  test('enables the search input online without loaded items when a server search is possible', () => {
+    const { search } = setup({ online: true })
+    expect(search.panelState.value.enabled).toBe(true)
+    expect(search.panelState.value.needsSubmit).toBe(true)
+  })
+
+  test('disables the search input online inside a category without items', () => {
+    const { search } = setup({ online: true, hasSelection: true })
+    expect(search.panelState.value.enabled).toBe(false)
+  })
+})
+
 describe('useCollectionSearch offline', () => {
   test('inside a category only its hits are navigable', () => {
     const { search } = setup({ hasSelection: true, query: 'oak' })
@@ -79,10 +94,11 @@ describe('useCollectionSearch offline', () => {
     expect(search.showSearchResults.value).toBe(false)
   })
 
-  test('leaving the results clears the query', async () => {
+  test('leaving the results clears the query and the open item', async () => {
     const { deps, search } = setup({ query: 'oak' })
     await search.leaveSearchResults()
     expect(deps.searchQuery.value).toBe('')
+    expect(deps.clearSelection).toHaveBeenCalledTimes(1)
   })
 
   test('switching back to the local scope keeps the query', async () => {
@@ -91,6 +107,7 @@ describe('useCollectionSearch offline', () => {
     await search.setScopeOverride(false)
     expect(deps.searchQuery.value).toBe('oak')
     expect(search.showSearchResults.value).toBe(false)
+    expect(deps.clearSelection).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -269,6 +269,8 @@ const collectionSearch = useCollectionSearch({
   rawItems,
   runOnlineSearch,
   returnToCategories,
+  // Declared further down (it needs the navigable items); called only on user actions.
+  clearSelection: () => clearSelection(),
 })
 const { navigableViewItems, panelState: searchPanelState } = collectionSearch
 

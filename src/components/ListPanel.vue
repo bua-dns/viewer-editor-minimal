@@ -300,6 +300,12 @@ function isHierarchyLevel2Expanded(value) {
   return normalizedExpandedHierarchyLevel2.value.has(normalized)
 }
 
+// Without a selection no box is active, also not the unassigned one (its value is '' as well).
+function isSelectedHierarchyLevel1(value) {
+  if (!props.hasSelectedHierarchyLevel1) return false
+  return normalizeHierarchyValue(props.selectedHierarchyLevel1) === normalizeHierarchyValue(value)
+}
+
 function hasHierarchyCount(value) {
   return Number.isFinite(value)
 }
@@ -376,7 +382,7 @@ function resolveItemLocation(rawItem) {
               :key="`level1-${entry.value || '__unassigned__'}`"
               type="button"
               class="hierarchy-level1-box"
-              :class="{ active: normalizeHierarchyValue(props.selectedHierarchyLevel1) === normalizeHierarchyValue(entry.value) }"
+              :class="{ active: isSelectedHierarchyLevel1(entry.value) }"
               :disabled="props.hierarchyLoading"
               @click="onSelectHierarchyLevel1(entry.value)"
             >
