@@ -31,6 +31,11 @@ export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = typeof handler === 'function' ? handler : null
 }
 
+function reportUnauthorized(httpError) {
+  if (httpError.status !== 401 || !unauthorizedHandler) return
+  unauthorizedHandler(httpError)
+}
+
 function buildRequestSignal(signal, timeoutMs) {
   const timeoutSignal = AbortSignal.timeout(timeoutMs)
   if (!signal) return timeoutSignal
@@ -91,7 +96,7 @@ export async function strapiFetchJson({
 
   if (!response.ok) {
     const httpError = createHttpError(readBackendErrorMessage(payload, response.status), response.status, payload)
-    if (response.status === 401 && token && unauthorizedHandler) unauthorizedHandler(httpError)
+    if (token) reportUnauthorized(httpError)
     throw httpError
   }
 

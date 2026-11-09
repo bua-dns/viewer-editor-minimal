@@ -429,6 +429,18 @@ function pickLocalizedText(texts, fallbackLanguage, fallback) {
   return texts[fallbackLanguage] || texts.de || texts.en || fallback
 }
 
+// de/en from Wikidata; the search result's own text fills the result language when Wikidata has none.
+function mergeLocalizedTexts(existing, fetched, fallbackLanguage, fallbackText) {
+  const merged = { ...(isPlainObject(existing) ? existing : {}) }
+  for (const language of ['de', 'en']) {
+    merged[language] = readLocalizedTextValue(fetched?.[language])
+  }
+  if (fallbackLanguage === 'de' || fallbackLanguage === 'en') {
+    merged[fallbackLanguage] = merged[fallbackLanguage] || fallbackText
+  }
+  return merged
+}
+
 /** Adds de/en labels and descriptions; returns false when the request failed. */
 async function loadLocalizedTexts(nextItem, signal) {
   const fallbackLanguage = String(mergedConfig.value.resultLanguage || '').trim().toLowerCase()
@@ -443,16 +455,13 @@ async function loadLocalizedTexts(nextItem, signal) {
     return false
   }
 
-  const labels = { ...(isPlainObject(nextItem.labels) ? nextItem.labels : {}) }
-  const descriptions = { ...(isPlainObject(nextItem.descriptions) ? nextItem.descriptions : {}) }
-  for (const language of ['de', 'en']) {
-    labels[language] = readLocalizedTextValue(localizedTexts.labels?.[language])
-    descriptions[language] = readLocalizedTextValue(localizedTexts.descriptions?.[language])
-  }
-  if (fallbackLanguage === 'de' || fallbackLanguage === 'en') {
-    labels[fallbackLanguage] = labels[fallbackLanguage] || labelFallback
-    descriptions[fallbackLanguage] = descriptions[fallbackLanguage] || descriptionFallback
-  }
+  const labels = mergeLocalizedTexts(nextItem.labels, localizedTexts.labels, fallbackLanguage, labelFallback)
+  const descriptions = mergeLocalizedTexts(
+    nextItem.descriptions,
+    localizedTexts.descriptions,
+    fallbackLanguage,
+    descriptionFallback,
+  )
 
   nextItem.labels = labels
   nextItem.descriptions = descriptions
