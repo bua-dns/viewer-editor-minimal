@@ -1,4 +1,5 @@
 import { nextTick } from 'vue'
+import { parseCsvRecords } from './csvFormat'
 
 export function useDataImportExport({
   dataMode,
@@ -62,61 +63,27 @@ export function useDataImportExport({
     }
   }
 
-  function splitCsvLine(line, delimiter = ',') {
-    const values = []
-    let current = ''
-    let inQuotes = false
-
-    for (let i = 0; i < line.length; i += 1) {
-      const char = line[i]
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"'
-          i += 1
-        } else {
-          inQuotes = !inQuotes
-        }
-        continue
-      }
-
-      if (char === delimiter && !inQuotes) {
-        values.push(current)
-        current = ''
-        continue
-      }
-
-      current += char
+  function collectUrlsFromCsvText(csvText) {
+    let records
+    try {
+      records = parseCsvRecords(csvText)
+    } catch (error) {
+      return { ok: false, error: error.message }
     }
 
-    values.push(current)
-    return values
-  }
-
-  function collectUrlsFromCsvText(csvText) {
-    const lines = String(csvText || '')
-      .replace(/^\uFEFF/, '')
-      .split('\n')
-      .map((line) => (line.endsWith('\r') ? line.slice(0, -1) : line))
-      .filter((line) => line.length > 0)
-
-    if (!lines.length) {
+    if (!records.length) {
       return { ok: false, error: t('startFromScratchCsvEmpty', 'CSV ist leer.') }
     }
 
-    const rows = lines.map((line) => splitCsvLine(line))
-    const headerCells = rows[0].map((cell) => String(cell || '').trim().toLowerCase())
+    const headerCells = records[0].cells.map((cell) => String(cell || '').trim().toLowerCase())
     const scanColumnIndex = headerCells.indexOf('scan')
-    const dataRows = scanColumnIndex === -1 ? rows : rows.slice(1)
-    const rowOffset = scanColumnIndex === -1 ? 1 : 2
+    const dataRecords = scanColumnIndex === -1 ? records : records.slice(1)
 
-    const scannedRows = dataRows
-      .map((row, rowIndex) => {
-        const cellValue = scanColumnIndex === -1 ? row[0] : row[scanColumnIndex]
-        return {
-          rowNumber: rowIndex + rowOffset,
-          url: String(cellValue || '').trim(),
-        }
-      })
+    const scannedRows = dataRecords
+      .map(({ cells, lineNumber }) => ({
+        rowNumber: lineNumber,
+        url: String((scanColumnIndex === -1 ? cells[0] : cells[scanColumnIndex]) || '').trim(),
+      }))
       .filter((entry) => entry.url)
 
     if (!scannedRows.length) {

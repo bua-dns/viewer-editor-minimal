@@ -343,14 +343,34 @@ describe('useOnlineItemsStore', () => {
       expect([...query.keys()].some((key) => key.includes('[done]'))).toBe(false)
     })
 
+    test('leaves out excluded (structured) fields and reports them as not searched (review F2)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: [], meta: { pagination: { pageCount: 1 } } }),
+      })
+      const store = useOnlineItemsStore()
+
+      const loadExcludedFieldKeys = async () => ['drawer', 'unrelated']
+      const result = await store.searchOnlineItems({ settings, query: 'oak', loadExcludedFieldKeys })
+
+      expect(result.ok).toBe(true)
+      expect(result.droppedFieldKeys).toEqual(['drawer'])
+      const query = new URL(String(globalThis.fetch.mock.calls[0][0])).searchParams
+      expect([...query.keys()].some((key) => key.includes('[drawer]'))).toBe(false)
+      expect(query.get('filters[$and][0][$or][0][label][$containsi]')).toBe('oak')
+    })
+
     test('refuses a query shorter than three characters without a request', async () => {
       globalThis.fetch = vi.fn()
       const store = useOnlineItemsStore()
 
-      const result = await store.searchOnlineItems({ settings, query: 'ab' })
+      const loadExcludedFieldKeys = vi.fn(async () => [])
+
+      const result = await store.searchOnlineItems({ settings, query: 'ab', loadExcludedFieldKeys })
 
       expect(result.ok).toBe(false)
       expect(globalThis.fetch).not.toHaveBeenCalled()
+      expect(loadExcludedFieldKeys).not.toHaveBeenCalled()
     })
 
     test('reports a failed search and clears the items', async () => {

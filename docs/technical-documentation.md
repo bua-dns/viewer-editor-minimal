@@ -187,7 +187,10 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
   Trefferansicht, navigierbare Items (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie))
 - `valueChecks.js` - `hasNonEmptyValue` (Grundlage für "bearbeitet")
 - `useRemoteFieldModel.js` - lädt das Felder-Datenmodell der Online-Collection, sobald der Tab
-  `Konfiguration` offen ist, einmal je Verbindung/Token/Collection (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
+  `Konfiguration` offen ist oder die bestandsweite Suche es braucht, einmal je Verbindung/Token/Collection
+  (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
+- `csvFormat.js` - CSV lesen (`parseCsvRecords`, quote-aware über Zeilenumbrüche) und schreiben
+  (`toCsvCell`); genutzt von Import, Export und Start-from-Scratch (siehe [9.3](#93-csv-import))
 
 ### Stores (`src/stores/`)
 
@@ -221,7 +224,7 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
   Query-Aufbau (Pagination/Populate/Fields/Filter), paginiertes Item-Fetching, Item-Create/Update,
   Item- und Wikidata-Normalisierung, Datenmodell-Prüfung
 - `strapiSearch.js` - bestandsweite Textsuche mit Strapi-Filtern (`$containsi`): durchsuchbare Felder,
-  Filteraufbau, Wiederholung ohne abgelehnte Felder
+  Filteraufbau, Wiederholung ohne abgelehnte Felder, Trefferobergrenze (`MAX_SEARCH_HITS`)
 - `strapiDataModel.js` - Felder der Collection hinter `itemsPath`: aus dem Content-Type-Schema oder,
   ohne Leserecht darauf, aus einem Beispiel-Item
 
@@ -498,7 +501,8 @@ Items (`availableFieldKeys`, ohne reservierte Schlüssel). Online ist das Datenm
 geladenen Items nur die schon konfigurierten Felder enthalten; neue Strapi-Felder tauchen dort nie auf.
 Die letzte Option `Eigener Feldname ...` blendet ein Textfeld für freie Namen ein; gibt es nichts
 anzubieten (offline ohne Daten), steht nur das Textfeld da. Daneben `Alle hinzufügen`
-(`addUserConfigFieldsFromDataKeys`) und online `Datenmodell neu laden`. Hinzugefügte Felder erhalten
+(`addUserConfigFieldsFromDataKeys`; lässt strukturierte Felder - Relationen, Medien, Komponenten, JSON -
+aus, die das Dropdown einzeln weiter anbietet) und online `Datenmodell neu laden`. Hinzugefügte Felder erhalten
 den zum Strapi-Typ passenden Viewer-Typ (`text`/`richtext` → `text`, `integer`/`biginteger` → `integer`,
 `boolean` → `checkbox`, sonst `normal`); wirksam werden sie mit `Konfiguration anwenden`. Nicht konfigurierte Schlüssel bleiben in den Daten erhalten: `Konfiguration
 anwenden` entfernt nur Felder, die zuvor angewendet und dann aus der Konfiguration gelöscht wurden.
@@ -714,20 +718,27 @@ nicht-JSON-Typen (`Date`, `Map`, Funktionen).
 
 ### 9.3 CSV-Import
 
-- CSV-Import nutzt `parseCsvText` in `src/composables/useViewerData.js`.
-- Die erste Zeile ist der Header, danach folgt zeilenweises Mapping auf Objekte.
+- CSV-Import nutzt `parseCsvText` in `src/composables/useViewerData.js`, das die Datensätze aus
+  `parseCsvRecords` (`src/composables/csvFormat.js`) liest. Der Parser liest die Datei in einem Durchgang:
+  ein Zeilenumbruch in einem quoted Wert gehört zum Wert (als `\n`), so dass ein exportierter
+  mehrzeiliger Wert (Feldtyp `text`) wieder in seiner Zeile landet. Ein nicht geschlossenes
+  Anführungszeichen ist ein Fehler mit Zeilenangabe; leere Zeilen werden übersprungen.
+- Der erste Datensatz ist der Header, danach folgt das Mapping der Datensätze auf Objekte. Fehlermeldungen
+  nennen die physische Zeile, in der der Datensatz beginnt.
 - Header-Validierung: keine leeren und keine doppelten Spaltennamen.
 - Zeilen-Validierung: mehr Spalten als im Header führen zu einem Parse-Fehler; fehlende trailing
   Spalten werden mit `''` aufgefüllt.
-- Signifikante Leerzeichen bleiben erhalten: kein zeilenweites `trim()` vor dem Parsing; entfernt werden
-  nur ein BOM am Dateianfang und ein trailing `\r` bei CRLF. Gilt für quoted und unquoted Werte gleichermaßen.
+- Signifikante Leerzeichen bleiben erhalten: kein `trim()` vor dem Parsing; entfernt werden nur ein BOM am
+  Dateianfang und das `\r` von CRLF-Zeilenenden (auch innerhalb quoted Werte wird `\r\n` zu `\n`). Gilt
+  für quoted und unquoted Werte gleichermaßen.
 - Das Feld `scan` wird bei der Header-Normalisierung case-insensitive auf `scan` gesetzt, damit die
   bestehende Scan-UI automatisch greift.
 
 ### 9.4 Start-from-Scratch
 
 - Verfügbar nur im JSON-Modus ohne geladene Daten.
-- Eingabe entweder einer einzelnen absoluten `http(s)`-Scan-URL oder eines CSV-Textes mit mehreren URLs;
+- Eingabe entweder einer einzelnen absoluten `http(s)`-Scan-URL oder eines CSV-Textes mit mehreren URLs
+  (gelesen mit demselben Parser wie der CSV-Import);
   ungültige URLs werden mit Fehlermeldung im Modal abgewiesen.
 - Erzeugt intern das Payload `{ data: [{ scan }], config: <vorbereitete Konfiguration inkl. Viewer-Einstellungen>,
   replacements: { allFields: {} } }`, importiert es über den normalen JSON-Pfad und markiert den Stand
@@ -963,9 +974,20 @@ Alle Item-Requests werden über `buildItemsPathWithPopulate(itemsPath, options)`
 durchsuchbaren Feld vorkommen (UND über Tokens, ODER über Felder, Groß-/Kleinschreibung egal) - dieselbe
 Semantik wie die lokale Suche. Durchsucht werden die Felder aus `settings.fields` mit Typ `normal`, `text`,
 `candidate` oder ohne Typ sowie die beiden Hierarchie-Felder; nicht durchsucht werden `checkbox`, `integer`
-und `wikidata-autosuggest` (Relationen/Komponenten). Lehnt Strapi ein Feld als `invalid key` ab, wird es
-entfernt und die Suche wiederholt (höchstens einmal je Feld); die Trefferansicht nennt die entfernten Felder.
-Bleibt kein Feld übrig, schlägt die Suche mit einer Meldung fehl.
+und `wikidata-autosuggest` (Relationen/Komponenten). Ebenfalls ausgelassen werden Felder, die im
+Strapi-Datenmodell strukturiert sind (`isStructured`: Relation, Medien, Komponente, JSON, Blocks; siehe
+[12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)), auch wenn sie als `normal` konfiguriert
+sind - einen Textfilter (`$containsi`) darauf wertet Strapi nicht aus, und der Fehler lässt sich nicht sicher einem Feld zuordnen. Das Modell
+lädt `searchOnlineItems` über `loadExcludedFieldKeys` erst für eine gültige Anfrage; ist es nicht ladbar,
+wird ohne Ausschluss gesucht. Lehnt Strapi ein Feld als `invalid key` ab, wird es entfernt und die Suche
+wiederholt (höchstens einmal je Feld); die Trefferansicht nennt ausgelassene und entfernte Felder unter
+`Auf dem Server nicht durchsucht`. Bleibt kein Feld übrig, schlägt die Suche mit einer Meldung fehl.
+
+**Trefferobergrenze:** Mehr als `MAX_SEARCH_HITS` (500) Treffer werden nicht geladen.
+`fetchAllCollectionItemsFromStrapi` mit `maxItems` bricht nach der ersten Seite ab, wenn
+`meta.pagination.total` darüber liegt (ohne `total`: sobald die gesammelten Zeilen darüber liegen), und
+wirft einen Fehler mit `code: 'TOO_MANY_ITEMS'`. Die Suche meldet dann `<n> hits - too many to load (limit
+500). Please refine the search.`; die geladene Kategorie bleibt sichtbar.
 
 Einzelne Items lädt `fetchCollectionItemFromStrapi(...)` (`GET <itemsPath>/<id>` mit optionalem
 `populate[n]`); der Update-Flow nutzt das für die Konfliktprüfung (siehe [12.8](#128-update-flow-bestehende-items)).
@@ -1180,7 +1202,8 @@ Ausgelassen werden die Strapi-Systemfelder (`id`, `documentId`, `createdAt`, `up
 `relation`, `media`, `component`, `dynamiczone`, `json` und `blocks` (Tooltip am Dropdown), da
 der Viewer solche Werte nur teilweise bearbeitet. Ein 403 meldet nicht ab (nur 401 tut das).
 
-`useRemoteFieldModel` lädt das Modell erst, wenn der Tab `Konfiguration` offen ist und eine angemeldete
+`useRemoteFieldModel` lädt das Modell erst, wenn der Tab `Konfiguration` offen ist (oder die bestandsweite
+Suche über `loadStructuredFieldKeys()` die strukturierten Felder braucht) und eine angemeldete
 Online-Sitzung mit `itemsPath` besteht, und behält es, bis sich Basis-URL, Token oder `itemsPath` ändern
 oder `Datenmodell neu laden` geklickt wird. Ein veralteter Ladevorgang schreibt nicht
 (`requestSequence`).
@@ -1356,7 +1379,8 @@ Stand 2026-11-09: 29 Testdateien, 315 Tests, alle grün. Komponenten (`.vue`) ha
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
+| `composables/csvFormat.test.js` | Quoted Zellen mit Zeilenumbruch, Trennzeichen und `""`; CRLF als Satzende und in Quotes; leere Zeilen und BOM; nicht geschlossenes Anführungszeichen als Fehler mit Zeile; `toCsvCell`-Ausgabe liest sich zurück |
+| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip, Export-Import-Roundtrip mehrzeiliger Werte, Zeilenangabe nach mehrzeiliger Zelle), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
 | `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
@@ -1370,14 +1394,14 @@ Stand 2026-11-09: 29 Testdateien, 315 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
 | `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
-| `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; Fehlerstatus mit Meldung |
+| `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; `loadStructuredFieldKeys` lädt bei Bedarf genau einmal und liefert die strukturierten Felder, ohne Modell eine leere Liste; Fehlerstatus mit Meldung |
 
 ### Fields und Services
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
-| `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; andere Fehler werden durchgereicht |
+| `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; mehr Treffer als die Obergrenze brechen nach der ersten Seite ab (mit `total`) bzw. sobald überschritten (ohne `total`); andere Fehler werden durchgereicht |
 | `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
@@ -1391,7 +1415,7 @@ Stand 2026-11-09: 29 Testdateien, 315 Tests, alle grün. Komponenten (`.vue`) ha
 | `stores/useConnectionProfileStore.test.js` | Speichern nur nach bestandenem Verbindungstest und Neuladen; kein Speichern bei fehlgeschlagenem Test; Ablehnung ungültiger Profile ohne Backend-Aufruf; JSON-Import; mitgeliefertes Profil hat Vorrang vor einem gespeicherten und lässt sich weder speichern noch löschen |
 | `stores/useOnlineModeStore.test.js` | Speichern/Restore des App-Modus mit Profil; Ablehnung ungültiger Modi; kein Wechsel auf `online` ohne Profil und automatischer Wechsel nach dem Speichern; gespeichertes `online` ohne Profil wird `offline`; Rückfall auf `offline` beim Entfernen des Profils; deaktiviertes Umschalten bei fixiertem `connectionMode` |
 | `stores/useOnlineSettingsStore.test.js` | Laden aus `response.data.settings`; Persistieren gegen den Singleton-Endpoint; lokaler State bleibt bei fehlgeschlagenem Persist erhalten; Persistieren der Ersetzungsregeln inkl. Fehlerpfad |
-| `stores/useOnlineItemsStore.test.js` | Laden und Sanitizing über `settings.itemsPath`; `attributes`-Form mit numerischem ID-Fallback; harter Fehler ohne stabile ID; Level-1-Optionen ohne Voll-Item-Fetch; `firstLevelStaticList` ohne Item-Requests; Hierarchie-Erkennung über den Legacy-Schlüssel `hierarchy_fields` |
+| `stores/useOnlineItemsStore.test.js` | Laden und Sanitizing über `settings.itemsPath`; `attributes`-Form mit numerischem ID-Fallback; harter Fehler ohne stabile ID; Level-1-Optionen ohne Voll-Item-Fetch; `firstLevelStaticList` ohne Item-Requests; Hierarchie-Erkennung über den Legacy-Schlüssel `hierarchy_fields`; bestandsweite Suche ohne ausgeschlossene (strukturierte) Felder, die als nicht durchsucht gemeldet werden; zu kurze Anfrage ohne Request und ohne Laden des Datenmodells |
 | `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad; unklarer Create-Ausgang ohne `createKeyField` warnt vor Duplikaten, mit `createKeyField` findet das nächste Speichern das Item statt erneut zu posten bzw. postet mit demselben Schlüssel; Ersetzungslauf über die Collection registriert Deltas nur für nicht geladene Treffer, meldet Fetch-Fehler ohne Pending-Updates und verlangt einen `itemsPath` |
 
 ---
@@ -1415,8 +1439,9 @@ Stand 2026-11-09: 29 Testdateien, 315 Tests, alle grün. Komponenten (`.vue`) ha
 - Im Online-Modus ohne Hierarchie werden alle Items paginiert vollständig geladen; es gibt kein
   virtuelles Scrolling.
 - Die bestandsweite Online-Suche nutzt `$containsi` über alle durchsuchbaren Felder; die Datenbank prüft
-  dafür jede Zeile. Bei sehr großen Collections ist sie entsprechend langsam (nicht gemessen), und sie hat
-  keine Trefferobergrenze. Wikidata-Felder werden nicht durchsucht.
+  dafür jede Zeile. Bei sehr großen Collections ist sie entsprechend langsam (nicht gemessen). Über 500
+  Treffer lädt sie nicht und bittet um eine genauere Suche. Wikidata- und andere strukturierte Felder
+  werden nicht durchsucht.
 
 ---
 

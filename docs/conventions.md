@@ -14,6 +14,8 @@
 - CSV erwartet eine Header-Zeile, danach Datensätze.
 - Spaltennamen in CSV müssen eindeutig sein und dürfen nicht leer sein.
 - Signifikante Leerzeichen in CSV-Feldwerten bleiben erhalten; nur Zeilenumbrüche/CRLF-Terminatoren werden entfernt.
+- Werte mit Komma, Anführungszeichen oder Zeilenumbruch stehen in Anführungszeichen (`""` für ein `"`);
+  ein Zeilenumbruch in Anführungszeichen gehört zum Wert.
 - Wenn noch keine Datei geladen ist, können alternativ passende Beispieldaten je Modus geladen werden.
 
 ## Feldkonventionen

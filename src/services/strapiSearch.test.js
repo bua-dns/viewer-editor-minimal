@@ -103,6 +103,40 @@ describe('searchCollectionItemsInStrapi', () => {
     ).rejects.toThrow('None of the configured fields')
   })
 
+  test('refuses more hits than the limit after the first page, naming their number (review F3)', async () => {
+    const rows = [{ documentId: 'a' }, { documentId: 'b' }]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: rows, meta: { pagination: { pageCount: 40, total: 4000 } } }),
+    })
+
+    await expect(
+      searchCollectionItemsInStrapi({ profile, itemsPath: '/api/items', tokens: ['der'], fieldKeys: ['title'], maxHits: 500 }),
+    ).rejects.toMatchObject({ code: 'TOO_MANY_ITEMS', message: expect.stringContaining('4000 hits') })
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  test('without a total, stops as soon as the collected hits exceed the limit', async () => {
+    const page = (ids) => ({ ok: true, json: async () => ({ data: ids.map((documentId) => ({ documentId })), meta: { pagination: { pageCount: 9 } } }) })
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(page(['a', 'b'])).mockResolvedValueOnce(page(['c', 'd']))
+
+    await expect(
+      searchCollectionItemsInStrapi({ profile, itemsPath: '/api/items', tokens: ['der'], fieldKeys: ['title'], maxHits: 3 }),
+    ).rejects.toThrow('More than 3 hits')
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  test('loads all pages while the hits stay within the limit', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ documentId: 'a' }], meta: { pagination: { pageCount: 1, total: 1 } } }),
+    })
+
+    const result = await searchCollectionItemsInStrapi({ profile, itemsPath: '/api/items', tokens: ['oak'], fieldKeys: ['title'] })
+
+    expect(result.rows).toHaveLength(1)
+  })
+
   test('passes other errors through', async () => {
     globalThis.fetch = vi.fn().mockResolvedValueOnce({
       ok: false,

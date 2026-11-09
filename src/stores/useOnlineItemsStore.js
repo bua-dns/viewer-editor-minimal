@@ -316,8 +316,11 @@ async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
 /**
  * Searches the whole collection on the server (all level-1 groups) and replaces the items with the
  * hits. The selected level-1 value is kept, so the caller can return to that group afterwards.
+ * `loadExcludedFieldKeys()` resolves to fields not to search (the structured fields of the data
+ * model, which take no text filter); it runs only for a valid query. These fields are reported in
+ * `droppedFieldKeys` together with the fields Strapi refused.
  */
-async function searchOnlineItems({ settings, query }) {
+async function searchOnlineItems({ settings, query, loadExcludedFieldKeys = async () => [] }) {
   const tokens = tokenizeSearchQuery(query)
   if (!tokens.length) return failItemsLoad('The search needs at least three characters.')
 
@@ -328,14 +331,23 @@ async function searchOnlineItems({ settings, query }) {
   startItemsLoad(context.itemsPath, normalizedHierarchyFields)
 
   try {
+    const excluded = new Set(await loadExcludedFieldKeys())
+    const candidateFieldKeys = resolveSearchableFieldKeys(settings, normalizedHierarchyFields)
+    const skippedFieldKeys = candidateFieldKeys.filter((fieldKey) => excluded.has(fieldKey))
+
     const { rows, droppedFieldKeys } = await searchCollectionItemsInStrapi({
       ...context.fetchRequest,
       tokens,
-      fieldKeys: resolveSearchableFieldKeys(settings, normalizedHierarchyFields),
+      fieldKeys: candidateFieldKeys.filter((fieldKey) => !excluded.has(fieldKey)),
     })
     items.value = rows.map(context.normalizeRow)
     itemsStatus.value = 'ready'
-    return { ok: true, items: items.value, itemsPath: context.itemsPath, droppedFieldKeys }
+    return {
+      ok: true,
+      items: items.value,
+      itemsPath: context.itemsPath,
+      droppedFieldKeys: [...skippedFieldKeys, ...droppedFieldKeys],
+    }
   } catch (error) {
     return failItemsLoadWithError(error)
   }

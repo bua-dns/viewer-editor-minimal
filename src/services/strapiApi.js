@@ -506,12 +506,36 @@ async function fetchDroppingInvalidPopulateKeys({ profile, token, populateFields
   }
 }
 
+export const TOO_MANY_ITEMS = 'TOO_MANY_ITEMS'
+
+// True when more than `maxItems` items exist: by Strapi's total, or by what has been collected.
+function exceedsMaxItems(payload, collectedCount, maxItems) {
+  const total = Number(payload?.meta?.pagination?.total)
+  if (Number.isFinite(total)) return total > maxItems
+  return collectedCount > maxItems
+}
+
+function createTooManyItemsError(payload, maxItems) {
+  const total = Number(payload?.meta?.pagination?.total)
+  const error = createHttpError(`More than ${maxItems} items match.`, 0, null)
+  error.code = TOO_MANY_ITEMS
+  error.total = Number.isFinite(total) ? total : null
+  error.maxItems = maxItems
+  return error
+}
+
+/**
+ * Loads all pages of the collection. With `maxItems`, stops as soon as more items exist (usually
+ * after the first page, from Strapi's `meta.pagination.total`) and throws an error with
+ * `code: TOO_MANY_ITEMS`, `total` (null when unknown) and `maxItems`.
+ */
 export async function fetchAllCollectionItemsFromStrapi({
   profile,
   itemsPath,
   token = '',
   pageSize = 100,
   populateFields = [],
+  maxItems = Infinity,
   // fieldKeys, filtersEq, filterEmptyField, extraFilterEntries: see buildItemsPathWithPopulate
   ...queryOptions
 }) {
@@ -543,6 +567,7 @@ export async function fetchAllCollectionItemsFromStrapi({
     }
 
     collected.push(...rows)
+    if (exceedsMaxItems(payload, collected.length, maxItems)) throw createTooManyItemsError(payload, maxItems)
 
     const nextPageCount = Number(payload?.meta?.pagination?.pageCount)
     pageCount = Number.isFinite(nextPageCount) && nextPageCount > 0 ? nextPageCount : 1

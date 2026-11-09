@@ -91,6 +91,20 @@ describe('useViewerData helpers', () => {
     expect(reparsed.data).toEqual(parsed.data)
   })
 
+  test('CSV export-import roundtrip keeps multi-line values in their row (review F1)', () => {
+    const items = [
+      { titel: 'A', notiz: 'Zeile 1\nZeile 2', ort: 'Bonn' },
+      { titel: 'B', notiz: 'mit "Zitat", Komma', ort: 'Koeln' },
+    ]
+    const reparsed = __test.parseCsvText(__test.createCsvTextFromItems(items))
+    expect(reparsed).toEqual({ ok: true, data: items })
+  })
+
+  test('parseCsvText reports the physical line of a row after a multi-line cell', () => {
+    const csv = 'a,b\n"x\ny",1\nz,2,EXTRA'
+    expect(() => __test.parseCsvText(csv)).toThrow('Zeile 4 hat mehr Spalten als der Header.')
+  })
+
   test('createCsvTextFromItems creates csv export text', () => {
     const csv = __test.createCsvTextFromItems([
       { a: 'A', b: 'B' },
