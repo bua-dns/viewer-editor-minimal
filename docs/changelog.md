@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-11 - Add fields from the Strapi data model
+
+- `Add field` in the `Configuration` tab is now a dropdown of the fields that are not configured yet.
+  Online it lists every field of the collection's Strapi data model, with its Strapi type. Before, fields
+  added to the data model in Strapi never showed up, because the loaded items only carry the configured
+  fields. Offline it lists the keys of the loaded data.
+- `Custom field name ...` at the end of the dropdown opens a text input for free names; `Add all` adds every
+  offered field.
+- Added fields get a matching type: Strapi `text`/`richtext` → `text`, `integer` → `integer`, `boolean` →
+  `checkbox`, everything else `normal`. Relations, media, components and JSON are marked as structured.
+- `Reload data model` fetches the model again after a change in Strapi.
+- **For deployments:** the full model (with types, relations and components) needs the Strapi permission
+  `Content-type-builder → getContentTypes` for the editor role. Without it the fields are taken from one
+  sample item; relations the role cannot read and fields of an empty collection are then missing.
+
 ## 2026-11 - Search across the whole collection
 
 - With a category hierarchy, the search is no longer limited to the selected level-1 category when you want

@@ -5,10 +5,11 @@ defineProps({
   hasData: { type: Boolean, required: true },
   allowWithoutData: { type: Boolean, default: false },
   dataFieldKeys: { type: Array, default: () => [] },
+  remoteFieldModel: { type: Object, default: null },
   noDataHint: { type: String, default: '' },
 })
 
-const emit = defineEmits(['apply'])
+const emit = defineEmits(['apply', 'reload-remote-field-model'])
 
 function onApply() {
   emit('apply')
@@ -21,9 +22,11 @@ function onApply() {
       :has-data="hasData"
       :allow-without-data="allowWithoutData"
       :data-field-keys="dataFieldKeys"
+      :remote-field-model="remoteFieldModel"
       :no-data-hint="noDataHint"
       :force-open="true"
       @apply="onApply"
+      @reload-remote-field-model="emit('reload-remote-field-model')"
     />
   </section>
 </template>

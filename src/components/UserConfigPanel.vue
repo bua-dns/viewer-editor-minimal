@@ -11,11 +11,14 @@ const props = defineProps({
   forceOpen: { type: Boolean, default: false },
   // Keys found in the loaded items; the ones without configuration can be added from here.
   dataFieldKeys: { type: Array, default: () => [] },
+  // Online: the collection's fields from Strapi, see composables/useRemoteFieldModel.js
+  // ({ source, fields, status, errorMessage }). Offered for adding next to the keys in the items.
+  remoteFieldModel: { type: Object, default: null },
   // Shown above the form when no data is loaded.
   noDataHint: { type: String, default: '' },
 })
 
-const emit = defineEmits(['apply'])
+const emit = defineEmits(['apply', 'reload-remote-field-model'])
 
 const { t } = useAppConfigStore()
 const {
@@ -57,10 +60,68 @@ const fieldWidthOptions = [
   { value: '100%', labelKey: 'configFieldWidth100', labelFallback: '100% (1 per row)' },
 ]
 const RESERVED_DATA_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
-const unconfiguredDataFieldKeys = computed(() => {
+const remoteFields = computed(() =>
+  Array.isArray(props.remoteFieldModel?.fields) ? props.remoteFieldModel.fields : [],
+)
+const remoteFieldModelStatus = computed(() => props.remoteFieldModel?.status || 'idle')
+const hasRemoteFieldModel = computed(() => Boolean(props.remoteFieldModel?.source))
+// Fields of the data model first (in schema order, with their Strapi type), then keys that only the
+// loaded items have; without the ones already configured.
+const unconfiguredFieldEntries = computed(() => {
   const configuredKeys = new Set(sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
-  return props.dataFieldKeys.filter((key) => !RESERVED_DATA_KEYS.has(key) && !configuredKeys.has(key))
+  const dataKeyEntries = props.dataFieldKeys.map((key) => ({ key, strapiType: '', suggestedType: 'normal' }))
+  const entriesByKey = new Map()
+  for (const entry of [...remoteFields.value, ...dataKeyEntries]) {
+    if (!entriesByKey.has(entry.key)) entriesByKey.set(entry.key, entry)
+  }
+  return Array.from(entriesByKey.values()).filter(
+    (entry) => !RESERVED_DATA_KEYS.has(entry.key) && !configuredKeys.has(entry.key),
+  )
 })
+// The add-field dropdown: the unconfigured fields, plus "custom name" for a free text input. Without
+// any field to offer (offline, nothing loaded) only the text input is shown.
+const CUSTOM_FIELD_OPTION = '__custom__'
+const selectedFieldOption = ref('')
+const showCustomFieldInput = computed(
+  () => !unconfiguredFieldEntries.value.length || selectedFieldOption.value === CUSTOM_FIELD_OPTION,
+)
+const canAddField = computed(() => showCustomFieldInput.value || Boolean(selectedFieldOption.value))
+const addFieldSelectPlaceholder = computed(() =>
+  hasRemoteFieldModel.value
+    ? t('addFieldSelectFromModel', '- Feld aus dem Datenmodell waehlen -')
+    : t('addFieldSelectFromData', '- Feld aus den Daten waehlen -'),
+)
+const addFieldSelectTitle = computed(() => {
+  const selectedEntry = unconfiguredFieldEntries.value.find((entry) => entry.key === selectedFieldOption.value)
+  return selectedEntry ? fieldEntryTitle(selectedEntry) : ''
+})
+
+function fieldOptionLabel(entry) {
+  return entry.strapiType ? `${entry.key} (${entry.strapiType})` : entry.key
+}
+const remoteFieldModelNote = computed(() => {
+  if (remoteFieldModelStatus.value === 'loading') {
+    return t('remoteFieldModelLoading', 'Loading the data model from Strapi ...')
+  }
+  if (remoteFieldModelStatus.value === 'error') {
+    return `${t('remoteFieldModelError', 'The data model could not be loaded')}: ${props.remoteFieldModel.errorMessage}`
+  }
+  if (props.remoteFieldModel?.source === 'sample') {
+    return t(
+      'remoteFieldModelSampleNote',
+      'The schema is not readable for this role (Strapi permission "Content-type-builder: getContentTypes"), so the fields were taken from one sample item. Relations without read permission may be missing.',
+    )
+  }
+  if (remoteFieldModelStatus.value === 'ready' && !unconfiguredFieldEntries.value.length) {
+    return t('remoteFieldsAllConfigured', 'All fields of the data model are configured.')
+  }
+  return ''
+})
+function fieldEntryTitle(entry) {
+  if (!entry.strapiType) return ''
+  if (!entry.isStructured) return `Strapi: ${entry.strapiType}`
+  return `Strapi: ${entry.strapiType} - ${t('remoteFieldStructuredNote', 'structured value, the viewer edits it only partly')}`
+}
 const itemLabelFieldOptions = computed(() => sortedConfigFieldEntries.value.map(([fieldKey]) => fieldKey))
 const prefillFieldOptionsByFieldKey = computed(() => {
   const normalFieldKeys = sortedConfigFieldEntries.value
@@ -115,15 +176,33 @@ function onTogglePanel() {
 }
 
 function onAddField() {
-  addUserConfigField(t)
+  if (showCustomFieldInput.value) {
+    addUserConfigField(t)
+    return
+  }
+  const selectedEntry = unconfiguredFieldEntries.value.find((entry) => entry.key === selectedFieldOption.value)
+  if (!selectedEntry) return
+  addFieldEntries([selectedEntry])
+  selectedFieldOption.value = ''
+  addFieldError.value = ''
 }
 
-function onAddDataFieldKey(fieldKey) {
-  addUserConfigFieldsFromDataKeys([fieldKey])
+// Adds the fields and gives each the viewer type proposed for its Strapi type (text, integer, ...).
+function addFieldEntries(entries) {
+  const suggestedTypeByKey = new Map(entries.map((entry) => [entry.key, entry.suggestedType]))
+  for (const fieldKey of addUserConfigFieldsFromDataKeys(entries.map((entry) => entry.key))) {
+    const suggestedType = suggestedTypeByKey.get(fieldKey)
+    if (suggestedType && suggestedType !== 'normal') setFieldType(fieldKey, suggestedType)
+  }
 }
 
-function onAddAllDataFieldKeys() {
-  addUserConfigFieldsFromDataKeys(unconfiguredDataFieldKeys.value)
+function onAddAllFieldEntries() {
+  addFieldEntries(unconfiguredFieldEntries.value)
+  selectedFieldOption.value = ''
+}
+
+function onReloadRemoteFieldModel() {
+  emit('reload-remote-field-model')
 }
 
 function onFieldTypeChange(fieldKey, nextType) {
@@ -215,42 +294,63 @@ function onRemoveHierarchyField(index) {
     <div v-if="isPanelOpen" class="user-config-grid">
       <p v-if="props.noDataHint" class="user-config-no-data-hint">{{ props.noDataHint }}</p>
 
-      <div v-if="unconfiguredDataFieldKeys.length" class="user-config-data-keys">
-        <div class="user-config-data-keys-head">
-          <strong>{{ t('dataKeysWithoutConfigLabel', 'Keys in the data without configuration') }}</strong>
-          <button type="button" @click.stop="onAddAllDataFieldKeys">
-            {{ t('dataKeysAddAll', 'Add all') }}
-          </button>
-        </div>
-        <p v-if="!sortedConfigFieldEntries.length" class="user-config-data-keys-note">
-          {{
-            t(
-              'dataKeysNoConfigNote',
-              'This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration.',
-            )
-          }}
-        </p>
-        <ul class="user-config-data-keys-list">
-          <li v-for="fieldKey in unconfiguredDataFieldKeys" :key="`data-key-${fieldKey}`">
-            <code>{{ fieldKey }}</code>
-            <button type="button" @click.stop="onAddDataFieldKey(fieldKey)">
-              {{ t('addFieldButton', 'Hinzufuegen') }}
-            </button>
-          </li>
-        </ul>
-      </div>
-
       <div class="user-config-add-row">
         <strong>{{ t('addConfigurationField', 'Feld hinzufuegen') }}</strong>
-        <input
-          v-model="newFieldName"
-          type="text"
-          :placeholder="t('addFieldNamePlaceholder', 'Feldname (z. B. bemerkung)')"
-          @click.stop
-          @keydown.enter.prevent="onAddField"
-        />
-        <button type="button" @click.stop="onAddField">{{ t('addFieldButton', 'Hinzufuegen') }}</button>
+        <div class="user-config-add-controls">
+          <select
+            v-if="unconfiguredFieldEntries.length"
+            v-model="selectedFieldOption"
+            :title="addFieldSelectTitle"
+            @click.stop
+          >
+            <option value="">{{ addFieldSelectPlaceholder }}</option>
+            <option v-for="entry in unconfiguredFieldEntries" :key="`field-option-${entry.key}`" :value="entry.key">
+              {{ fieldOptionLabel(entry) }}
+            </option>
+            <option :value="CUSTOM_FIELD_OPTION">{{ t('addFieldCustomOption', 'Eigener Feldname ...') }}</option>
+          </select>
+          <input
+            v-if="showCustomFieldInput"
+            v-model="newFieldName"
+            type="text"
+            :placeholder="t('addFieldNamePlaceholder', 'Feldname (z. B. bemerkung)')"
+            @click.stop
+            @keydown.enter.prevent="onAddField"
+          />
+          <button type="button" :disabled="!canAddField" @click.stop="onAddField">
+            {{ t('addFieldButton', 'Hinzufuegen') }}
+          </button>
+          <button v-if="unconfiguredFieldEntries.length > 1" type="button" @click.stop="onAddAllFieldEntries">
+            {{ t('dataKeysAddAll', 'Add all') }}
+          </button>
+          <button
+            v-if="remoteFieldModelStatus !== 'idle'"
+            type="button"
+            :disabled="remoteFieldModelStatus === 'loading'"
+            @click.stop="onReloadRemoteFieldModel"
+          >
+            {{ t('remoteFieldModelReload', 'Reload data model') }}
+          </button>
+        </div>
       </div>
+      <p
+        v-if="remoteFieldModelNote"
+        class="user-config-add-note"
+        :class="{ error: remoteFieldModelStatus === 'error' }"
+      >
+        {{ remoteFieldModelNote }}
+      </p>
+      <p
+        v-if="!sortedConfigFieldEntries.length && unconfiguredFieldEntries.length"
+        class="user-config-add-note"
+      >
+        {{
+          t(
+            'dataKeysNoConfigNote',
+            'This data source has no field configuration yet. Add the fields you want to edit, then apply the configuration.',
+          )
+        }}
+      </p>
 
       <div class="user-config-label-row">
         <strong>{{ t('itemListLabelFieldLabel', 'Liste: Label-Feld') }}</strong>
@@ -459,10 +559,28 @@ function onRemoveHierarchyField(index) {
 
 .user-config-add-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.6fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.6fr);
   gap: var(--ve-space-2);
   align-items: center;
   margin-bottom: 0.35rem;
+}
+
+.user-config-add-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ve-space-2);
+  min-width: 0;
+}
+
+.user-config-add-controls select,
+.user-config-add-controls input {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.user-config-add-note {
+  margin: 0 0 0.35rem;
 }
 
 .user-config-error {
@@ -472,43 +590,6 @@ function onRemoveHierarchyField(index) {
 .user-config-no-data-hint {
   margin: 0 0 0.35rem;
   color: var(--ve-color-text-soft);
-}
-
-.user-config-data-keys {
-  display: grid;
-  gap: var(--ve-space-2);
-  margin-bottom: 0.35rem;
-}
-
-.user-config-data-keys-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--ve-space-2);
-}
-
-.user-config-data-keys-note {
-  margin: 0;
-}
-
-.user-config-data-keys-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--ve-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.user-config-data-keys-list li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.user-config-data-keys-list code {
-  overflow-wrap: anywhere;
 }
 
 .user-config-label-row {
