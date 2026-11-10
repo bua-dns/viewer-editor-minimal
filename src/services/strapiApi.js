@@ -150,12 +150,15 @@ export async function fetchViewerSettingsFromStrapi({ profile, token = '' }) {
 
   const wording = isPlainObject(payload?.data?.wording) ? payload.data.wording : {}
   const replacements = resolveReplacementsFromConfigPayload(payload)
+  // Derivation rules: own JSON prop, raw here (see composables/derivationRules.js).
+  const mappings = payload?.data?.mappings ?? null
 
   return {
     payload,
     settings,
     wording,
     replacements,
+    mappings,
   }
 }
 

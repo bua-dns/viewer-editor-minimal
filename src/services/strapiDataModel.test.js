@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
+  extractCollectionTypes,
   extractFieldModelFromContentTypes,
   extractFieldModelFromSampleRow,
   fetchCollectionFieldModelFromStrapi,
+  fetchCollectionTypesFromStrapi,
 } from './strapiDataModel'
 
 const profile = { baseUrl: 'https://cms.example.org/project', configPath: '/api/viewer-setting' }
@@ -134,5 +136,27 @@ describe('fetchCollectionFieldModelFromStrapi', () => {
     await expect(
       fetchCollectionFieldModelFromStrapi({ profile, token: 't', itemsPath: '/api/index-cards' }),
     ).rejects.toThrow('Forbidden')
+  })
+})
+
+describe('collection types (targets of derivation rules)', () => {
+  test('lists the project collection types by display name, not single types or plugins', () => {
+    const payload = {
+      data: [
+        { uid: 'api::viewer-setting.viewer-setting', schema: { kind: 'singleType', pluralName: 'viewer-settings' } },
+        { uid: 'api::index-card.index-card', schema: { kind: 'collectionType', pluralName: 'index-cards', displayName: 'Index card' } },
+        { uid: 'api::collection-item.collection-item', schema: { kind: 'collectionType', pluralName: 'collection-items', displayName: 'Collection item' } },
+        { uid: 'plugin::users-permissions.user', schema: { kind: 'collectionType', pluralName: 'users' } },
+      ],
+    }
+    expect(extractCollectionTypes(payload)).toEqual([
+      { path: '/api/collection-items', name: 'Collection item' },
+      { path: '/api/index-cards', name: 'Index card' },
+    ])
+  })
+
+  test('gives an empty list when the schema is not readable', async () => {
+    globalThis.fetch = vi.fn(async () => forbidden())
+    await expect(fetchCollectionTypesFromStrapi({ profile, token: 't' })).resolves.toEqual([])
   })
 })

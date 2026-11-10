@@ -443,6 +443,7 @@ async function onCheckDataModel() {
       <div><dt>{{ t('appSettingsLanguageModeField', 'Language mode') }}</dt><dd>{{ basicConfig.languageMode }}</dd></div>
       <div><dt>{{ t('appSettingsPrimaryColorField', 'Primary color') }}</dt><dd>{{ basicConfig.primaryColor }}</dd></div>
       <div><dt>{{ t('appSettingsDataInspectionModeField', 'Data inspection mode') }}</dt><dd>{{ basicConfig.dataInspectionMode }}</dd></div>
+      <div><dt>{{ t('appSettingsDeriveItemsField', 'Derive items') }}</dt><dd>{{ basicConfig.deriveItems }}</dd></div>
     </dl>
 
     <div class="connection-actions">
