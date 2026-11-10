@@ -165,6 +165,15 @@ describe('useAppConfigStore basic config', () => {
     expect(store.showLanguageSwitch.value).toBe(true)
     expect(store.primaryColor.value).toBe('#0066CC')
     expect(store.dataInspectionMode.value).toBe(false)
+    expect(store.isDeriveItemsEnabled.value).toBe(false)
+  })
+
+  test('switches "derive items" on only with a literal true', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ deriveItems: 'yes' })
+    expect(store.isDeriveItemsEnabled.value).toBe(false)
+    store.applyBasicConfig({ deriveItems: true })
+    expect(store.isDeriveItemsEnabled.value).toBe(true)
   })
 
   test('loads the basic config and the wording from the app-config folder', async () => {
@@ -295,6 +304,7 @@ describe('useAppConfigStore basic config', () => {
         languageMode: 'single',
         primaryColor: '#222222',
         dataInspectionMode: true,
+        deriveItems: true,
       }),
     )
 
@@ -306,6 +316,7 @@ describe('useAppConfigStore basic config', () => {
       languageMode: 'single',
       primaryColor: '#222222',
       dataInspectionMode: true,
+      deriveItems: true,
     })
     // Exporting does not change the basic config in effect.
     expect(store.primaryColor.value).toBe('#111111')

@@ -103,6 +103,29 @@ async function fetchSampleRow({ profile, token, itemsPath }) {
   return Array.isArray(payload?.data) ? payload.data[0] || null : null
 }
 
+/** The project's own collection types as `{ path: '/api/<pluralName>', name }`, sorted by name. */
+export function extractCollectionTypes(payload) {
+  const contentTypes = Array.isArray(payload?.data) ? payload.data : []
+  return contentTypes
+    .filter((entry) => String(entry?.uid || '').startsWith('api::'))
+    .filter((entry) => entry?.schema?.kind === 'collectionType' && entry.schema.pluralName)
+    .map((entry) => ({
+      path: `/api/${entry.schema.pluralName}`,
+      name: String(entry.schema.displayName || entry.schema.pluralName),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** The collection types a rule can target; `[]` when the role may not read the schema. */
+export async function fetchCollectionTypesFromStrapi({ profile, token = '' }) {
+  try {
+    const payload = await strapiFetchJson({ profile, token, path: CONTENT_TYPES_PATH })
+    return extractCollectionTypes(payload)
+  } catch {
+    return []
+  }
+}
+
 /**
  * Resolves the field model of the collection behind `itemsPath`.
  * Returns `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedType, isStructured }] }`;

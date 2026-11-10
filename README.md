@@ -11,6 +11,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Lokales Bearbeiten von JSON- und CSV-Daten inkl. Validierung, Reset und Export
 - Online-Betrieb gegen Strapi: Login (FE-Users), Laden der Konfiguration und Items, feldgenaues Speichern
 - Anlegen neuer Items im Online-Modus (lokaler Entwurf, Persistenz beim Speichern)
+- Items ableiten (optional, online): aus einem Item ein verknüpftes Item in einer anderen Collection anlegen
 - Hierarchische Navigation (Level-1-Boxen, einklappbare Level-2-Gruppen) mit bedarfsgesteuertem Nachladen
 - Konfigurierbare Feldtypen: `normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`
 - Wikidata-Autosuggest inkl. Priorisierung, Statement-Nachladen und mehrsprachigen Labels

@@ -1,5 +1,6 @@
 <script setup>
 import UserConfigPanel from './UserConfigPanel.vue'
+import DerivationRuleEditor from './DerivationRuleEditor.vue'
 
 defineProps({
   hasData: { type: Boolean, required: true },
@@ -7,6 +8,8 @@ defineProps({
   dataFieldKeys: { type: Array, default: () => [] },
   remoteFieldModel: { type: Object, default: null },
   noDataHint: { type: String, default: '' },
+  // Loaded online collection when "derive items" is switched on and editable; empty hides the editor.
+  derivationSourcePath: { type: String, default: '' },
 })
 
 const emit = defineEmits(['apply', 'reload-remote-field-model'])
@@ -27,6 +30,11 @@ function onApply() {
       :force-open="true"
       @apply="onApply"
       @reload-remote-field-model="emit('reload-remote-field-model')"
+    />
+    <DerivationRuleEditor
+      v-if="derivationSourcePath"
+      :source-path="derivationSourcePath"
+      :source-field-model="remoteFieldModel"
     />
   </section>
 </template>

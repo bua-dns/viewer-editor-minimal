@@ -50,6 +50,7 @@ async function fetchOnlineSettings() {
       settings: result.settings,
       wording: result.wording,
       replacements: result.replacements,
+      mappings: result.mappings,
       payload: result.payload,
     }
   } catch (error) {

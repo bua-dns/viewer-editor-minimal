@@ -163,6 +163,9 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `ReplacementsUnit.vue` - Inline-Eingabe für neue Ersetzungen (Sidebar und Tab)
 - `LightboxModal.vue` - Modal für die Scan-Vollansicht inkl. Fullscreen
 - `StartFromScratchModal.vue` - Modal für den "Neu beginnen"-Flow
+- `DeriveItemDialog.vue` - Bestätigungsdialog für `Item ableiten`: Vorschau der Werte, Hinweis aufs
+  Vorab-Speichern, Ergebnis bzw. Fehler (siehe [12.12](#1212-items-ableiten))
+- `DerivationRuleEditor.vue` - Editor der Ableitungsregel im Tab `Konfiguration` (unter der Feldkonfiguration)
 - `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen
 - `footer/Identity.vue` - Footer-Identity mit Credit und Link zu den Berlin University Collections
 
@@ -174,6 +177,7 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `useSelectionNavigation.js` - Auswahlindex, Vor/Zurück-Navigation, Auswahl aufheben
 - `hierarchyConfig.js` - reine Hierarchie-Helfer: Feldlisten normalisieren, Hierarchie-Felder aus Settings auflösen, Level-1-/Level-2-Optionen aus Items zählen
 - `useModalKeyboard.js` - gemeinsames Escape-Handling für Modals
+- `useModalFocus.js` - Fokus in Modals: erstes Element fokussieren, Tab im Dialog halten, Fokus zurückgeben
 - `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
 - `useReplacementsApply.js` - Orchestrierung eines Ersetzungslaufs (lokal bzw. über die ganze Collection)
 - `useWikidataSearch.js` - Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen, Lokalisierung
@@ -189,6 +193,14 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `useRemoteFieldModel.js` - lädt das Felder-Datenmodell der Online-Collection, sobald der Tab
   `Konfiguration` offen ist oder die bestandsweite Suche es braucht, einmal je Verbindung/Token/Collection
   (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
+- `useOnlineSave.js` - `Änderungen speichern` online (Items, dann Ersetzungsregeln); liefert `true`, wenn
+  alles gespeichert wurde
+- `derivationRules.js` - reine Logik der Ableitungsregeln: Normalisieren, Regel je Quell-Collection,
+  Validierung, Zielwerte (Kopie, Präfix, fester Wert) und Relation (`connect`)
+- `useItemDerivation.js` - Ablauf von `Item ableiten` (Vorschau, Vorab-Speichern, Anlegen) und die
+  Verdrahtung in `App.vue` (Button-Beschriftung, Sichtbarkeit des Regel-Editors)
+- `useDerivationRuleDraft.js` - Entwurfszustand des Regel-Editors: Ziel-Collections, Datenmodell des Ziels,
+  Fehler, Speichern
 - `csvFormat.js` - CSV lesen (`parseCsvRecords`, quote-aware über Zeilenumbrüche) und schreiben
   (`toCsvCell`); genutzt von Import, Export und Start-from-Scratch (siehe [9.3](#93-csv-import))
 
@@ -210,6 +222,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `useOnlineItemsStore.js` - Laden der Online-Items: Hierarchie-Erkennung, Level-1-Optionen
   (aus Strapi oder `firstLevelStaticList`), gefiltertes Nachladen je Level-1-Wert, bestandsweite
   Serversuche (`searchOnlineItems`), Sanitizing
+- `useDerivationRulesStore.js` - Ableitungsregeln (`viewer-setting.mappings`) der geöffneten Datenquelle
+  und Speichern einer Regel
 - `useOnlineUpdatesStore.js` - Delta-Tracking für Updates, Draft-Creates und Ersetzungsläufe über die
   gesamte Collection, Save-Orchestrator, Save-Status
 
@@ -226,7 +240,8 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - `strapiSearch.js` - bestandsweite Textsuche mit Strapi-Filtern (`$containsi`): durchsuchbare Felder,
   Filteraufbau, Wiederholung ohne abgelehnte Felder, Trefferobergrenze (`MAX_SEARCH_HITS`)
 - `strapiDataModel.js` - Felder der Collection hinter `itemsPath`: aus dem Content-Type-Schema oder,
-  ohne Leserecht darauf, aus einem Beispiel-Item
+  ohne Leserecht darauf, aus einem Beispiel-Item; Liste der Collection-Types (Ziele der Ableitungsregeln)
+- `strapiMappings.js` - Schreiben der Ableitungsregeln (`PUT <configPath>` mit `{ data: { mappings } }`)
 
 ### Assets (`src/assets/`)
 
@@ -275,6 +290,8 @@ Die Schlüssel sind nach Rolle gruppiert:
 | Anbindung (online) | `itemsPath`, `scanField`, `createKeyField` | nur `viewer-setting.settings` |
 | Wording | Handle → Sprachmap | `public/app-config/wording.json`; online zusätzlich `viewer-setting.wording` |
 | Ersetzungen | `replacements` | Datenquelle (siehe [Kapitel 11](#11-ersetzungen-replacements)) |
+| Funktionsschalter | `deriveItems` | nur Grundkonfiguration (siehe [12.12](#1212-items-ableiten)) |
+| Ableitungsregeln | `mappings` | nur online, eigenes Prop `viewer-setting.mappings` (siehe [12.12](#1212-items-ableiten)) |
 
 Konfiguration wird nicht im Browser gespeichert. Einzige Ausnahme ist ein vom Nutzer eingegebenes
 Verbindungsprofil (siehe [Kapitel 5](#5-browser-persistenz)).
@@ -292,7 +309,8 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
   "language": "de",
   "languageMode": "multi",
   "primaryColor": "#0066CC",
-  "dataInspectionMode": false
+  "dataInspectionMode": false,
+  "deriveItems": false
 }
 ```
 
@@ -304,6 +322,7 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 | `languageMode` | `single` \| `multi` (`multi`) | Nur bei `multi` erscheint der Umschalter `DE \| EN`. |
 | `primaryColor` | CSS-Farbe (`#0066CC`) | wird als `--color-primary` gesetzt (siehe [Kapitel 15](#15-styling-und-responsiveness)) |
 | `dataInspectionMode` | `true` \| `false` (`false`) | blendet im Sidebar-Editor `show/hide raw data` und `Copy raw data` ein |
+| `deriveItems` | `true` \| `false` (`false`) | schaltet `Item ableiten` ein (nur online; nur ein literales `true` gilt), siehe [12.12](#1212-items-ableiten) |
 
 - **Laden:** `main.js` ruft `loadBasicConfig()` auf und mountet die App erst danach. Grundkonfiguration
   und `wording.json` werden parallel über `resolvePublicConfigUrls(..., 'app-config')` und
@@ -328,6 +347,7 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 | Feldkonfiguration | `config.fields`, … | `settings.fields`, … |
 | Wording | - (nur `wording.json`) | `wording` |
 | Ersetzungen | `replacements` | `replacements` |
+| Ableitungsregeln | - | `mappings` |
 
 - Die Viewer-Einstellungen liegen flach neben den Feldkonfigurations-Schlüsseln. Nur vorhandene, gültige
   Schlüssel überschreiben (`pickViewerSettings`); eine Datenquelle ohne sie nutzt die Grundkonfiguration.
@@ -936,7 +956,8 @@ Sitzung dann schon geschlossen, werden die Online-Stores erneut geleert, falls d
 noch befüllt hat.
 
 1. **Settings laden** (`fetchOnlineSettings` → `GET <configPath>`, erwartet ein Objekt unter
-   `data.settings`; optionales `data.wording` und `data.replacements` werden mitgenommen). Die
+   `data.settings`; optionales `data.wording`, `data.replacements` und `data.mappings` werden mitgenommen;
+   die Ableitungsregeln gehen in `useDerivationRulesStore`). Die
    geladenen Ersetzungsregeln gehen per `initializeReplacements(...)` in den Replacements-Store und
    bilden dort zugleich den Snapshot; **angewendet werden sie dabei nicht**
    (siehe [Kapitel 11](#11-ersetzungen-replacements)).
@@ -1208,6 +1229,77 @@ Online-Sitzung mit `itemsPath` besteht, und behält es, bis sich Basis-URL, Toke
 oder `Datenmodell neu laden` geklickt wird. Ein veralteter Ladevorgang schreibt nicht
 (`requestSequence`).
 
+### 12.12 Items ableiten
+
+Aus dem gewählten Item legt `Item ableiten` ein neues Item in einer **anderen** Collection an, füllt es nach
+einer Regel vor und verknüpft beide über eine Relation. Nur online, nur ein Item je Klick.
+
+**Einschalten:** `deriveItems: true` in der Grundkonfiguration (je Deployment, Default aus). Ohne Schalter
+gibt es weder Button noch Regel-Editor, auch wenn Regeln in Strapi stehen.
+
+**Regeln** liegen im eigenen JSON-Prop `mappings` des Viewer-Settings-Typs (wie `replacements` nicht im
+`settings`-Objekt; `Konfiguration anwenden` fasst sie nicht an). Eine Liste, höchstens eine Regel je
+Quell-Collection; der Viewer nimmt die Regel, deren `source` dem `itemsPath` der Settings entspricht
+(Pfade ohne Query, Fragment und trailing Slash verglichen). `null` (Prop noch leer) heißt: keine Regeln.
+
+```json
+[
+  {
+    "source": "/api/index-cards",
+    "target": "/api/collection-items",
+    "label": { "de": "Als Sammlungsobjekt anlegen", "en": "Create collection item" },
+    "relationField": "index_cards",
+    "fields": [
+      { "target": "label", "from": "label", "prefix": "item_" },
+      { "target": "name", "from": "ai_scientific_name" },
+      { "target": "status", "value": "draft" }
+    ]
+  }
+]
+```
+
+| Schlüssel | Bedeutung |
+| --- | --- |
+| `source` / `target` | Collection-Pfade (`/api/<pluralName>`); das Ziel muss eine andere Collection sein |
+| `label` | Button- und Dialogtitel je Sprache; ohne Eintrag `Item ableiten` / `Derive item` |
+| `relationField` | Relationsattribut **der Ziel-Collection**, das auf die Quelle zeigt (bei many-to-many genügt eine Seite) |
+| `fields[]` mit `from` | kopiert den Wert des Quellfelds; `prefix` wird davor gesetzt. Leere Quellwerte (`null`, leerer bzw. reiner Leerzeichen-String) werden ausgelassen, `0` und `false` übernommen |
+| `fields[]` mit `value` | fester Wert (ein vorhandener Schlüssel `value` macht die Zeile zur Konstante, auch bei `""`) |
+
+Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDerivationRules`).
+
+**Ablauf** (`useItemDerivation`):
+
+```
+Klick ─▶ GET <source>/<documentId>  (bei einem Entwurf übersprungen)
+      ─▶ Vorschau = Serverwerte + lokale ungespeicherte Werte ─▶ Dialog
+OK    ─▶ ungespeicherte Änderungen? ─ ja ─▶ useOnlineSave (alles) ─ Fehler ─▶ Abbruch, nichts angelegt
+      ─▶ GET <source>/<documentId>  (gespeicherter Stand, auch Felder außerhalb der Feldkonfiguration)
+      ─▶ POST <target> { data: { …Zielwerte, <relationField>: { connect: [{ documentId }] } } }
+      ─▶ Dialog: "Item angelegt: <label> (ID <documentId>)"
+```
+
+- Ein gerade angelegter Entwurf wird beim Vorab-Speichern erstellt und danach über seine neue
+  `documentId` verknüpft. Ohne `documentId` (Strapi v4) wird über `{ id }` verknüpft.
+- Die Bezeichnung im Ergebnis ist `label` der Antwort, sonst der erste abgeleitete Textwert.
+- Ein zweites Ableiten desselben Items ist erlaubt und legt ein weiteres Ziel-Item an (kein Hinweis).
+- **Unklarer Ausgang** (Timeout, Abbruch, `outcomeUnknown`): der Dialog sagt, dass das Item vielleicht
+  schon existiert. Anders als beim Create-Flow ([12.9](#129-create-flow-neues-item)) gibt es hier keinen
+  `createKeyField`-Abgleich.
+- Während des Anlegens lässt sich der Dialog nicht schließen.
+
+**Regel-Editor** (`DerivationRuleEditor.vue` im Tab `Konfiguration`): sichtbar mit Schalter, angemeldet und
+schreibbaren Settings. Quelle ist fest die geladene Collection. Die Ziel-Collection kommt aus den
+Collection-Types des Schemas (`fetchCollectionTypesFromStrapi`, nur `api::`-Collection-Types ohne die
+Quelle; ohne Leserecht ein Textfeld). Die Dropdowns kommen aus den Datenmodellen
+([12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)): Quelle aus `useRemoteFieldModel`, Ziel
+per `fetchCollectionFieldModelFromStrapi` auf `target`. Strukturierte Felder (Relation, Medien, Komponente,
+JSON) stehen in den Feld-Dropdowns, sind aber gesperrt. Das Relationsfeld bietet die `relation`-Attribute
+des Ziels an (bei geratenem Modell die strukturierten Felder). Das Eingabefeld für einen festen Wert richtet
+sich nach dem Zieltyp (Checkbox, Zahl, Text). `Regel speichern` schreibt die ganze Liste
+(`PUT <configPath>` mit `{ data: { mappings } }`), ersetzt dabei nur die Regel der eigenen Quelle und
+übernimmt die Antwort; fehlt das Prop in Strapi, nennt die Meldung `mappings`.
+
 ---
 
 ## 13 Wikidata-Autosuggest
@@ -1282,7 +1374,8 @@ Aufbau der Seite:
 - **Liste:** Kartenansicht der gefilterten Items inkl. Scan-Vorschau; ohne `scan`-Spalte automatische
   Umschaltung auf die textbasierte Listenansicht.
 - **Sidebar:** Felder des selektierten Items und größere Scan-Vorschau (Desktop sticky mit internem
-  Scroll). Ein Expand/Collapse-Button schaltet auf volle Inhaltsbreite um.
+  Scroll). Ein Expand/Collapse-Button schaltet auf volle Inhaltsbreite um. Mit `deriveItems` und einer
+  Regel für die geladene Collection steht im Kopf der Button `Item ableiten` (siehe [12.12](#1212-items-ableiten)).
 - **Statusbereich:** Datei-/Fehlerstatus, darunter der Footer mit Identity-Links.
 - **Replacements-Tab:** gruppierte Tabellen je Feld, nur Felder mit Einträgen.
 
@@ -1373,7 +1466,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand 2026-11-10: 30 Testdateien, 329 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
+Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
 ### Composables
 
@@ -1394,6 +1487,10 @@ Stand 2026-11-10: 30 Testdateien, 329 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
 | `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
+| `composables/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
+| `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens |
+| `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile |
+| `composables/useOnlineSave.test.js` | Ohne angemeldete Online-Sitzung kein Speichern (`false`); nichts ausstehend → `true`; Items und Regeln speichern und als gespeichert markieren; nur Regeln; `false` bei fehlgeschlagenen Regeln; Teilfehler hält erstellte Items synchron |
 | `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; `loadStructuredFieldKeys` lädt bei Bedarf genau einmal und liefert die strukturierten Felder, ohne Modell eine leere Liste; Fehlerstatus mit Meldung |
 
 ### Fields und Services
@@ -1402,19 +1499,20 @@ Stand 2026-11-10: 30 Testdateien, 329 Tests, alle grün. Komponenten (`.vue`) ha
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
 | `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; mehr Treffer als die Obergrenze brechen nach der ersten Seite ab (mit `total`) bzw. sobald überschritten (ohne `total`); andere Fehler werden durchgereicht |
-| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist |
+| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist; Collection-Types nur `api::`-Collection-Types nach Anzeigename, leere Liste ohne Leserecht |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal; Inline-Fallback ohne Wording; eingebaute Defaults; Laden von Grundkonfiguration und Wording aus `app-config/`; Normalisierung bzw. Verwerfen eines mitgelieferten Profils; Defaults bei fehlender oder ungültiger Datei; Überlagerung der Viewer-Einstellungen durch die Datenquelle inkl. Sprache; Entfernen des alten localStorage-Snapshots; Export eines bearbeiteten Entwurfs als Dateiinhalt |
+| `stores/useAppConfigStore.test.js` | Lokales Wording als Default; sprachweise Überschreibung durch Backend-Wording; reine Backend-Handles; Rückfall auf lokales Wording nach `clearOnlineWording`; geschützte Settings-Tab-Handles bleiben lokal; Inline-Fallback ohne Wording; eingebaute Defaults; Laden von Grundkonfiguration und Wording aus `app-config/`; Normalisierung bzw. Verwerfen eines mitgelieferten Profils; Defaults bei fehlender oder ungültiger Datei; Überlagerung der Viewer-Einstellungen durch die Datenquelle inkl. Sprache; Entfernen des alten localStorage-Snapshots; Export eines bearbeiteten Entwurfs als Dateiinhalt; `deriveItems` nur bei literalem `true` |
 | `stores/useUserConfigStore.test.js` | Initialisierung minimaler Autosuggest-Config beim Typwechsel; Erhalt unbekannter Autosuggest-Schlüssel; Entfernen von `autosuggest`/`readOnly` bei Typwechsel; Candidate-Initialisierung, -Aktualisierung und Abwehr ungültiger Ziele; Persistenz und Bereinigung von `itemLabelField`; leere Feldkonfiguration nach `initializeUserConfig`; Hinzufügen aus Datenschlüsseln ohne reservierte und bereits konfigurierte Schlüssel |
 | `stores/useAuthStore.test.js` | Login speichert das JWT; `restoreSession` lädt Token und Nutzer; Login ohne Credentials schlägt fehl; 401 in der Sitzung lässt Sitzung und Nutzer bestehen und verwirft das Token; fehlgeschlagener Neu-Login hält die Sitzung offen; erneuter Login beendet den Ablauf; Logout schließt die Sitzung; abgelehntes gespeichertes Token beim Start zählt nicht als Ablauf |
 | `stores/useConnectionProfileStore.test.js` | Speichern nur nach bestandenem Verbindungstest und Neuladen; kein Speichern bei fehlgeschlagenem Test; Ablehnung ungültiger Profile ohne Backend-Aufruf; JSON-Import; mitgeliefertes Profil hat Vorrang vor einem gespeicherten und lässt sich weder speichern noch löschen |
 | `stores/useOnlineModeStore.test.js` | Speichern/Restore des App-Modus mit Profil; Ablehnung ungültiger Modi; kein Wechsel auf `online` ohne Profil und automatischer Wechsel nach dem Speichern; gespeichertes `online` ohne Profil wird `offline`; Rückfall auf `offline` beim Entfernen des Profils; deaktiviertes Umschalten bei fixiertem `connectionMode` |
 | `stores/useOnlineSettingsStore.test.js` | Laden aus `response.data.settings`; Persistieren gegen den Singleton-Endpoint; lokaler State bleibt bei fehlgeschlagenem Persist erhalten; Persistieren der Ersetzungsregeln inkl. Fehlerpfad |
+| `stores/useDerivationRulesStore.test.js` | `null` heißt keine Regeln; Speichern ersetzt nur die Regel der eigenen Quelle; fehlgeschlagenes Speichern behält die geladenen Regeln und meldet den Fehler |
 | `stores/useOnlineItemsStore.test.js` | Laden und Sanitizing über `settings.itemsPath`; `attributes`-Form mit numerischem ID-Fallback; harter Fehler ohne stabile ID; Level-1-Optionen ohne Voll-Item-Fetch; `firstLevelStaticList` ohne Item-Requests; Hierarchie-Erkennung über den Legacy-Schlüssel `hierarchy_fields`; bestandsweite Suche ohne ausgeschlossene (strukturierte) Felder, die als nicht durchsucht gemeldet werden; zu kurze Anfrage ohne Request und ohne Laden des Datenmodells |
 | `stores/useOnlineUpdatesStore.test.js` | Delta-Tracking inkl. Revert auf den Snapshot-Wert; Teilfehler bleiben pending und werden gemeldet; Draft-Tracking (unberührter Entwurf zählt als pending, persistierte Items nicht); POST nur mit nicht-leeren Feldern und Übernahme der `documentId`; fehlgeschlagener Create bleibt retry-fähig; erstellte Items wechseln danach auf den Update-Pfad; unklarer Create-Ausgang ohne `createKeyField` warnt vor Duplikaten, mit `createKeyField` findet das nächste Speichern das Item statt erneut zu posten bzw. postet mit demselben Schlüssel; Ersetzungslauf über die Collection registriert Deltas nur für nicht geladene Treffer, meldet Fetch-Fehler ohne Pending-Updates und verlangt einen `itemsPath` |
 

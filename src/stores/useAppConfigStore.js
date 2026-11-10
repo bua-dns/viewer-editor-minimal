@@ -61,6 +61,8 @@ export function normalizeBasicConfig(input = {}) {
     languageMode: normalizeLanguageMode(source.languageMode),
     primaryColor: normalizePrimaryColor(source.primaryColor),
     dataInspectionMode: Boolean(source.dataInspectionMode),
+    // Feature switch per deployment: "derive item" (online only, rules in viewer-setting.mappings).
+    deriveItems: source.deriveItems === true,
   }
 }
 
@@ -308,6 +310,7 @@ export function useAppConfigStore() {
     exportBasicConfigAsJson,
     connectionMode,
     basicConnectionProfile,
+    isDeriveItemsEnabled: computed(() => basicConfig.value.deriveItems),
     dataSourceViewerSettings,
     effectiveViewerSettings,
     setDataSourceViewerSettings,

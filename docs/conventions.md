@@ -101,3 +101,11 @@
 - `Escape` hebt außerdem eine aktive Sidebar-Auswahl auf.
 - Im Online-Modus kann optional `Configuration only` aktiviert werden, um beim Start nur Settings (ohne Item-Requests) zu laden.
 - Auch bei aktiviertem `Configuration only` wird die Settings-Config aus Strapi in die Konfigurations-Ansicht übernommen; nur Item-Requests bleiben aus.
+
+## Items ableiten (`mappings`)
+
+- Nur online und nur, wenn die Grundkonfiguration `"deriveItems": true` enthält.
+- Die Regeln liegen in einem eigenen JSON-Prop `mappings` der Viewer-Settings in Strapi (nicht im `settings`-Objekt): eine Liste mit höchstens einer Regel je Quell-Collection, Aufbau siehe [technische Dokumentation, 12.12](technical-documentation.md#1212-items-ableiten).
+- Die Ziel-Collection braucht ein Relationsfeld zur Quell-Collection (`relationField`); beim Anlegen wird es auf das Quell-Item gesetzt.
+- Übertragen werden nur einfache Werte: Kopie eines Quellfelds (optional mit `prefix`) oder ein fester Wert (`value`). Leere Quellwerte werden ausgelassen.
+- Bearbeitet werden die Regeln im Tab `Konfiguration` unter `Items ableiten`; `Regel speichern` schreibt sie sofort für alle Nutzer dieser Strapi-Instanz.

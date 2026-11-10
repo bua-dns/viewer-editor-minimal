@@ -1,0 +1,174 @@
+// Editable draft of the derivation rule of the loaded collection (Konfiguration tab): the target
+// collection with its data model, the relation field, the label and the field mappings.
+import { computed, ref, watch } from 'vue'
+import { fetchCollectionFieldModelFromStrapi, fetchCollectionTypesFromStrapi } from '../services/strapiDataModel'
+import { useAuthStore } from '../stores/useAuthStore'
+import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
+import { useDerivationRulesStore } from '../stores/useDerivationRulesStore'
+import { findRuleForSource, normalizeCollectionPath, normalizeDerivationRules, validateDerivationRule } from './derivationRules'
+import { createRequestSequence } from './requestSequence'
+
+const EMPTY_MODEL = { source: '', fields: [], status: 'idle', errorMessage: '' }
+let nextRowKey = 1
+
+function defaultSession() {
+  const { connectionProfile } = useConnectionProfileStore()
+  const { token } = useAuthStore()
+  return { profile: connectionProfile.value, token: token.value || '' }
+}
+
+const defaultServices = {
+  fetchCollectionTypes: fetchCollectionTypesFromStrapi,
+  fetchFieldModel: fetchCollectionFieldModelFromStrapi,
+}
+
+function toRow(mapping = {}) {
+  const isConstant = Object.prototype.hasOwnProperty.call(mapping, 'value')
+  return {
+    key: nextRowKey++,
+    target: mapping.target || '',
+    kind: isConstant ? 'constant' : 'copy',
+    from: mapping.from || '',
+    prefix: mapping.prefix || '',
+    value: isConstant ? mapping.value : '',
+  }
+}
+
+function toMapping(row) {
+  if (row.kind === 'constant') return { target: row.target, value: row.value }
+  return row.prefix ? { target: row.target, from: row.from, prefix: row.prefix } : { target: row.target, from: row.from }
+}
+
+function createDraft(rule, sourcePath) {
+  return {
+    source: normalizeCollectionPath(sourcePath),
+    target: rule?.target || '',
+    labelDe: rule?.label?.de || '',
+    labelEn: rule?.label?.en || '',
+    relationField: rule?.relationField || '',
+    rows: (rule?.fields || []).map(toRow),
+  }
+}
+
+function buildLabel(draft) {
+  const label = {}
+  if (draft.labelDe.trim()) label.de = draft.labelDe.trim()
+  if (draft.labelEn.trim()) label.en = draft.labelEn.trim()
+  return label
+}
+
+/** The draft as a rule; rows without a target, or copies without a source field, are dropped. */
+export function draftToRule(draft) {
+  const [rule] = normalizeDerivationRules([
+    {
+      source: draft.source,
+      target: draft.target,
+      label: buildLabel(draft),
+      relationField: draft.relationField,
+      fields: draft.rows.map(toMapping),
+    },
+  ])
+  return rule
+}
+
+const RELATION_TYPES = new Set(['relation'])
+const INCOMPLETE_ROW_ERROR = {
+  key: 'deriveRuleRowIncomplete',
+  fallback: 'Every row needs a target field, and a copy needs a source field.',
+}
+
+function isIncompleteRow(row) {
+  return !row.target || (row.kind === 'copy' && !row.from)
+}
+
+/**
+ * @param {object} options `sourcePath` (ref of the loaded collection); `session`, `services` and
+ *   `saveRule` (stores the rule, default: the rules store) are injected in tests.
+ */
+export function useDerivationRuleDraft({ sourcePath, session = defaultSession, services = defaultServices, saveRule }) {
+  const { rules, saveStatus, lastSaveError, saveDerivationRule } = useDerivationRulesStore()
+  const storeRule = saveRule || saveDerivationRule
+  const storedRule = computed(() => findRuleForSource(rules.value, sourcePath.value))
+  const draft = ref(createDraft(storedRule.value, sourcePath.value))
+  const collectionTypes = ref([])
+  const targetModel = ref(EMPTY_MODEL)
+  const targetLoads = createRequestSequence()
+
+  function resetDraft() {
+    draft.value = createDraft(storedRule.value, sourcePath.value)
+  }
+
+  async function loadCollectionTypes() {
+    collectionTypes.value = await services.fetchCollectionTypes(session())
+  }
+
+  async function loadTargetModel(targetPath) {
+    const isCurrent = targetLoads.start()
+    if (!targetPath) {
+      targetModel.value = EMPTY_MODEL
+      return
+    }
+    targetModel.value = { ...EMPTY_MODEL, status: 'loading' }
+    try {
+      const model = await services.fetchFieldModel({ ...session(), itemsPath: targetPath })
+      if (isCurrent()) targetModel.value = { ...model, status: 'ready', errorMessage: '' }
+    } catch (error) {
+      if (isCurrent()) targetModel.value = { ...EMPTY_MODEL, status: 'error', errorMessage: String(error?.message || error) }
+    }
+  }
+
+  const rule = computed(() => draftToRule(draft.value))
+  const errors = computed(() => {
+    const ruleErrors = validateDerivationRule(rule.value)
+    return draft.value.rows.some(isIncompleteRow) ? [...ruleErrors, INCOMPLETE_ROW_ERROR] : ruleErrors
+  })
+  const comparedRule = computed(() => storedRule.value || draftToRule(createDraft(null, sourcePath.value)))
+  const isDirty = computed(() => JSON.stringify(rule.value) !== JSON.stringify(comparedRule.value))
+  const canSave = computed(() => isDirty.value && !errors.value.length && saveStatus.value !== 'saving')
+
+  // Relation attributes of the target; a model guessed from a sample item has no relation types,
+  // so its structured fields are offered instead.
+  const relationFieldOptions = computed(() => {
+    const isGuessed = targetModel.value.source === 'sample'
+    return targetModel.value.fields.filter((field) =>
+      isGuessed ? field.isStructured : RELATION_TYPES.has(field.strapiType),
+    )
+  })
+
+  function addRow() {
+    draft.value.rows.push(toRow({ target: '', from: '' }))
+  }
+
+  function removeRow(key) {
+    draft.value.rows = draft.value.rows.filter((row) => row.key !== key)
+  }
+
+  async function save() {
+    if (!canSave.value) return { ok: false }
+    const result = await storeRule(rule.value)
+    if (result.ok) resetDraft()
+    return result
+  }
+
+  watch(storedRule, resetDraft)
+  watch(() => sourcePath.value, resetDraft)
+  watch(() => draft.value.target, loadTargetModel, { immediate: true })
+
+  return {
+    draft,
+    collectionTypes,
+    targetModel,
+    relationFieldOptions,
+    errors,
+    isDirty,
+    canSave,
+    saveStatus,
+    lastSaveError,
+    loadCollectionTypes,
+    reloadTargetModel: () => loadTargetModel(draft.value.target),
+    addRow,
+    removeRow,
+    resetDraft,
+    save,
+  }
+}
