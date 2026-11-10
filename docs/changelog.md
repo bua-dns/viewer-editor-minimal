@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11 - Derive items into another collection
+
+- New, online only: on the selected item, `Derive item` creates a new item in another Strapi collection,
+  pre-filled from the source item, and links the two through a relation. A dialog shows the values first.
+- Unsaved changes are saved first (the dialog says so); if saving fails, nothing is created. The result
+  names the new item's label and ID.
+- The rule is set in the `Configuration` tab under `Derive items`: target collection, relation field of the
+  target, button label (de/en), and per target field either a source field (optionally with a prefix, e.g.
+  `item_`) or a fixed value. Only plain fields can be mapped; relations, media and components are listed but
+  disabled. One rule per source collection; it applies to all users of the Strapi instance.
+- **For deployments:** off by default. Switch it on with `"deriveItems": true` in
+  `app-config/viewer-editor-app-config.v1.json`. The viewer-settings type needs a JSON prop `mappings`, and
+  the target collection a relation to the source collection.
+
 ## 2026-11 - Review fixes: CSV line breaks, search limits
 
 - CSV: a value with a line break (e.g. a multi-line `text` field) is exported in quotes and now imported
