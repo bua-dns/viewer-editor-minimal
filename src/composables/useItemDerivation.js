@@ -1,7 +1,11 @@
 // The click flow of "Derive item": preview the new item's values, save pending changes if there
 // are any, read the saved source item, create the target item linked to it, report its label/ID.
 import { computed, ref } from 'vue'
-import { createCollectionItemInStrapi, fetchCollectionItemFromStrapi } from '../services/strapiApi'
+import {
+  createCollectionItemInStrapi,
+  fetchCollectionItemFromStrapi,
+  resolveItemsPathFromSettings,
+} from '../services/strapiApi'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 import { useDerivationRulesStore } from '../stores/useDerivationRulesStore'
@@ -12,6 +16,7 @@ import {
   findRuleForSource,
   readLocalItemValues,
   readRowValues,
+  resolveRuleLabel,
 } from './derivationRules'
 import { createRequestSequence } from './requestSequence'
 
@@ -38,21 +43,26 @@ function toPreview(fields) {
 }
 
 /**
- * @param {object} options `isEnabled()` (feature switched on, online, signed in), `sourcePath` (ref of
- *   the loaded collection), `selectedItem` (ref), `hasPendingChanges` (ref), `saveChanges()` (resolves
- *   to true when everything was saved), `t(key, fallback)`; `session` and `services` are injected in tests.
+ * @param {object} options `isEnabled()` (feature switched on, online, signed in), `canEditRules()`
+ *   (settings writable), `onlineSettings` (ref; its `itemsPath` is the source collection),
+ *   `selectedItem` (ref), `hasPendingChanges` (ref), `saveChanges()` (resolves to true when
+ *   everything was saved), `language` (ref), `t(key, fallback)`; `session` and `services` are
+ *   injected in tests.
  */
 export function useItemDerivation({
   isEnabled,
-  sourcePath,
+  canEditRules = () => false,
+  onlineSettings,
   selectedItem,
   hasPendingChanges,
   saveChanges,
+  language,
   t,
   session = defaultSession,
   services = defaultServices,
 }) {
-  const { rules } = useDerivationRulesStore()
+  const { rules, initializeDerivationRules, clearDerivationRules } = useDerivationRulesStore()
+  const sourcePath = computed(() => resolveItemsPathFromSettings(onlineSettings.value))
   const dialog = ref(CLOSED_DIALOG)
   const runs = createRequestSequence()
   let sourceItem = null
@@ -60,6 +70,11 @@ export function useItemDerivation({
 
   const activeRule = computed(() => (isEnabled() ? findRuleForSource(rules.value, sourcePath.value) : null))
   const canDerive = computed(() => Boolean(activeRule.value && selectedItem.value))
+  const actionLabel = computed(() =>
+    resolveRuleLabel(activeRule.value, language.value, t('deriveItemButton', 'Derive item')),
+  )
+  // The rule editor (Konfiguration tab) is shown for this collection; empty hides it.
+  const editorSourcePath = computed(() => (isEnabled() && canEditRules() ? sourcePath.value : ''))
 
   function update(patch) {
     dialog.value = { ...dialog.value, ...patch }
@@ -128,5 +143,15 @@ export function useItemDerivation({
     dialog.value = CLOSED_DIALOG
   }
 
-  return { activeRule, canDerive, dialog, openDerivation, confirmDerivation, closeDerivation }
+  return {
+    canDerive,
+    actionLabel,
+    editorSourcePath,
+    dialog,
+    loadRules: initializeDerivationRules,
+    clearRules: clearDerivationRules,
+    openDerivation,
+    confirmDerivation,
+    closeDerivation,
+  }
 }

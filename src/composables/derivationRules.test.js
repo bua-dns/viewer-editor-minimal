@@ -50,14 +50,9 @@ describe('normalizeDerivationRules', () => {
     ])
     expect(rules).toEqual([
       {
-        source: '/api/index-cards',
-        target: '/api/collection-items',
+        ...rule,
         label: { de: 'Ableiten', en: 'Ableiten' },
-        relationField: 'index_cards',
-        fields: [
-          { target: 'label', from: 'label', prefix: 'item_' },
-          { target: 'status', value: '' },
-        ],
+        fields: [rule.fields[0], { target: 'status', value: '' }],
       },
     ])
   })

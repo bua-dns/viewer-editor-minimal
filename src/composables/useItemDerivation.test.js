@@ -21,7 +21,8 @@ const serverRow = { documentId: 'card-1', label: '0_00571', ai_scientific_name: 
 function setup({ enabled = true, pending = false, saveResult = true, item } = {}) {
   const state = {
     enabled: ref(enabled),
-    sourcePath: ref('/api/index-cards'),
+    onlineSettings: ref({ itemsPath: '/api/index-cards' }),
+    canEdit: ref(true),
     selectedItem: ref(
       item || { label: '0_00571', __onlineMeta: { id: 'card-1', idKind: 'documentId', itemsPath: '/api/index-cards' } },
     ),
@@ -37,7 +38,9 @@ function setup({ enabled = true, pending = false, saveResult = true, item } = {}
   }
   const derivation = useItemDerivation({
     isEnabled: () => state.enabled.value,
-    sourcePath: state.sourcePath,
+    canEditRules: () => state.canEdit.value,
+    onlineSettings: state.onlineSettings,
+    language: ref('de'),
     selectedItem: state.selectedItem,
     hasPendingChanges: state.hasPendingChanges,
     saveChanges,
@@ -58,8 +61,23 @@ describe('useItemDerivation', () => {
     expect(setup({ enabled: false }).canDerive.value).toBe(false)
 
     const other = setup()
-    other.sourcePath.value = '/api/persons'
+    other.onlineSettings.value = { itemsPath: '/api/persons' }
     expect(other.canDerive.value).toBe(false)
+  })
+
+  test('labels the action from the rule, else with the default text', () => {
+    useDerivationRulesStore().initializeDerivationRules([{ ...mappings[0], label: { de: 'Als Objekt anlegen' } }])
+    expect(setup().actionLabel.value).toBe('Als Objekt anlegen')
+    useDerivationRulesStore().initializeDerivationRules(mappings)
+    expect(setup().actionLabel.value).toBe('Derive item')
+  })
+
+  test('shows the rule editor only when switched on and the settings are writable', () => {
+    const state = setup()
+    expect(state.editorSourcePath.value).toBe('/api/index-cards')
+    state.canEdit.value = false
+    expect(state.editorSourcePath.value).toBe('')
+    expect(setup({ enabled: false }).editorSourcePath.value).toBe('')
   })
 
   test('previews the values from the server row, with the unsaved local edits on top', async () => {

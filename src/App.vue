@@ -1,6 +1,6 @@
 <script setup>
 //src\App.vue
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useDataImportExport } from './composables/useDataImportExport'
 import { useReplacementsApply } from './composables/useReplacementsApply'
@@ -21,6 +21,7 @@ import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
 import OnlineAccessPanel from './components/OnlineAccessPanel.vue'
+import DeriveItemDialog from './components/DeriveItemDialog.vue'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 import { useConnectionProfileStore } from './stores/useConnectionProfileStore'
@@ -34,6 +35,8 @@ import { usePendingOnlineChangesGuard } from './composables/usePendingOnlineChan
 import { createRequestSequence } from './composables/requestSequence'
 import { useCollectionSearch } from './composables/useCollectionSearch'
 import { useRemoteFieldModel } from './composables/useRemoteFieldModel'
+import { useItemDerivation } from './composables/useItemDerivation'
+import { useOnlineSave } from './composables/useOnlineSave'
 import {
   buildHierarchyLevel1Options,
   buildHierarchyLevel2Options,
@@ -73,6 +76,7 @@ const {
   dataSourceViewerSettings,
   setDataSourceViewerSettings,
   clearDataSourceViewerSettings,
+  isDeriveItemsEnabled,
 } = useAppConfigStore()
 const { connectionProfile, initializeConnectionProfile } = useConnectionProfileStore()
 const { appMode, onlineConfigOnly, loadAppModeFromStorage, loadOnlineConfigOnlyFromStorage } = useOnlineModeStore()
@@ -84,7 +88,6 @@ const {
   settings: onlineSettings,
   fetchOnlineSettings,
   persistOnlineSettings,
-  persistOnlineReplacements,
   clearOnlineSettings,
   markOnlineSettingsInvalid,
 } = useOnlineSettingsStore()
@@ -102,7 +105,6 @@ const {
 const isOnlineItemsLoading = computed(() => isOnlineSession.value && onlineItemsStatus.value === 'loading')
 const {
   pendingUpdateCount,
-  hasPendingUpdates,
   saveStatus: onlineSaveStatus,
   lastSaveError: onlineSaveError,
   clearOnlineUpdates,
@@ -110,7 +112,6 @@ const {
   trackOnlineDraftCreate,
   trackOnlineFieldChange,
   trackOnlineReplacementUpdatesForRemainingItems,
-  saveOnlineUpdates,
 } = useOnlineUpdatesStore()
 
 const {
@@ -181,7 +182,6 @@ const {
   createReplacementsPayload,
   hasReplacementsChanges,
   initializeReplacements,
-  markReplacementsAsSaved,
   resetReplacements,
 } = useReplacementsStore()
 
@@ -529,46 +529,19 @@ async function onSelectHierarchyLevel1(value) {
   initializeExpandedHierarchyLevel2(normalizedLevel1Value)
 }
 
-async function persistReplacementRulesIfChanged() {
-  if (!hasReplacementsChanges.value) return
-  const result = await persistOnlineReplacements(createReplacementsPayload())
-  if (result?.ok) {
-    markReplacementsAsSaved()
-  }
-}
+const { saveOnlineChanges: onSaveOnlineChanges } = useOnlineSave({
+  rawItems, importFileName, markAsSaved, syncSnapshotItemAtIndex,
+})
 
-async function onSaveOnlineChanges() {
-  if (appMode.value !== 'online') return
-  if (!isAuthenticated.value) return
-  if (!connectionProfile.value) return
-  if (!hasPendingOnlineChanges.value) return
-
-  if (!hasPendingUpdates.value) {
-    await persistReplacementRulesIfChanged()
-    return
-  }
-
-  const result = await saveOnlineUpdates({
-    profile: connectionProfile.value,
-    token: token.value || '',
-  })
-
-  await persistReplacementRulesIfChanged()
-
-  if (result.ok) {
-    markAsSaved(importFileName.value)
-    return
-  }
-
-  if (Array.isArray(result.createdItems) && result.createdItems.length) {
-    result.createdItems.forEach((createdItem) => {
-      const createdIndex = rawItems.value.indexOf(createdItem)
-      if (createdIndex !== -1) {
-        syncSnapshotItemAtIndex(createdIndex)
-      }
-    })
-  }
-}
+// "Derive item": switched on in the basic config, online only, rule per source collection.
+const derivation = reactive(
+  useItemDerivation({
+    isEnabled: () => isDeriveItemsEnabled.value && appMode.value === 'online' && isAuthenticated.value,
+    canEditRules: () => canWriteOnlineSettings.value,
+    onlineSettings, selectedItem: selectedRawItem, hasPendingChanges: hasPendingOnlineChanges,
+    saveChanges: onSaveOnlineChanges, language, t,
+  }),
+)
 
 function onSuspendEditingToggle({ uid, checked }) {
   const shouldAutoSelectNext = Boolean(checked) && selectedViewItem.value?._uid === uid
@@ -1061,6 +1034,7 @@ function resetHierarchySelection() {
 }
 
 function closeOnlineDataSource() {
+  derivation.clearRules()
   clearOnlineWording()
   clearDataSourceViewerSettings()
   clearOnlineSettings()
@@ -1091,6 +1065,7 @@ async function loadOnlineDataSource({ configOnly, isCurrent }) {
   clearOnlineItems()
   clearOnlineUpdates()
   initializeReplacements(result.replacements)
+  derivation.loadRules(result.mappings)
   resetHierarchySelection()
 
   const applyResult = applyImportedConfigPayload(result.settings)
@@ -1306,6 +1281,10 @@ watch(
                 <img :src="minimizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
               </button>
               <div class="sidebar-head-actions">
+                <button v-if="derivation.canDerive" type="button" class="sidebar-derive-button"
+                  @click="derivation.openDerivation">
+                  {{ derivation.actionLabel }}
+                </button>
                 <label class="sidebar-suspend-toggle" for="sidebar-suspend-editing">
                   <span>{{ t('suspendEditingLabel', 'Bearbeitung aussetzen') }}</span>
                   <input
@@ -1367,7 +1346,8 @@ watch(
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
           <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
             :data-field-keys="availableFieldKeys" :remote-field-model="remoteFieldModel"
-            :no-data-hint="configurationNoDataHint" @apply="onApplyUserConfig"
+            :no-data-hint="configurationNoDataHint" :derivation-source-path="derivation.editorSourcePath"
+            @apply="onApplyUserConfig"
             @reload-remote-field-model="reloadRemoteFieldModel" />
         </section>
 
@@ -1397,6 +1377,9 @@ watch(
       :close-label="t('close', 'Schliessen')" :image-alt="t('lightboxImageAlt', 'Scan gross')"
       :unavailable-label="t('scanUnavailable', 'Scan nicht verfuegbar')" @close="closeLightbox"
       @image-error="lightboxImageLoadFailed = true" />
+
+    <DeriveItemDialog :dialog="derivation.dialog" :title="derivation.actionLabel"
+      @confirm="derivation.confirmDerivation" @close="derivation.closeDerivation" />
 
     <StartFromScratchModal :is-open="isStartFromScratchModalOpen" :error-message="startFromScratchModalError"
       @close="onStartFromScratchClose" @submit="onStartFromScratchSubmit" />

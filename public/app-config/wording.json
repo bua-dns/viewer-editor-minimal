@@ -1070,5 +1070,169 @@
   "addFieldCustomOption": {
     "de": "Eigener Feldname ...",
     "en": "Custom field name ..."
+  },
+  "appSettingsDeriveItemsField": {
+    "de": "Items ableiten",
+    "en": "Derive items"
+  },
+  "deriveItemButton": {
+    "de": "Item ableiten",
+    "en": "Derive item"
+  },
+  "deriveTargetLabel": {
+    "de": "Ziel-Collection",
+    "en": "Target collection"
+  },
+  "deriveLoading": {
+    "de": "Quell-Item wird gelesen …",
+    "en": "Reading the source item…"
+  },
+  "deriveFieldColumn": {
+    "de": "Feld",
+    "en": "Field"
+  },
+  "deriveValueColumn": {
+    "de": "Wert",
+    "en": "Value"
+  },
+  "deriveNoValues": {
+    "de": "Kein zugeordnetes Feld hat einen Wert; das neue Item erhält nur die Verknüpfung zu diesem Item.",
+    "en": "No mapped field has a value; the new item gets only the link to this item."
+  },
+  "deriveSavesFirst": {
+    "de": "Es gibt ungespeicherte Änderungen. Sie werden zuerst gespeichert, dann wird das neue Item aus dem gespeicherten Stand angelegt.",
+    "en": "There are unsaved changes. They will be saved first, then the new item is created from the saved state."
+  },
+  "deriveCreated": {
+    "de": "Item angelegt",
+    "en": "Item created"
+  },
+  "deriveConfirm": {
+    "de": "Item anlegen",
+    "en": "Create item"
+  },
+  "deriveRunning": {
+    "de": "Wird angelegt …",
+    "en": "Creating…"
+  },
+  "deriveSaveFailed": {
+    "de": "Das Speichern der Änderungen ist fehlgeschlagen, deshalb wurde kein Item angelegt.",
+    "en": "Saving the pending changes failed, so no item was created."
+  },
+  "deriveOutcomeUnknown": {
+    "de": "Die Verbindung ist abgebrochen: Das neue Item wurde vielleicht schon angelegt. Bitte vor einem neuen Versuch in der Ziel-Collection prüfen.",
+    "en": "The connection broke off: the new item may have been created. Check the target collection before trying again."
+  },
+  "deriveRuleTitle": {
+    "de": "Items ableiten",
+    "en": "Derive items"
+  },
+  "deriveRuleIntro": {
+    "de": "Der Button in der Item-Sidebar legt aus dem gewählten Item ein neues Item in der Ziel-Collection an und verknüpft beide. Die Regel gilt für alle Nutzer dieser Strapi-Instanz.",
+    "en": "The button in the item sidebar creates a new item in the target collection from the selected item and links the two. The rule is saved for all users of this Strapi instance."
+  },
+  "deriveRuleSource": {
+    "de": "Quell-Collection",
+    "en": "Source collection"
+  },
+  "deriveRuleTarget": {
+    "de": "Ziel-Collection",
+    "en": "Target collection"
+  },
+  "deriveRuleRelation": {
+    "de": "Relationsfeld (Ziel)",
+    "en": "Relation field (target)"
+  },
+  "deriveRuleLabelDe": {
+    "de": "Button-Beschriftung (de)",
+    "en": "Button label (de)"
+  },
+  "deriveRuleLabelEn": {
+    "de": "Button-Beschriftung (en)",
+    "en": "Button label (en)"
+  },
+  "deriveRuleChoose": {
+    "de": "Bitte wählen …",
+    "en": "Choose …"
+  },
+  "deriveRuleTargetField": {
+    "de": "Zielfeld",
+    "en": "Target field"
+  },
+  "deriveRuleKind": {
+    "de": "Wert aus",
+    "en": "Value from"
+  },
+  "deriveRuleKindCopy": {
+    "de": "Quellfeld",
+    "en": "Source field"
+  },
+  "deriveRuleKindConstant": {
+    "de": "Fester Wert",
+    "en": "Fixed value"
+  },
+  "deriveRuleSourceOrValue": {
+    "de": "Quellfeld / Wert",
+    "en": "Source field / value"
+  },
+  "deriveRuleSourceField": {
+    "de": "Quellfeld",
+    "en": "Source field"
+  },
+  "deriveRuleValue": {
+    "de": "Fester Wert",
+    "en": "Fixed value"
+  },
+  "deriveRulePrefix": {
+    "de": "Präfix",
+    "en": "Prefix"
+  },
+  "deriveRuleRemove": {
+    "de": "Entfernen",
+    "en": "Remove"
+  },
+  "deriveRuleAddRow": {
+    "de": "Feld hinzufügen",
+    "en": "Add field"
+  },
+  "deriveRuleSave": {
+    "de": "Regel speichern",
+    "en": "Save rule"
+  },
+  "deriveRuleDiscard": {
+    "de": "Änderungen verwerfen",
+    "en": "Discard changes"
+  },
+  "deriveRuleSaving": {
+    "de": "Wird gespeichert …",
+    "en": "Saving…"
+  },
+  "deriveRuleSaved": {
+    "de": "Regel gespeichert.",
+    "en": "Rule saved."
+  },
+  "deriveRuleTargetMissing": {
+    "de": "Bitte eine Ziel-Collection wählen.",
+    "en": "Choose a target collection."
+  },
+  "deriveRuleTargetIsSource": {
+    "de": "Das Ziel muss eine andere Collection sein.",
+    "en": "The target must be another collection."
+  },
+  "deriveRuleRelationMissing": {
+    "de": "Bitte das Relationsfeld der Ziel-Collection wählen.",
+    "en": "Choose the relation field of the target collection."
+  },
+  "deriveRuleFieldsMissing": {
+    "de": "Bitte mindestens ein Feld zuordnen.",
+    "en": "Map at least one field."
+  },
+  "deriveRuleDuplicateTarget": {
+    "de": "Jedes Zielfeld darf nur einmal vorkommen.",
+    "en": "Each target field may be mapped only once."
+  },
+  "deriveRuleRowIncomplete": {
+    "de": "Jede Zeile braucht ein Zielfeld, eine Kopie zusätzlich ein Quellfeld.",
+    "en": "Every row needs a target field, and a copy needs a source field."
   }
 }
