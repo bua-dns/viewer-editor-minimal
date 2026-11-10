@@ -1373,7 +1373,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand 2026-11-09: 29 Testdateien, 315 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
+Stand 2026-11-10: 30 Testdateien, 329 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
 ### Composables
 
