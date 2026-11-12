@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11 - Edit area on small laptop screens
+
+- Scan and fields now size to the width of the edit area (container queries) instead of the viewport.
+  The fields column gets more room than the scan (`2fr / 3fr`). In a narrow edit area the scan sits
+  above the fields, capped at `40vh`.
+- Field widths of 33 % and 50 % fall back to 50 % and 100 % when the fields column is narrow, instead of
+  squeezing three inputs into a ~250px column.
+- With an item selected, the list takes less width on laptop screens (`minmax(15rem, 1fr)` vs. `2fr` for
+  the edit area; `2fr / 3fr` from `1600px`).
+- On viewports up to `820px` high, the list header (search, `New item`) no longer sticks; at 1280x640 the
+  edit area gains about 170px of height. Topbar and tabs stay sticky.
+- The condensed topbar drops the offline hint up to `1440px` width so it fits on one row; tabs shrink
+  instead of scrolling horizontally.
+
 ## 2026-11 - Derive items into another collection
 
 - New, online only: on the selected item, `Derive item` creates a new item in another Strapi collection,

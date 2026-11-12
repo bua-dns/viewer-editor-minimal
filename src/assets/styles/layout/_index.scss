@@ -61,7 +61,12 @@
   display: inline-flex;
   justify-content: flex-start;
   margin-bottom: 0;
-  min-width: 14rem;
+  // Schrumpfen statt horizontal scrollen: auf Laptop-Breiten passen alle Tabs in eine Zeile.
+  flex: 0 1 14rem;
+  min-width: 7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: #e8edf3;
   color: #253446;
   border: 1px solid #c8d1db;
@@ -107,10 +112,17 @@
 }
 
 .content-grid.content-grid-selected {
-  grid-template-columns: 1fr 1fr 3fr;
+  // minmax(0, …) verhindert, dass breite Inhalte (Karten, Suchfeld) die Spalten aufblaehen.
+  grid-template-columns: minmax(15rem, 1fr) minmax(0, 2fr);
   grid-template-areas:
-    'list list sidebar'
-    'status status status';
+    'list sidebar'
+    'status status';
+}
+
+@media (min-width: 1600px) {
+  .content-grid.content-grid-selected {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
 }
 
 .content-grid.content-grid-selected.content-grid-extended {
@@ -215,8 +227,31 @@
   }
 }
 
+// Laptop-Breiten: im gescrollten Zustand entfaellt auch der reine Offline-Hinweis, damit die
+// Controls in eine Zeile passen (der Offline/Online-Schalter zeigt den Modus weiterhin an).
+@media (min-width: 769px) and (max-width: 1440px) {
+  .topbar.topbar-condensed .auth-note-inline {
+    display: none;
+  }
+}
+
+// Niedrige Laptop-Bildschirme: Kopfzeile und Tabs bleiben sticky, der Listenkopf (Suche,
+// "Neues Item") scrollt mit. Sonst bleiben dem Editierbereich nur wenige hundert Pixel Hoehe.
+@media (min-width: 769px) and (max-height: 820px) {
+  .edit-sticky-top {
+    position: static;
+    box-shadow: none;
+  }
+
+  .content-grid.content-grid-selected .sidebar-panel {
+    top: calc(var(--ve-sticky-top-offset) + var(--ve-tabs-row-height) + var(--ve-space-3));
+    max-height: calc(100vh - (var(--ve-sticky-top-offset) + var(--ve-tabs-row-height) + var(--ve-space-4) + var(--ve-space-3)));
+  }
+}
+
 .sidebar-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: var(--ve-space-3);
@@ -286,23 +321,48 @@
   display: block;
 }
 
+// Scan und Felder richten sich nach der verfuegbaren Breite des Editierbereichs (Container
+// Query), nicht nach dem Viewport: der Bereich ist je nach Modus (Liste daneben / volle Breite)
+// sehr unterschiedlich breit.
+.sidebar-content {
+  container: sidebar-content / inline-size;
+}
+
 .sidebar-detail-grid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.4fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--ve-space-4);
   align-items: start;
 }
 
-.sidebar-detail-grid.sidebar-detail-grid-no-scan {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.content-grid.content-grid-selected.content-grid-extended .sidebar-detail-grid {
-  grid-template-columns: minmax(320px, 1.34fr) minmax(0, 1.05fr);
-}
-
 .scan-column {
   min-width: 0;
+}
+
+// Schmal (Standard): Scan ueber den Feldern, in der Hoehe begrenzt, damit die Felder sichtbar bleiben.
+.scan-column .scan-preview {
+  display: block;
+  max-height: 40vh;
+}
+
+@container sidebar-content (min-width: 32rem) {
+  .sidebar-detail-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  .scan-column .scan-preview {
+    max-height: min(70vh, 48rem);
+  }
+}
+
+@container sidebar-content (min-width: 64rem) {
+  .sidebar-detail-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.sidebar-detail-grid.sidebar-detail-grid-no-scan {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .sidebar-checkbox-fields {
@@ -355,6 +415,10 @@
 
   .content-grid.content-grid-selected {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'list'
+      'sidebar'
+      'status';
   }
 
   .content-grid.content-grid-selected.content-grid-extended {
