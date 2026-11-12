@@ -12,7 +12,7 @@
 1. [Projektüberblick](#1-projektüberblick)
 2. [Tech Stack und lokale Entwicklung](#2-tech-stack-und-lokale-entwicklung)
 3. [Projektstruktur](#3-projektstruktur)
-4. [App-Konfiguration und Wording](#4-app-konfiguration-und-wording)
+4. [Konfiguration und Wording](#4-konfiguration-und-wording)
 5. [Browser-Persistenz](#5-browser-persistenz)
 6. [Datenmodell, Suche und Sortierung](#6-datenmodell-suche-und-sortierung)
 7. [User-Config (Tab `Konfiguration`)](#7-user-config-tab-konfiguration)
@@ -961,7 +961,7 @@ noch befüllt hat.
    geladenen Ersetzungsregeln gehen per `initializeReplacements(...)` in den Replacements-Store und
    bilden dort zugleich den Snapshot; **angewendet werden sie dabei nicht**
    (siehe [Kapitel 11](#11-ersetzungen-replacements)).
-2. **Backend-Wording setzen** (`setOnlineWording`, siehe [4.3](#43-wording-backend-merge-und-sprachen)).
+2. **Backend-Wording setzen** (`setOnlineWording`, siehe [4.4](#44-wording-backend-merge-und-sprachen)).
 3. `itemsPath` aus den Settings lesen (`itemsPath`, Legacy-Fallback `item_path`) und das Datenmodell
    mit einer leeren Liste initialisieren (`online:<itemsPath>` als Anzeigename). Die Scan-Quelle wird
    analog aus `scanField` aufgelöst (siehe [12.6](#126-item-normalisierung-und-wikidata-mapping)).
