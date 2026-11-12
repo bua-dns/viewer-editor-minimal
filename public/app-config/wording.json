@@ -584,12 +584,12 @@
     "en": "-"
   },
   "prefillProposalTitle": {
-    "de": "Vorschlag aus einem anderen Feld: Enter übernimmt ihn, Tippen ändert ihn.",
-    "en": "Proposal from another field: Enter accepts it, typing changes it."
+    "de": "Vorschlag aus einem anderen Feld, noch nicht gespeichert: mit dem Haken oder Enter übernehmen, oder durch Tippen ändern.",
+    "en": "Suggestion from another field, not saved yet: accept it with the check mark or Enter, or type to change it."
   },
   "prefillClearLabel": {
     "de": "Vorschlag verwerfen",
-    "en": "Discard proposal"
+    "en": "Discard suggestion"
   },
   "prefillClearSearchLabel": {
     "de": "Vorbefüllten Suchbegriff löschen",
@@ -1262,5 +1262,17 @@
   "deriveRuleRowIncomplete": {
     "de": "Jede Zeile braucht ein Zielfeld, eine Kopie zusätzlich ein Quellfeld.",
     "en": "Every row needs a target field, and a copy needs a source field."
+  },
+  "prefillAcceptLabel": {
+    "de": "Vorschlag übernehmen",
+    "en": "Accept suggestion"
+  },
+  "sidebarSaveItem": {
+    "de": "Item speichern",
+    "en": "Save item"
+  },
+  "sidebarSaveItemTitle": {
+    "de": "Speichert nur die Änderungen dieses Items",
+    "en": "Saves only the changes of this item"
   }
 }

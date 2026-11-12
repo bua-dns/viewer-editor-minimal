@@ -223,7 +223,9 @@ sie lokal:
   `Konfiguration` offen ist oder die bestandsweite Suche es braucht, einmal je Verbindung/Token/Collection
   (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
 - `useOnlineSave.js` - `Änderungen speichern` online (Items, dann Ersetzungsregeln); liefert `true`, wenn
-  alles gespeichert wurde
+  alles gespeichert wurde. `saveOnlineItemChanges(item)` ist `Item speichern` im Kopf des Editierbereichs:
+  nur das offene Item (Update oder neues Item), alle anderen Änderungen und die Ersetzungsregeln bleiben
+  pending
 - `derivationRules.js` - reine Logik der Ableitungsregeln: Normalisieren, Regel je Quell-Collection,
   Validierung, Zielwerte (Kopie, Präfix, fester Wert) und Relation (`connect`)
 - `useItemDerivation.js` - Ablauf von `Item ableiten` (Vorschau, Vorab-Speichern, Anlegen) und die
@@ -580,9 +582,9 @@ Datenfelder. Pro konfiguriertem Feld einstellbar:
   der Konfiguration; so kann es weiter als `prefillWith`-Quelle dienen
 - `prefillWith` (alle Typen außer `checkbox`, Spalte "Prefill") - Dropdown auf ein `normal`-Feld.
   Bei `wikidata-autosuggest` wird dessen Wert als Suchtext vorbefüllt (siehe [7.3](#73-zusatzoptionen-für-wikidata-autosuggest)).
-  Bei allen anderen Typen zeigt ein leeres Feld den Wert als Vorschlag (kursiv, gestrichelter
-  Rahmen, `components/FieldEditorControl.vue`); gespeichert wird erst bei Enter (Strg+Enter im
-  Textfeld) oder beim Bearbeiten. Das x rechts im Feld verwirft den Vorschlag bzw. den vorbefüllten
+  Bei allen anderen Typen zeigt ein leeres Feld den Wert als Vorschlag (graue Kursivschrift auf grauem
+  Feld, `components/FieldEditorControl.vue`); gespeichert wird erst mit dem Haken rechts im Feld, mit
+  Enter (Strg+Enter im Textfeld) oder beim Bearbeiten. Das x rechts im Feld verwirft den Vorschlag bzw. den vorbefüllten
   Suchbegriff, bis das Item erneut geöffnet wird. Felder mit Vorschlag bleiben auch bei
   `showOnlyNonEmptyFields` sichtbar. Ältere Configs mit `autosuggest.prefillWith` werden beim Laden
   nach `prefillWith` verschoben.
@@ -1163,6 +1165,10 @@ Strapi-Instanz.
   über `updatedAt`, weil bei Draft & Publish der gelesene und der geschriebene Stand verschiedene
   Zeitstempel tragen; Änderungen anderer an *anderen* Feldern sind kein Konflikt (es wird nur das Delta
   gesendet). Leere Werte (`null`, `''`, `[]`) gelten als gleich, Zahlen gleich ihrer String-Form.
+- **Item speichern:** `saveOnlineItem({ item })` speichert nur den Pending-Eintrag des einen Items
+  (Schlüssel aus `__onlineMeta`: `id` bzw. bei Entwürfen `draftId`), mit derselben Konfliktprüfung.
+  Danach wird nur der Snapshot dieses Items aktualisiert; ist nichts mehr pending, gilt der Stand als
+  gespeichert. Der Button ist online sichtbar und nur aktiv, wenn das Item Änderungen hat.
 - **Änderungen während des Speicherns:** Nach dem `PUT` werden nur die Felder aus dem Pending-Stand
   entfernt, die noch den gesendeten Wert haben. Ein währenddessen erneut geändertes oder zurückgesetztes
   Feld bleibt pending (mit dem gesendeten Wert als Baseline). Für Entwürfe gilt dasselbe: Änderungen

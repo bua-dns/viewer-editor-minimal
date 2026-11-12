@@ -39,8 +39,8 @@
 - Für alle Feldtypen außer `checkbox` ist optional `prefillWith` (String) erlaubt:
   - muss auf ein vorhandenes Feld in `config.fields` vom Typ `normal` verweisen
   - `wikidata-autosuggest`: der Wert wird beim Öffnen eines Items in die Suche übernommen; die automatische Suche startet nur, wenn im Feld noch keine Entity ausgewählt ist
-  - alle anderen Typen: ist das Feld leer, zeigt es den Wert als Vorschlag; gespeichert wird erst, wenn der Vorschlag mit Enter (im Textfeld Strg+Enter) übernommen oder bearbeitet wird
-  - ein Vorschlag bzw. vorbefüllter Suchbegriff lässt sich mit dem x rechts im Feld verwerfen (bis zum nächsten Öffnen des Items)
+  - alle anderen Typen: ist das Feld leer, zeigt es den Wert grau und kursiv als Vorschlag; gespeichert wird erst, wenn der Vorschlag mit dem Haken rechts im Feld (oder Enter, im Textfeld Strg+Enter) übernommen oder bearbeitet wird
+  - das x rechts im Feld verwirft einen Vorschlag bzw. einen vorbefüllten Wikidata-Suchbegriff (bis zum nächsten Öffnen des Items)
   - ältere Configs mit `autosuggest.prefillWith` werden weiter gelesen und beim Laden nach `prefillWith` verschoben
 - Für `wikidata-autosuggest` ist `readOnly` nicht erlaubt; stattdessen ist optional `autosuggest` als pass-through Objekt vorgesehen.
 - Für `candidate` ist zusätzlich ein Objekt `candidate` erforderlich:

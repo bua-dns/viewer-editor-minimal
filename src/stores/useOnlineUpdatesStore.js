@@ -458,9 +458,47 @@ function finishSave({ savedCount, failed, createdItems }) {
   }
 }
 
+// The pending entry of one item: an update is keyed by its id, a new item by its draft id.
+function resolveItemEntryKey(item) {
+  const onlineMeta = item?.[ONLINE_META_KEY]
+  if (!onlineMeta || typeof onlineMeta !== 'object') return ''
+  const id = onlineMeta.isDraft === true ? onlineMeta.draftId : onlineMeta.id
+  if (!id || !onlineMeta.itemsPath) return ''
+  return createEntryKey(onlineMeta.itemsPath, id)
+}
+
+function pickEntry(entriesById, entryKey) {
+  const entry = entryKey ? entriesById[entryKey] : null
+  return entry ? [[entryKey, entry]] : []
+}
+
+function hasPendingChangesForItem(item) {
+  const entryKey = resolveItemEntryKey(item)
+  if (!entryKey) return false
+  return Boolean(pendingUpdatesById.value[entryKey] || pendingCreatesById.value[entryKey])
+}
+
 async function saveOnlineUpdates({ profile, token = '' }) {
-  const createEntries = Object.entries(pendingCreatesById.value)
-  const updateEntries = Object.entries(pendingUpdatesById.value)
+  return saveEntryLists({
+    profile,
+    token,
+    createEntries: Object.entries(pendingCreatesById.value),
+    updateEntries: Object.entries(pendingUpdatesById.value),
+  })
+}
+
+// "Save item": writes only the pending create or update of this one item.
+async function saveOnlineItem({ profile, token = '', item }) {
+  const entryKey = resolveItemEntryKey(item)
+  return saveEntryLists({
+    profile,
+    token,
+    createEntries: pickEntry(pendingCreatesById.value, entryKey),
+    updateEntries: pickEntry(pendingUpdatesById.value, entryKey),
+  })
+}
+
+async function saveEntryLists({ profile, token, createEntries, updateEntries }) {
   if (!updateEntries.length && !createEntries.length) {
     saveStatus.value = 'idle'
     lastSaveError.value = ''
@@ -508,5 +546,7 @@ export function useOnlineUpdatesStore() {
     trackOnlineFieldChange,
     trackOnlineReplacementUpdatesForRemainingItems,
     saveOnlineUpdates,
+    saveOnlineItem,
+    hasPendingChangesForItem,
   }
 }
