@@ -223,7 +223,9 @@ sie lokal:
   `Konfiguration` offen ist oder die bestandsweite Suche es braucht, einmal je Verbindung/Token/Collection
   (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
 - `useOnlineSave.js` - `Änderungen speichern` online (Items, dann Ersetzungsregeln); liefert `true`, wenn
-  alles gespeichert wurde
+  alles gespeichert wurde. `saveOnlineItemChanges(item)` ist `Item speichern` im Kopf des Editierbereichs:
+  nur das offene Item (Update oder neues Item), alle anderen Änderungen und die Ersetzungsregeln bleiben
+  pending
 - `derivationRules.js` - reine Logik der Ableitungsregeln: Normalisieren, Regel je Quell-Collection,
   Validierung, Zielwerte (Kopie, Präfix, fester Wert) und Relation (`connect`)
 - `useItemDerivation.js` - Ablauf von `Item ableiten` (Vorschau, Vorab-Speichern, Anlegen) und die
@@ -577,8 +579,16 @@ Datenfelder. Pro konfiguriertem Feld einstellbar:
   ungültige Werte fallen auf `100%` zurück)
 - `readOnly` (nicht für `wikidata-autosuggest`) - sichtbar, aber nicht editierbar
 - `hidden` (alle Typen) - Feld erscheint nicht im Sidebar-Editor, bleibt aber in den Daten und in
-  der Konfiguration; so kann es weiter als `autosuggest.prefillWith`-Quelle dienen
-- Reihenfolge per Drag-and-Drop
+  der Konfiguration; so kann es weiter als `prefillWith`-Quelle dienen
+- `prefillWith` (alle Typen außer `checkbox`, Spalte "Prefill") - Dropdown auf ein `normal`-Feld.
+  Bei `wikidata-autosuggest` wird dessen Wert als Suchtext vorbefüllt (siehe [7.3](#73-zusatzoptionen-für-wikidata-autosuggest)).
+  Bei allen anderen Typen zeigt ein leeres Feld den Wert als Vorschlag (graue Kursivschrift auf grauem
+  Feld, `components/FieldEditorControl.vue`); gespeichert wird erst mit dem Haken rechts im Feld, mit
+  Enter (Strg+Enter im Textfeld) oder beim Bearbeiten. Das x rechts im Feld verwirft den Vorschlag bzw. den vorbefüllten
+  Suchbegriff, bis das Item erneut geöffnet wird. Felder mit Vorschlag bleiben auch bei
+  `showOnlyNonEmptyFields` sichtbar. Ältere Configs mit `autosuggest.prefillWith` werden beim Laden
+  nach `prefillWith` verschoben.
+- Reihenfolge per Drag-and-Drop; entfernt wird ein Feld mit dem x am Zeilenende
 
 Zusätzlich können Felder manuell angelegt und wieder entfernt werden.
 
@@ -611,7 +621,6 @@ Zusätzlich können Felder manuell angelegt und wieder entfernt werden.
 GUI-Editierung aller `autosuggest`-Optionen in einem einklappbaren `Optionen`-Bereich:
 
 - Basisoptionen (`searchLanguages`, `resultLanguage`, `minChars`, `limit`)
-- `prefillWith` - Dropdown auf ein `normal`-Feld; dessen String-Wert wird als Suchtext vorbefüllt
 - `alsoGetDataFrom` - Repeater für Wikidata-Properties als Objekte `{ propertyId, label }`;
   Legacy-Strings bleiben lesbar
 - Priorisierungsblöcke `claimPresence` und `claimValueMatch` inkl. `weight`, `defs`,
@@ -1156,6 +1165,10 @@ Strapi-Instanz.
   über `updatedAt`, weil bei Draft & Publish der gelesene und der geschriebene Stand verschiedene
   Zeitstempel tragen; Änderungen anderer an *anderen* Feldern sind kein Konflikt (es wird nur das Delta
   gesendet). Leere Werte (`null`, `''`, `[]`) gelten als gleich, Zahlen gleich ihrer String-Form.
+- **Item speichern:** `saveOnlineItem({ item })` speichert nur den Pending-Eintrag des einen Items
+  (Schlüssel aus `__onlineMeta`: `id` bzw. bei Entwürfen `draftId`), mit derselben Konfliktprüfung.
+  Danach wird nur der Snapshot dieses Items aktualisiert; ist nichts mehr pending, gilt der Stand als
+  gespeichert. Der Button ist online sichtbar und nur aktiv, wenn das Item Änderungen hat.
 - **Änderungen während des Speicherns:** Nach dem `PUT` werden nur die Felder aus dem Pending-Stand
   entfernt, die noch den gesendeten Wert haben. Ein währenddessen erneut geändertes oder zurückgesetztes
   Feld bleibt pending (mit dem gesendeten Wert als Baseline). Für Entwürfe gilt dasselbe: Änderungen
@@ -1362,9 +1375,10 @@ sich nach dem Zieltyp (Checkbox, Zahl, Text). `Regel speichern` schreibt die gan
   (mindestens `de` und `en`). Quelle ist der sprachspezifische Merge aus `wbsearchentities`; beim
   Auswählen wird zusätzlich `wbgetentities` mit `props=labels|descriptions` und `languages=de|en`
   aufgerufen, damit die Werte stabil im Export-Payload landen.
-- `prefillWith`: Beim Wechsel auf ein Item wird der Wert des referenzierten `normal`-Felds in die
-  Autosuggest-Eingabe übernommen; die Suche startet automatisch nur, wenn noch keine Entity im Feld
-  selektiert ist.
+- `prefillWith` (Feld-Ebene, siehe 7.1): Beim Wechsel auf ein Item wird der Wert des referenzierten
+  `normal`-Felds in die Autosuggest-Eingabe übernommen; die Suche startet automatisch nur, wenn noch
+  keine Entity im Feld selektiert ist. Solange der Suchtext der vorbefüllte ist, zeigt das Feld rechts
+  ein x zum Löschen.
 - `alsoGetDataFrom`: Beim Hinzufügen einer Entity werden die rohen Statements je konfigurierter
   Property nachgeladen und unter `statementData[PROPERTY_ID]` gespeichert. Ist `statementData`
   vorhanden, zeigt die selektierte Entity-Liste einen Toggle (`Show/Hide statement data`) und rendert

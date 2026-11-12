@@ -16,6 +16,33 @@ function isAllowedFieldWidth(value) {
   return value === '33%' || value === '50%' || value === '100%'
 }
 
+// Returns an error result, or null when the value is absent or valid. `configKey` names the
+// key in messages: `prefillWith`, or `autosuggest.prefillWith` in older configs.
+function validatePrefillWith(fields, fieldKey, configKey, value) {
+  if (value == null) return null
+  if (typeof value !== 'string') {
+    return { ok: false, error: `JSON-Config ist ungueltig: ${configKey} bei ${fieldKey} muss ein String sein.` }
+  }
+
+  const sourceKey = value.trim()
+  if (!sourceKey) return null
+
+  if (!Object.prototype.hasOwnProperty.call(fields, sourceKey)) {
+    return {
+      ok: false,
+      error: `JSON-Config ist ungueltig: ${configKey} bei ${fieldKey} verweist auf ein fehlendes Feld (${sourceKey}).`,
+    }
+  }
+
+  if ((fields[sourceKey]?.type ?? 'normal') !== 'normal') {
+    return {
+      ok: false,
+      error: `JSON-Config ist ungueltig: ${configKey} bei ${fieldKey} muss auf ein normales String-Feld verweisen.`,
+    }
+  }
+  return null
+}
+
 export function validateImportedConfigPayload(configPayload) {
   if (!isPlainObject(configPayload)) {
     return { ok: false, error: 'JSON-Config ist ungueltig: config muss ein Objekt sein.' }
@@ -156,32 +183,10 @@ export function validateImportedConfigPayload(configPayload) {
       }
     }
 
-    if (isPlainObject(fieldConfig.autosuggest) && fieldConfig.autosuggest.prefillWith != null) {
-      if (typeof fieldConfig.autosuggest.prefillWith !== 'string') {
-        return {
-          ok: false,
-          error: `JSON-Config ist ungueltig: autosuggest.prefillWith bei ${key} muss ein String sein.`,
-        }
-      }
-
-      const prefillWith = fieldConfig.autosuggest.prefillWith.trim()
-      if (!prefillWith) continue
-
-      if (!Object.prototype.hasOwnProperty.call(configPayload.fields, prefillWith)) {
-        return {
-          ok: false,
-          error: `JSON-Config ist ungueltig: autosuggest.prefillWith bei ${key} verweist auf ein fehlendes Feld (${prefillWith}).`,
-        }
-      }
-
-      const prefillSourceType = configPayload.fields[prefillWith]?.type ?? 'normal'
-      if (prefillSourceType !== 'normal') {
-        return {
-          ok: false,
-          error: `JSON-Config ist ungueltig: autosuggest.prefillWith bei ${key} muss auf ein normales String-Feld verweisen.`,
-        }
-      }
-    }
+    const prefillResult =
+      validatePrefillWith(configPayload.fields, key, 'prefillWith', fieldConfig.prefillWith) ||
+      validatePrefillWith(configPayload.fields, key, 'autosuggest.prefillWith', fieldConfig.autosuggest?.prefillWith)
+    if (prefillResult) return prefillResult
 
     if (isPlainObject(fieldConfig.autosuggest) && fieldConfig.autosuggest.alsoGetDataFrom != null) {
       const alsoGetDataFrom = fieldConfig.autosuggest.alsoGetDataFrom

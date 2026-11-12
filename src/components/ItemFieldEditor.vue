@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useFieldMapping } from '../composables/useFieldMapping'
-import ViewerWikidataField from './ViewerWikidataField.vue'
+import FieldEditorControl from './FieldEditorControl.vue'
 
 const props = defineProps({
   selectedRawItem: { type: Object, required: true },
@@ -20,7 +20,29 @@ const props = defineProps({
 
 const emit = defineEmits(['field-change', 'accept-candidate'])
 
-const { getFieldLabel, getFieldHint, getFieldConfig, getFieldWidth, isFieldReadOnly, getFieldEditorBinding, getDisplayedFieldKeys } = useFieldMapping()
+const {
+  getFieldLabel,
+  getFieldHint,
+  getFieldConfig,
+  getFieldWidth,
+  isFieldReadOnly,
+  getFieldEditorBinding,
+  getPrefillProposal,
+  getDisplayedFieldKeys,
+} = useFieldMapping()
+
+// Fields whose prefill proposal was discarded with the x button. The editor is keyed per item, so
+// this resets when another item is opened.
+const dismissedProposalKeys = ref(new Set())
+
+function getRowProposal(key, isReadOnly) {
+  if (isReadOnly || dismissedProposalKeys.value.has(key)) return ''
+  return getPrefillProposal(key, props.selectedRawItem)
+}
+
+function onDismissProposal(row) {
+  dismissedProposalKeys.value.add(row.key)
+}
 
 const includeConfiguredTypeSet = computed(() =>
   new Set((Array.isArray(props.includeConfiguredTypes) ? props.includeConfiguredTypes : []).map((type) => String(type || '').trim()).filter(Boolean)),
@@ -54,6 +76,7 @@ const fieldRows = computed(() =>
       hint: getFieldHint(key),
       fieldWidth: getFieldWidth(key),
       isReadOnly: isFieldReadOnly(key),
+      prefillProposal: getRowProposal(key, isFieldReadOnly(key)),
       fieldConfig,
       configuredType: String(fieldConfig?.type || '').trim(),
       candidateTargetField,
@@ -69,13 +92,8 @@ const fieldRows = computed(() =>
   }).filter((row) => shouldIncludeConfiguredType(row.configuredType)),
 )
 
-function onFieldDomEvent(row, event) {
-  emit('field-change', row.key, row.editorBinding.readEventValue(event), row.editorBinding.resolvedType)
-}
-
-function resolveEditorComponent(componentId) {
-  if (componentId === 'ViewerWikidataField') return ViewerWikidataField
-  return componentId
+function onFieldChange(row, nextValue) {
+  emit('field-change', row.key, nextValue, row.editorBinding.resolvedType)
 }
 
 function shouldRenderEditor(row) {
@@ -157,10 +175,11 @@ async function onCopyRawData() {
           <small v-if="row.isReadOnly" class="field-readonly-badge">read-only</small>
         </label>
         <div v-if="isCandidateRow(row) && shouldRenderEditor(row)" class="candidate-editor-inline">
-          <component
-            :is="resolveEditorComponent(row.editorBinding.component)"
-            v-bind="row.editorBinding.componentProps"
-            @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
+          <FieldEditorControl
+            :binding="row.editorBinding"
+            :proposal="row.prefillProposal"
+            @change="onFieldChange(row, $event)"
+            @dismiss-proposal="onDismissProposal(row)"
           />
           <button
             type="button"
@@ -188,11 +207,12 @@ async function onCopyRawData() {
             </svg>
           </button>
         </div>
-        <component
-          :is="resolveEditorComponent(row.editorBinding.component)"
+        <FieldEditorControl
           v-else-if="shouldRenderEditor(row)"
-          v-bind="row.editorBinding.componentProps"
-          @[row.editorBinding.eventName]="onFieldDomEvent(row, $event)"
+          :binding="row.editorBinding"
+          :proposal="row.prefillProposal"
+          @change="onFieldChange(row, $event)"
+          @dismiss-proposal="onDismissProposal(row)"
         />
         <pre v-else>{{ JSON.stringify(row.value) }}</pre>
         <p v-if="row.hint" class="field-hint">{{ row.hint }}</p>
@@ -287,8 +307,7 @@ async function onCopyRawData() {
   gap: 0.45rem;
 }
 
-.candidate-editor-inline :deep(input),
-.candidate-editor-inline :deep(textarea) {
+.candidate-editor-inline > .field-editor-control {
   flex: 1 1 auto;
   min-width: 0;
 }

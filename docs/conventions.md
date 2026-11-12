@@ -36,6 +36,12 @@
 - Optional pro Feld: `fieldWidth` mit `33%`, `50%` oder `100%` (Layout im Sidebar-Editor: 3/2/1 Felder pro Zeile).
 - Für Nicht-`wikidata-autosuggest`-Felder ist zusätzlich `readOnly` (Boolean) erlaubt.
 - Für alle Feldtypen ist optional `hidden` (Boolean) erlaubt: das Feld wird im Editor nicht angezeigt, bleibt aber in Daten und Config (z. B. als `prefillWith`-Quelle).
+- Für alle Feldtypen außer `checkbox` ist optional `prefillWith` (String) erlaubt:
+  - muss auf ein vorhandenes Feld in `config.fields` vom Typ `normal` verweisen
+  - `wikidata-autosuggest`: der Wert wird beim Öffnen eines Items in die Suche übernommen; die automatische Suche startet nur, wenn im Feld noch keine Entity ausgewählt ist
+  - alle anderen Typen: ist das Feld leer, zeigt es den Wert grau und kursiv als Vorschlag; gespeichert wird erst, wenn der Vorschlag mit dem Haken rechts im Feld (oder Enter, im Textfeld Strg+Enter) übernommen oder bearbeitet wird
+  - das x rechts im Feld verwirft einen Vorschlag bzw. einen vorbefüllten Wikidata-Suchbegriff (bis zum nächsten Öffnen des Items)
+  - ältere Configs mit `autosuggest.prefillWith` werden weiter gelesen und beim Laden nach `prefillWith` verschoben
 - Für `wikidata-autosuggest` ist `readOnly` nicht erlaubt; stattdessen ist optional `autosuggest` als pass-through Objekt vorgesehen.
 - Für `candidate` ist zusätzlich ein Objekt `candidate` erforderlich:
   - `candidate.targetField` (Pflicht, String): muss auf ein vorhandenes Feld zeigen, darf nicht auf sich selbst und nicht auf ein weiteres `candidate`-Feld zeigen.
@@ -53,11 +59,6 @@
 - Für `wikidata-autosuggest.prioritize` gelten folgende `defs`-Formen:
   - `claimPresence.defs`: Liste aus Objekten `{ propertyId, propertyLabel }` (Legacy-Stringeinträge bleiben kompatibel)
   - `claimValueMatch.defs`: Liste aus Objekten `{ property, value, label }` (`label` dient der Anzeige)
-- Optional kann `autosuggest.prefillWith` gesetzt werden (String):
-  - muss auf ein vorhandenes Feld in `config.fields` verweisen
-  - das referenzierte Feld muss vom Typ `normal` sein
-  - der Wert wird beim Öffnen eines Items in die Autosuggest-Eingabe übernommen
-  - automatische Suche startet nur, wenn im aktuellen Feld noch keine Entity ausgewählt wurde
 - Optional kann `autosuggest.alsoGetDataFrom` gesetzt werden (Legacy-String `P...` oder Repeater-Liste):
   - als Repeater-Liste: Objekte `{ propertyId, label }` (alternativ kompatibel: `{ property, propertyLabel }`)
   - alle gesetzten Property-IDs müssen gültige Wikidata-Property-IDs sein (z. B. `P31`)

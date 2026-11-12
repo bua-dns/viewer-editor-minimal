@@ -571,6 +571,30 @@
     "de": "Feld entfernen",
     "en": "Remove field"
   },
+  "configPrefillHeader": {
+    "de": "Prefill",
+    "en": "Prefill"
+  },
+  "configPrefillHeaderTitle": {
+    "de": "Ein leeres Feld zeigt den Wert dieses Feldes als Vorschlag",
+    "en": "An empty field shows the value of this field as a proposal"
+  },
+  "configPrefillNone": {
+    "de": "-",
+    "en": "-"
+  },
+  "prefillProposalTitle": {
+    "de": "Vorschlag aus einem anderen Feld, noch nicht gespeichert: mit dem Haken oder Enter übernehmen, oder durch Tippen ändern.",
+    "en": "Suggestion from another field, not saved yet: accept it with the check mark or Enter, or type to change it."
+  },
+  "prefillClearLabel": {
+    "de": "Vorschlag verwerfen",
+    "en": "Discard suggestion"
+  },
+  "prefillClearSearchLabel": {
+    "de": "Vorbefüllten Suchbegriff löschen",
+    "en": "Clear prefilled search term"
+  },
   "addFieldDuplicateError": {
     "de": "Feld existiert bereits.",
     "en": "Field already exists."
@@ -1238,5 +1262,17 @@
   "deriveRuleRowIncomplete": {
     "de": "Jede Zeile braucht ein Zielfeld, eine Kopie zusätzlich ein Quellfeld.",
     "en": "Every row needs a target field, and a copy needs a source field."
+  },
+  "prefillAcceptLabel": {
+    "de": "Vorschlag übernehmen",
+    "en": "Accept suggestion"
+  },
+  "sidebarSaveItem": {
+    "de": "Item speichern",
+    "en": "Save item"
+  },
+  "sidebarSaveItemTitle": {
+    "de": "Speichert nur die Änderungen dieses Items",
+    "en": "Saves only the changes of this item"
   }
 }

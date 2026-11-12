@@ -112,6 +112,7 @@ const {
   trackOnlineDraftCreate,
   trackOnlineFieldChange,
   trackOnlineReplacementUpdatesForRemainingItems,
+  hasPendingChangesForItem,
 } = useOnlineUpdatesStore()
 
 const {
@@ -529,9 +530,24 @@ async function onSelectHierarchyLevel1(value) {
   initializeExpandedHierarchyLevel2(normalizedLevel1Value)
 }
 
-const { saveOnlineChanges: onSaveOnlineChanges } = useOnlineSave({
+const { saveOnlineChanges: onSaveOnlineChanges, saveOnlineItemChanges } = useOnlineSave({
   rawItems, importFileName, markAsSaved, syncSnapshotItemAtIndex,
 })
+
+// "Save item" in the sidebar head: online only, saves just the open item's pending changes.
+const canSaveSelectedItem = computed(() => isOnlineSession.value && isAuthenticated.value)
+const selectedItemHasPendingChanges = computed(() => hasPendingChangesForItem(selectedRawItem.value))
+const isSavingSelectedItem = ref(false)
+
+async function onSaveSelectedItem() {
+  if (isSavingSelectedItem.value) return
+  isSavingSelectedItem.value = true
+  try {
+    await saveOnlineItemChanges(selectedRawItem.value)
+  } finally {
+    isSavingSelectedItem.value = false
+  }
+}
 
 // "Derive item": switched on in the basic config, online only, rule per source collection.
 const derivation = reactive(
@@ -1281,6 +1297,12 @@ watch(
                 <img :src="minimizeIcon" alt="" aria-hidden="true" class="sidebar-toggle-icon" />
               </button>
               <div class="sidebar-head-actions">
+                <button v-if="canSaveSelectedItem" type="button" class="sidebar-derive-button"
+                  :disabled="!selectedItemHasPendingChanges || isSavingSelectedItem || onlineSaveStatus === 'saving'"
+                  :title="t('sidebarSaveItemTitle', 'Saves only the changes of this item')"
+                  @click="onSaveSelectedItem">
+                  {{ isSavingSelectedItem ? t('onlineSavePending', 'Saving...') : t('sidebarSaveItem', 'Save item') }}
+                </button>
                 <button v-if="derivation.canDerive" type="button" class="sidebar-derive-button"
                   @click="derivation.openDerivation">
                   {{ derivation.actionLabel }}

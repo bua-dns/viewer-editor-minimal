@@ -148,6 +148,7 @@ describe('useOnlineUpdatesStore draft creates', () => {
     expect(store.trackOnlineDraftCreate({ item: draft })).toBe(true)
     expect(store.pendingUpdateCount.value).toBe(1)
     expect(store.hasPendingUpdates.value).toBe(true)
+    expect(store.hasPendingChangesForItem(draft)).toBe(true)
   })
 
   test('does not track persisted items as creates', () => {
@@ -382,6 +383,37 @@ describe('useOnlineUpdatesStore save safety', () => {
     expect(result.ok).toBe(true)
     const [[, putInit]] = requestsOf(globalThis.fetch, 'PUT')
     expect(JSON.parse(putInit.body)).toEqual({ data: { label: 'My edit' } })
+  })
+
+  test('saveOnlineItem writes only the given item and leaves the others pending', async () => {
+    globalThis.fetch = mockStrapiFetch({
+      'GET /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1', label: 'Original' } }),
+      'PUT /api/cards/doc-1': okResponse({ data: { documentId: 'doc-1' } }),
+    })
+    const store = useOnlineUpdatesStore()
+    const first = trackLabelEdit(store, { from: 'Original', to: 'Mine', id: 'doc-1' })
+    const second = trackLabelEdit(store, { from: 'Original', to: 'Later', id: 'doc-2' })
+
+    expect(store.hasPendingChangesForItem(first)).toBe(true)
+    const result = await store.saveOnlineItem({ profile: PROFILE, item: first })
+
+    expect(result.ok).toBe(true)
+    expect(requestsOf(globalThis.fetch, 'PUT')).toHaveLength(1)
+    expect(store.hasPendingChangesForItem(first)).toBe(false)
+    expect(store.hasPendingChangesForItem(second)).toBe(true)
+    expect(store.pendingUpdateCount.value).toBe(1)
+  })
+
+  test('saveOnlineItem without pending changes for the item sends nothing', async () => {
+    globalThis.fetch = mockStrapiFetch({})
+    const store = useOnlineUpdatesStore()
+    const item = { label: 'Same', __onlineMeta: { id: 'doc-9', itemsPath: '/api/cards' } }
+
+    const result = await store.saveOnlineItem({ profile: PROFILE, item })
+
+    expect(result.ok).toBe(true)
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+    expect(store.hasPendingChangesForItem(null)).toBe(false)
   })
 
   // Saves "Original" → "First" and runs `editDuringPut` while the PUT is still open.

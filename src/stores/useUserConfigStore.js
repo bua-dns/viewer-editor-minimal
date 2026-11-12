@@ -4,6 +4,7 @@ import { validateImportedConfigPayload } from '../composables/userConfigValidati
 import {
   createDefaultValueForFieldType,
   normalizeValueForConfiguredType,
+  supportsPrefill,
 } from '../fields/fieldRegistry'
 
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
@@ -177,18 +178,9 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
         ? createMinimalCandidateConfig()
         : undefined
 
-  if (isPlainObject(autosuggest)) {
-    if (typeof autosuggest.prefillWith === 'string') {
-      const normalizedPrefillWith = autosuggest.prefillWith.trim()
-      if (normalizedPrefillWith) {
-        autosuggest.prefillWith = normalizedPrefillWith
-      } else {
-        delete autosuggest.prefillWith
-      }
-    } else {
-      delete autosuggest.prefillWith
-    }
-  }
+  // prefillWith now sits on the field itself; resolvePrefillWith still reads the old autosuggest.prefillWith.
+  const prefillWith = supportsPrefill(type) ? resolvePrefillWith(source) : ''
+  if (isPlainObject(autosuggest)) delete autosuggest.prefillWith
 
   if (isPlainObject(candidate)) {
     candidate.targetField = String(candidate.targetField || '').trim()
@@ -204,9 +196,15 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
     hint: typeof source.hint === 'string' ? source.hint : '',
     hidden: source.hidden === true,
     ...(type !== 'wikidata-autosuggest' ? { readOnly } : {}),
+    ...(prefillWith ? { prefillWith } : {}),
     ...(autosuggest ? { autosuggest } : {}),
     ...(candidate ? { candidate } : {}),
   }
+}
+
+function resolvePrefillWith(source) {
+  const value = typeof source.prefillWith === 'string' ? source.prefillWith : source.autosuggest?.prefillWith
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function serializeUserConfigFields(fields) {
@@ -480,6 +478,10 @@ function createUserConfigPayload() {
   }
 }
 
+function dropUnsupportedPrefill(field) {
+  if (!supportsPrefill(field.type)) delete field.prefillWith
+}
+
 function setFieldType(fieldKey, nextType) {
   const field = userConfigFields.value[fieldKey]
   if (!field) return false
@@ -509,6 +511,7 @@ function setFieldType(fieldKey, nextType) {
     delete field.autosuggest
     delete field.candidate
   }
+  dropUnsupportedPrefill(field)
 
   normalizeCandidateTargets(userConfigFields.value)
   return true

@@ -18,7 +18,7 @@ export function useOnlineSave({ rawItems, importFileName, markAsSaved, syncSnaps
   const { isAuthenticated, token } = useAuthStore()
   const { connectionProfile } = useConnectionProfileStore()
   const { persistOnlineReplacements } = useOnlineSettingsStore()
-  const { hasPendingUpdates, saveOnlineUpdates } = useOnlineUpdatesStore()
+  const { hasPendingUpdates, saveOnlineUpdates, saveOnlineItem, hasPendingChangesForItem } = useOnlineUpdatesStore()
   const { hasReplacementsChanges, createReplacementsPayload, markReplacementsAsSaved } = useReplacementsStore()
   const { hasPendingOnlineChanges } = usePendingOnlineChangesGuard()
 
@@ -58,5 +58,19 @@ export function useOnlineSave({ rawItems, importFileName, markAsSaved, syncSnaps
     return false
   }
 
-  return { saveOnlineChanges }
+  // "Save item": only this item's pending create or update; the rest stays pending.
+  async function saveOnlineItemChanges(item) {
+    if (!canWrite()) return false
+    if (!hasPendingChangesForItem(item)) return true
+
+    const result = await saveOnlineItem({ profile: connectionProfile.value, token: token.value || '', item })
+    if (!result.ok) return false
+
+    const itemIndex = rawItems.value.indexOf(item)
+    if (itemIndex !== -1) syncSnapshotItemAtIndex(itemIndex)
+    if (!hasPendingOnlineChanges.value) markAsSaved(importFileName.value)
+    return true
+  }
+
+  return { saveOnlineChanges, saveOnlineItemChanges }
 }

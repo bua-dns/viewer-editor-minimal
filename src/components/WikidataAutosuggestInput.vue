@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useWikidataSearch } from '../composables/useWikidataSearch'
+import { useAppConfigStore } from '../stores/useAppConfigStore'
 
 const props = defineProps({
   config: { type: Object, default: null },
@@ -12,6 +13,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['select'])
+
+const { t } = useAppConfigStore()
 
 const DEFAULT_CONFIG = {
   searchLanguages: ['de', 'en'],
@@ -39,6 +42,8 @@ const suggestions = ref([])
 const isLoading = ref(false)
 const requestError = ref('')
 const lastAppliedPrefill = ref('')
+// Set by the x button: the prefilled search term stays away until another item is opened.
+const isPrefillDismissed = ref(false)
 
 let debounceTimer = null
 let requestId = 0
@@ -558,6 +563,24 @@ function scheduleSearch(normalized) {
   }, 250)
 }
 
+// Another item was opened: its prefill replaces the query, and the search runs unless the field
+// already holds an entity.
+function applyPrefillForNewContext(normalizedPrefill) {
+  isPrefillDismissed.value = false
+  if (query.value !== normalizedPrefill) {
+    suppressNextQueryWatcher = true
+    query.value = normalizedPrefill
+  }
+  lastAppliedPrefill.value = normalizedPrefill
+  if (hasSelectedEntities.value) {
+    suggestions.value = []
+    requestError.value = ''
+    isLoading.value = false
+    return
+  }
+  scheduleSearch(normalizedPrefill)
+}
+
 watch(
   () => [props.prefillValue, props.prefillContext],
   ([nextValue, nextContext], previousTuple) => {
@@ -566,18 +589,7 @@ watch(
     const contextChanged = nextContext !== previousContext
 
     if (contextChanged) {
-      if (query.value !== normalizedPrefill) {
-        suppressNextQueryWatcher = true
-        query.value = normalizedPrefill
-      }
-      lastAppliedPrefill.value = normalizedPrefill
-      if (hasSelectedEntities.value) {
-        suggestions.value = []
-        requestError.value = ''
-        isLoading.value = false
-      } else {
-        scheduleSearch(normalizedPrefill)
-      }
+      applyPrefillForNewContext(normalizedPrefill)
       return
     }
 
@@ -589,6 +601,8 @@ watch(
       lastAppliedPrefill.value = ''
       return
     }
+
+    if (isPrefillDismissed.value) return
 
     if (!query.value.trim() || query.value === lastAppliedPrefill.value) {
       query.value = normalizedPrefill
@@ -620,6 +634,7 @@ watch(
     const normalizedPrefill = normalizePrefillValue(props.prefillValue)
     if (!normalizedPrefill) return
 
+    isPrefillDismissed.value = false
     if (query.value !== normalizedPrefill) {
       suppressNextQueryWatcher = true
       query.value = normalizedPrefill
@@ -628,6 +643,15 @@ watch(
     scheduleSearch(normalizedPrefill)
   },
 )
+
+const isQueryPrefilled = computed(() => Boolean(lastAppliedPrefill.value) && query.value === lastAppliedPrefill.value)
+
+function onClearPrefill() {
+  isPrefillDismissed.value = true
+  suppressNextQueryWatcher = true
+  query.value = ''
+  scheduleSearch('')
+}
 
 function onEnterKey() {
   if (visibleSuggestions.value.length) {
@@ -649,12 +673,39 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="wikidata-autosuggest-input">
-    <input
-      v-model="query"
-      type="text"
-      :placeholder="placeholder || 'Q42 Douglas Adams'"
-      @keydown.enter.prevent="onEnterKey"
-    />
+    <div class="wikidata-query-wrap" :class="{ 'is-prefilled': isQueryPrefilled }">
+      <input
+        v-model="query"
+        type="text"
+        :placeholder="placeholder || 'Q42 Douglas Adams'"
+        @keydown.enter.prevent="onEnterKey"
+      />
+      <button
+        v-if="isQueryPrefilled"
+        type="button"
+        class="prefill-clear-btn"
+        :title="t('prefillClearSearchLabel', 'Clear prefilled search term')"
+        :aria-label="t('prefillClearSearchLabel', 'Clear prefilled search term')"
+        @click="onClearPrefill"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="feather feather-x"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
 
     <p v-if="isLoading" class="wikidata-status-text">Searching Wikidata...</p>
     <p v-else-if="requestError" class="wikidata-status-text">{{ requestError }}</p>
@@ -686,6 +737,39 @@ onBeforeUnmount(() => {
 .wikidata-autosuggest-input {
   display: grid;
   gap: 0.45rem;
+}
+
+.wikidata-query-wrap {
+  position: relative;
+  display: grid;
+}
+
+.wikidata-query-wrap.is-prefilled input {
+  padding-right: 2rem;
+}
+
+.prefill-clear-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ve-color-text-muted);
+  cursor: pointer;
+}
+
+.prefill-clear-btn:hover,
+.prefill-clear-btn:focus-visible {
+  background: color-mix(in srgb, var(--ve-color-text-muted) 15%, transparent);
+  color: var(--ve-color-text-strong);
 }
 
 .wikidata-suggestion-list {

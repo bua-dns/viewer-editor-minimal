@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11 - Prefill for all fields, save per item
+
+- `prefillWith` is now a field setting (config column "Prefill") for every type but checkbox; older
+  `autosuggest.prefillWith` is read and moved on load.
+- An empty field shows the source value as a grey italic suggestion with a check mark (accept) and an x
+  (discard). Nothing is saved until the suggestion is accepted or edited. A prefilled Wikidata search
+  term gets an x to clear it.
+- Online: `Item speichern` in the edit area head saves only the open item's changes.
+- Config panel: removing a field is an x icon.
+
 ## 2026-11 - Back up the viewer settings
 
 - New admin script `pnpm settings:backup <project...>` / `--all`: saves every attribute of a project's

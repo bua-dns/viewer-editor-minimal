@@ -1,6 +1,10 @@
 import { useUserConfigStore } from '../stores/useUserConfigStore'
-import { createFieldEditorBinding } from '../fields/fieldRegistry'
+import { createFieldEditorBinding, supportsPrefill } from '../fields/fieldRegistry'
 import { isCreatedItem } from './createdItems'
+
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
 
 export function useFieldMapping() {
   const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
@@ -47,14 +51,22 @@ export function useFieldMapping() {
     return Boolean(fieldConfig.readOnly)
   }
 
-  function getAutosuggestPrefillValue(fieldConfig, selectedRawItem) {
-    const prefillWithFieldKey = String(fieldConfig?.autosuggest?.prefillWith || '').trim()
-    if (!prefillWithFieldKey || !selectedRawItem || typeof selectedRawItem !== 'object') {
-      return ''
-    }
-
-    const sourceValue = selectedRawItem[prefillWithFieldKey]
+  // The text of the field named in `prefillWith`, or '' when there is none.
+  function getPrefillSourceValue(fieldConfig, selectedRawItem) {
+    const sourceKey = String(fieldConfig?.prefillWith || '').trim()
+    if (!sourceKey || !isPlainObject(selectedRawItem)) return ''
+    const sourceValue = selectedRawItem[sourceKey]
     return typeof sourceValue === 'string' ? sourceValue : ''
+  }
+
+  // Non-autosuggest fields: the proposal shown in an empty field until it is accepted or dismissed.
+  // Autosuggest fields use the prefill as search term instead (see getFieldEditorBinding).
+  function getPrefillProposal(key, selectedRawItem) {
+    const fieldConfig = getFieldConfig(key)
+    if (!fieldConfig || isAutosuggestFieldType(fieldConfig.type)) return ''
+    if (!supportsPrefill(fieldConfig.type)) return ''
+    if (!isFieldValueEmpty(selectedRawItem?.[key])) return ''
+    return getPrefillSourceValue(fieldConfig, selectedRawItem).trim()
   }
 
   function getFieldEditorBinding(key, value, selectedRawItem = null, candidateAutosuggestPrefills = {}) {
@@ -74,7 +86,7 @@ export function useFieldMapping() {
       autosuggestConfig: fieldConfig?.autosuggest,
       autosuggestPrefillValue: hasCandidateAutosuggestPrefill
         ? candidateAutosuggestPrefill.value
-        : getAutosuggestPrefillValue(fieldConfig, selectedRawItem),
+        : getPrefillSourceValue(fieldConfig, selectedRawItem),
       autosuggestPrefillContext: selectedRawItem,
       autosuggestForceSearchToken: Number(candidateAutosuggestPrefill?.token) || 0,
       candidateConfig: fieldConfig?.candidate,
@@ -98,6 +110,7 @@ export function useFieldMapping() {
       if (!appliedShowOnlyNonEmptyFields.value) return true
       if (isNewItem) return true
       if (isAutosuggestFieldType(appliedUserConfigFields.value[key]?.type)) return true
+      if (getPrefillProposal(key, selectedRawItem)) return true
       return !isFieldValueEmpty(selectedRawItem[key])
     })
     return keys.sort((a, b) => {
@@ -117,6 +130,7 @@ export function useFieldMapping() {
     isFieldReadOnly,
     isFieldHidden,
     getFieldEditorBinding,
+    getPrefillProposal,
     getDisplayedFieldKeys,
   }
 }
