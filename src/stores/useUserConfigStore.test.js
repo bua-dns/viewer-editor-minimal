@@ -234,6 +234,19 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(payload.fields.species.fieldWidth).toBe('50%')
   })
 
+  test('keeps hidden in payload, also for wikidata-autosuggest fields', () => {
+    const store = useUserConfigStore()
+    initializeWithDataKeys(store, ['species', 'subject'])
+    store.setFieldType('subject', 'wikidata-autosuggest')
+    store.userConfigFields.value.species.hidden = true
+    store.userConfigFields.value.subject.hidden = true
+
+    const payload = store.createUserConfigPayload()
+
+    expect(payload.fields.species.hidden).toBe(true)
+    expect(payload.fields.subject.hidden).toBe(true)
+  })
+
   test('initializes fieldWidth with 100% by default', () => {
     const store = useUserConfigStore()
     initializeWithDataKeys(store, ['species'])

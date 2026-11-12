@@ -329,6 +329,21 @@ describe('validateImportedConfigPayload', () => {
     expect(result.ok).toBe(false)
   })
 
+  test('accepts hidden on every field type and rejects non-boolean hidden', () => {
+    const accepted = validateImportedConfigPayload({
+      fields: {
+        source: { type: 'normal', hidden: true },
+        subject: { type: 'wikidata-autosuggest', hidden: false, autosuggest: { prefillWith: 'source' } },
+      },
+    })
+    const rejected = validateImportedConfigPayload({
+      fields: { source: { type: 'normal', hidden: 'yes' } },
+    })
+
+    expect(accepted.ok).toBe(true)
+    expect(rejected.ok).toBe(false)
+  })
+
   test('rejects readOnly on wikidata-autosuggest fields', () => {
     const result = validateImportedConfigPayload({
       fields: {

@@ -438,7 +438,7 @@ function onRemoveHierarchyField(index) {
         <strong>{{ t('configFieldWidthHeader', 'Feldbreite') }}</strong>
         <strong>{{ t('configPlaceholderHeader', 'Platzhalter') }}</strong>
         <strong>{{ t('configHintHeader', 'Hinweis') }}</strong>
-        <strong>{{ t('configReadOnlyHeader', 'Nur Anzeige') }}</strong>
+        <strong>{{ t('configDisplayHeader', 'Anzeige') }}</strong>
         <strong></strong>
       </div>
 
@@ -472,11 +472,16 @@ function onRemoveHierarchyField(index) {
         </select>
         <input v-model="entry[1].placeholder" type="text" :placeholder="t('configPlaceholderInputPlaceholder', 'z. B. Titel eingeben')" />
         <input v-model="entry[1].hint" type="text" :placeholder="t('configHintInputPlaceholder', 'z. B. Vollstaendigen Namen eintragen')" />
-        <label v-if="entry[1].type !== 'wikidata-autosuggest'" class="readonly-toggle">
-          <input v-model="entry[1].readOnly" type="checkbox" />
-          <span>{{ t('configReadOnlyToggleLabel', 'Read-only') }}</span>
-        </label>
-        <span v-else class="readonly-na">-</span>
+        <div class="display-toggles">
+          <label v-if="entry[1].type !== 'wikidata-autosuggest'" class="readonly-toggle">
+            <input v-model="entry[1].readOnly" type="checkbox" />
+            <span>{{ t('configReadOnlyToggleLabel', 'Read-only') }}</span>
+          </label>
+          <label class="readonly-toggle" :title="t('configHiddenToggleTitle', 'Feld bleibt in den Daten (z. B. als Prefill-Quelle), erscheint aber nicht im Editor')">
+            <input v-model="entry[1].hidden" type="checkbox" />
+            <span>{{ t('configHiddenToggleLabel', 'Hidden') }}</span>
+          </label>
+        </div>
         <button type="button" class="remove-field-btn" @click.stop="removeUserConfigField(entry[0])">
           {{ t('removeFieldButton', 'Feld entfernen') }}
         </button>
@@ -666,9 +671,10 @@ function onRemoveHierarchyField(index) {
   color: var(--ve-color-text-muted);
 }
 
-.readonly-na {
-  color: var(--ve-color-text-soft);
-  text-align: center;
+.display-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .user-config-row.has-autosuggest-config {

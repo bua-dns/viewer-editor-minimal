@@ -81,6 +81,11 @@ export function useFieldMapping() {
     })
   }
 
+  // Hidden fields stay in the data (e.g. as autosuggest prefill source) but get no editor row.
+  function isFieldHidden(key) {
+    return getFieldConfig(key)?.hidden === true
+  }
+
   function getDisplayedFieldKeys(selectedRawItem) {
     if (!selectedRawItem) return []
     // Items created in this session keep their empty fields visible so they can be filled.
@@ -89,6 +94,7 @@ export function useFieldMapping() {
       if (key === 'scan') return false
       if (key === 'suspendEditing') return false
       if (key === '__onlineMeta') return false
+      if (isFieldHidden(key)) return false
       if (!appliedShowOnlyNonEmptyFields.value) return true
       if (isNewItem) return true
       if (isAutosuggestFieldType(appliedUserConfigFields.value[key]?.type)) return true
@@ -109,6 +115,7 @@ export function useFieldMapping() {
     getFieldWidth,
     getFieldConfig,
     isFieldReadOnly,
+    isFieldHidden,
     getFieldEditorBinding,
     getDisplayedFieldKeys,
   }

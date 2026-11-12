@@ -202,6 +202,7 @@ function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',
     hint: typeof source.hint === 'string' ? source.hint : '',
+    hidden: source.hidden === true,
     ...(type !== 'wikidata-autosuggest' ? { readOnly } : {}),
     ...(autosuggest ? { autosuggest } : {}),
     ...(candidate ? { candidate } : {}),

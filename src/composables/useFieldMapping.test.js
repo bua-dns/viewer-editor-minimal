@@ -69,6 +69,18 @@ describe('useFieldMapping', () => {
     expect(keys).toEqual(['title', 'note'])
   })
 
+  test('hides fields configured as hidden but keeps them as autosuggest prefill source', () => {
+    const store = useUserConfigStore()
+    store.appliedUserConfigFields.value.note.hidden = true
+    store.appliedUserConfigFields.value.subject.autosuggest = { prefillWith: 'note' }
+
+    const { getDisplayedFieldKeys, getFieldEditorBinding } = useFieldMapping()
+    const item = { title: 'A', subject: [], note: 'Berlin' }
+
+    expect(getDisplayedFieldKeys(item)).toEqual(['title', 'subject'])
+    expect(getFieldEditorBinding('subject', [], item).componentProps.prefillValue).toBe('Berlin')
+  })
+
   test('never shows __onlineMeta as editable field key', () => {
     const { getDisplayedFieldKeys } = useFieldMapping()
     const keys = getDisplayedFieldKeys({
