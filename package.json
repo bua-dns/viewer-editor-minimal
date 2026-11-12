@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "settings:backup": "node build-tools/backupSettings.js"
+    "settings:backup": "node build-tools/backupSettings.js",
+    "items:dump": "node build-tools/dumpItems.js"
   },
   "dependencies": {
     "highlight.js": "^11.12.0",

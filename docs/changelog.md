@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11 - Large replacement runs no longer freeze the browser
+
+- Fix: a replacements run over the whole collection copied the full list of pending updates for every
+  changed item. With ~10 000 matching index cards this blocked the tab for minutes until the browser
+  gave up. The pending lists now change in place (9 716 items: ~0.3 s). The same copy happened per item
+  during the save.
+
+## 2026-11 - Replacements reach hidden fields
+
+- Hidden fields (`hidden: true`) of type normal or text are now listed in the replacements field select
+  and changed by replacement rules, also when they are read-only (read-only only locks a visible editor
+  row). An `alle Felder` rule now reaches them too. Visible read-only fields stay excluded.
+
+## 2026-11 - Dump all items of a collection
+
+- New admin script `pnpm items:dump <project...>` / `--all` (`--collection /api/<name>`, `--page-size n`):
+  fetches every item of the project's Strapi collection (default: the viewer-setting's `itemsPath`) and
+  writes the raw rows to `<project>/item-dumps/<collection>/<fetch time>/items.json` in the config repo,
+  plus `_meta.json` (source, itemsPath, count, fetchedAt).
+
 ## 2026-11 - Prefill for all fields, save per item
 
 - `prefillWith` is now a field setting (config column "Prefill") for every type but checkbox; older

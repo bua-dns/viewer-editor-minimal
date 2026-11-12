@@ -64,11 +64,10 @@ function resolveDraftEntry(item) {
   return { entryKey, entry }
 }
 
+// The pending maps change in place: a replacements run tracks thousands of items, and copying
+// the whole map per item made that run quadratic (minutes of a blocked tab for ~10 000 items).
 function setPendingCreate(entryKey, entry) {
-  pendingCreatesById.value = {
-    ...pendingCreatesById.value,
-    [entryKey]: entry,
-  }
+  pendingCreatesById.value[entryKey] = entry
 }
 
 function trackOnlineDraftCreate({ item }) {
@@ -99,10 +98,7 @@ function createUpdateEntry({ id, itemsPath, item = null }) {
 }
 
 function setPendingUpdate(entryKey, entry) {
-  pendingUpdatesById.value = {
-    ...pendingUpdatesById.value,
-    [entryKey]: entry,
-  }
+  pendingUpdatesById.value[entryKey] = entry
 }
 
 function recordFieldChange(entry, key, nextValue, baselineValue) {
@@ -215,17 +211,11 @@ async function trackOnlineReplacementUpdatesForRemainingItems({
 }
 
 function removePendingUpdate(entryKey) {
-  if (!Object.prototype.hasOwnProperty.call(pendingUpdatesById.value, entryKey)) return
-  const nextEntries = { ...pendingUpdatesById.value }
-  delete nextEntries[entryKey]
-  pendingUpdatesById.value = nextEntries
+  delete pendingUpdatesById.value[entryKey]
 }
 
 function removePendingCreate(entryKey) {
-  if (!Object.prototype.hasOwnProperty.call(pendingCreatesById.value, entryKey)) return
-  const nextEntries = { ...pendingCreatesById.value }
-  delete nextEntries[entryKey]
-  pendingCreatesById.value = nextEntries
+  delete pendingCreatesById.value[entryKey]
 }
 
 function normalizeSaveErrorMessage(error, fallback) {

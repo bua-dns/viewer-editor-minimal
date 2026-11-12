@@ -21,8 +21,26 @@ const fieldConfigs = {
 }
 
 describe('replacement rule engine', () => {
-  test('only normal and text fields are replaceable, read-only excluded', () => {
+  test('only normal and text fields are replaceable, visible read-only excluded', () => {
     expect(collectReplaceableFieldKeys(fieldConfigs)).toEqual(['title', 'notes', 'legacy'])
+  })
+
+  test('hidden fields are replaceable, also when read-only', () => {
+    const configs = {
+      title: { type: 'normal' },
+      ai_hint: { type: 'normal', hidden: true },
+      ai_locality: { type: 'normal', hidden: true, readOnly: true },
+      ai_count: { type: 'integer', hidden: true },
+    }
+    expect(collectReplaceableFieldKeys(configs)).toEqual(['title', 'ai_hint', 'ai_locality'])
+  })
+
+  test('replacements change hidden read-only fields', () => {
+    const configs = { ai_locality: { type: 'normal', hidden: true, readOnly: true } }
+    const item = { ai_locality: 'Gruenberg i. Schl.' }
+    expect(computeReplacementChangesForItem(item, { ai_locality: { 'i. Schl.': 'in Schlesien' } }, configs)).toEqual({
+      ai_locality: 'Gruenberg in Schlesien',
+    })
   })
 
   test('replaces every occurrence literally and case-sensitively', () => {

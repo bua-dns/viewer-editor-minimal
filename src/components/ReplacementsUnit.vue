@@ -71,7 +71,7 @@ function addToReplacementsList(replace, withText, field) {
         </button>
 
         <p class="replacements-hint">
-            {{ t('replacementsFieldTypeHint', 'Es werden nur Felder der Typen normal und Text berücksichtigt (ohne Read-only-Felder). Ersetzt wird literal, Teilzeichenketten, Groß-/Kleinschreibung beachtend.') }}
+            {{ t('replacementsFieldTypeHint', 'Es werden nur Felder der Typen normal und Text berücksichtigt (ohne sichtbare Read-only-Felder; ausgeblendete Felder sind enthalten). Ersetzt wird literal, Teilzeichenketten, Groß-/Kleinschreibung beachtend.') }}
         </p>
     </div>
 </template>
