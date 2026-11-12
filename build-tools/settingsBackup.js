@@ -28,6 +28,12 @@ export function listBackupableProjects(projectsDir) {
 
 /** URL of the viewer-setting single type, from the project's connection profile. */
 export function resolveSettingsUrl(projectDir) {
+  const { baseUrl, configPath } = readConnectionProfile(projectDir)
+  return `${baseUrl}${configPath.startsWith('/') ? '' : '/'}${configPath}`
+}
+
+/** `baseUrl` (without trailing slash) and `configPath` from the project's basic config file. */
+export function readConnectionProfile(projectDir) {
   const fileName = path.join(projectDir, APP_CONFIG_FILE)
   if (!fs.existsSync(fileName)) throw new Error(`${fileName} not found.`)
 
@@ -43,7 +49,7 @@ export function resolveSettingsUrl(projectDir) {
   if (!baseUrl || !configPath) {
     throw new Error(`${fileName}: connectionProfile.baseUrl and connectionProfile.configPath are required.`)
   }
-  return `${baseUrl}${configPath.startsWith('/') ? '' : '/'}${configPath}`
+  return { baseUrl, configPath }
 }
 
 export async function fetchViewerSetting(url, { fetchImpl = fetch, token = '' } = {}) {

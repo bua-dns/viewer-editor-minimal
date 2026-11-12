@@ -83,6 +83,7 @@ pnpm build      # Produktionsbuild
 pnpm preview    # Build lokal serven
 pnpm test       # vitest run
 pnpm settings:backup <project> | --all   # Strapi viewer-setting lokal sichern (siehe unten)
+pnpm items:dump <project> | --all        # alle Items der Collection lokal ablegen (siehe unten)
 ```
 
 Die Skriptnamen sind identisch für `npm run ...`; ein `npm install` erzeugt allerdings ein
@@ -149,6 +150,26 @@ sie lokal:
 - Exit-Code `1`, wenn ein Projekt fehlschlägt; die übrigen werden trotzdem gesichert.
 - Code: `build-tools/settingsBackup.js` (Logik), `build-tools/backupSettings.js` (CLI). Tests:
   `build-tools/settingsBackup.test.js`.
+
+### Dump aller Items einer Collection (`pnpm items:dump`)
+
+```bash
+pnpm items:dump xylothek-index-cards                                   # Collection aus viewer-setting.itemsPath
+pnpm items:dump xylothek-index-cards --collection /api/collection-items  # andere Collection
+pnpm items:dump --all [--page-size 100]
+```
+
+- **Quelle:** `connectionProfile.baseUrl` wie beim Settings-Backup; Collection ist `itemsPath` (Legacy
+  `item_path`) des `viewer-setting`, außer `--collection` ist gesetzt. Seitenweise (`pagination[pageSize]`,
+  Default 100), mit `populate=*` (Relationen/Komponenten der ersten Ebene) und `sort=id:asc` – beides nur,
+  wenn der Pfad nicht selbst `populate`/`sort` setzt.
+- **Ziel:** `<project>/item-dumps/<collection>/<Abrufzeit>/items.json` (Rohzeilen, unverändert) und
+  `_meta.json` (`source`, `itemsPath`, `count`, `fetchedAt`). Jeder Lauf schreibt einen neuen Ordner. Ein
+  HTTP-Fehler auf einer Seite bricht das Projekt ab; ein Teil-Dump wird nicht geschrieben.
+- **Größe:** der Index-Karten-Dump hat ~18 000 Items / ~20 MB.
+- **Auth:** wie oben, optional `VIEWER_SETTING_TOKEN`.
+- Code: `build-tools/itemsDump.js` (Logik), `build-tools/dumpItems.js` (CLI), gemeinsames Env-Setup beider
+  CLIs in `build-tools/cliEnv.js`. Tests: `build-tools/itemsDump.test.js`.
 
 ---
 

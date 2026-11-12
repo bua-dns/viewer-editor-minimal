@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11 - Dump all items of a collection
+
+- New admin script `pnpm items:dump <project...>` / `--all` (`--collection /api/<name>`, `--page-size n`):
+  fetches every item of the project's Strapi collection (default: the viewer-setting's `itemsPath`) and
+  writes the raw rows to `<project>/item-dumps/<collection>/<fetch time>/items.json` in the config repo,
+  plus `_meta.json` (source, itemsPath, count, fetchedAt).
+
 ## 2026-11 - Prefill for all fields, save per item
 
 - `prefillWith` is now a field setting (config column "Prefill") for every type but checkbox; older
