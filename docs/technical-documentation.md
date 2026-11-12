@@ -858,7 +858,9 @@ für "alle Felder"; er ist ein regulärer Objektschlüssel im selben Namensraum 
 - **literal** (kein Regex), **Teilzeichenkette**, **Groß-/Kleinschreibung beachtend**
 - Ersetzt werden **alle** Vorkommen im Feldwert; ein leerer Ersetzungstext löscht den Suchtext.
 - Betroffen sind nur Felder der konfigurierten Typen `normal` und `text`, deren aktueller Wert ein
-  String ist. Read-only-Felder sowie `scan`, `suspendEditing` und `__onlineMeta` bleiben ausgenommen.
+  String ist. Sichtbare Read-only-Felder sowie `scan`, `suspendEditing` und `__onlineMeta` bleiben
+  ausgenommen. Ausgeblendete Felder (`hidden: true`) sind enthalten, auch wenn sie read-only sind:
+  Read-only sperrt nur die Editorzeile, und ein ausgeblendetes Feld hat keine.
 - `allFields` meint **jedes konfigurierte Feld** (User-Config bzw. Online-Settings), das nach diesen
   Regeln ersetzbar ist - Felder, die aus der Konfiguration entfernt wurden, sind nicht dabei.
 - Reihenfolge je Feld: zuerst die `allFields`-Regeln, danach die feldspezifischen, jeweils in
@@ -1561,7 +1563,7 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
 | `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
-| `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne Read-only und Reservierte); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
+| `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne sichtbare Read-only-Felder und Reservierte, ausgeblendete auch read-only enthalten); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
 | `composables/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
 | `composables/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
