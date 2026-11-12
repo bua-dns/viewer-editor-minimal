@@ -1,5 +1,6 @@
-// Settings backup: saves the current Strapi `viewer-setting` response (settings, wording,
-// mappings) of a project into `<projectsDir>/<project>/settings-backups/`. Runs in Node only;
+// Settings backup: saves every attribute of a project's Strapi `viewer-setting` single type
+// (settings, wording, mappings, ...) as one file each into
+// `<projectsDir>/<project>/settings-backups/<updatedAt>/`. Runs in Node only;
 // the CLI is build-tools/backupSettings.js.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -7,6 +8,9 @@ import path from 'node:path'
 export const APP_CONFIG_FILE = path.join('public', 'app-config', 'viewer-editor-app-config.v1.json')
 export const BACKUP_DIR_NAME = 'settings-backups'
 export const TOKEN_ENV_KEY = 'VIEWER_SETTING_TOKEN'
+export const META_FILE_KEY = '_meta'
+// Fields Strapi adds to every entry; they go into _meta.json, not into a file of their own.
+const STRAPI_SYSTEM_FIELDS = new Set(['id', 'documentId', 'createdAt', 'updatedAt', 'publishedAt', 'locale', 'localizations'])
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -57,29 +61,46 @@ export async function fetchViewerSetting(url, { fetchImpl = fetch, token = '' } 
 }
 
 /**
- * File name stamped with the server's `updatedAt`, so an unchanged setting maps to the same
- * file. Falls back to the fetch time when the response carries no `updatedAt`.
+ * Folder name stamped with the server's `updatedAt`, so an unchanged setting maps to the same
+ * folder. Falls back to the fetch time when the response carries no `updatedAt`.
  */
-export function backupFileName(body, now = new Date()) {
+export function backupDirName(body, now = new Date()) {
   const updatedAt = Date.parse(body?.data?.updatedAt)
   const stamp = new Date(Number.isNaN(updatedAt) ? now : updatedAt).toISOString()
-  return `viewer-setting-${stamp.replace(/\.\d+Z$/, 'Z').replace(/:/g, '-')}.json`
+  return stamp.replace(/\.\d+Z$/, 'Z').replace(/:/g, '-')
 }
 
-/** Writes the backup unless a file for the same `updatedAt` exists. */
-export function writeBackup(projectDir, body, now = new Date()) {
-  const backupDir = path.join(projectDir, BACKUP_DIR_NAME)
-  const fileName = path.join(backupDir, backupFileName(body, now))
-  if (fs.existsSync(fileName)) return { fileName, written: false }
+/**
+ * Splits `data` into one entry per content attribute of the single type (settings, wording,
+ * mappings, and whatever is added later) plus `_meta` for Strapi's system fields.
+ */
+export function splitAttributes(data, url) {
+  const meta = { source: url }
+  const attributes = {}
+  Object.entries(data).forEach(([key, value]) => {
+    if (STRAPI_SYSTEM_FIELDS.has(key)) meta[key] = value
+    else attributes[key] = value
+  })
+  return { ...attributes, [META_FILE_KEY]: meta }
+}
 
-  fs.mkdirSync(backupDir, { recursive: true })
-  fs.writeFileSync(fileName, `${JSON.stringify(body, null, 2)}\n`)
-  return { fileName, written: true }
+/** Writes `<stamp>/<attribute>.json` unless a folder for the same `updatedAt` exists. */
+export function writeBackup(projectDir, body, { url = '', now = new Date() } = {}) {
+  const dir = path.join(projectDir, BACKUP_DIR_NAME, backupDirName(body, now))
+  if (fs.existsSync(dir)) return { dir, files: [], written: false }
+
+  fs.mkdirSync(dir, { recursive: true })
+  const files = Object.entries(splitAttributes(body.data, url)).map(([key, value]) => {
+    const fileName = `${key}.json`
+    fs.writeFileSync(path.join(dir, fileName), `${JSON.stringify(value, null, 2)}\n`)
+    return fileName
+  })
+  return { dir, files, written: true }
 }
 
 export async function backupProject({ projectsDir, name, fetchImpl, token, now }) {
   const projectDir = path.join(projectsDir, name)
   const url = resolveSettingsUrl(projectDir)
   const body = await fetchViewerSetting(url, { fetchImpl, token })
-  return { name, url, ...writeBackup(projectDir, body, now) }
+  return { name, url, ...writeBackup(projectDir, body, { url, now }) }
 }

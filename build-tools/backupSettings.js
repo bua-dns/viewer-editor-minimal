@@ -1,6 +1,6 @@
 // CLI: pnpm settings:backup <project...> | --all
-// Saves the current Strapi viewer-setting of each project into
-// <projectsDir>/<project>/settings-backups/. See build-tools/settingsBackup.js.
+// Saves every attribute of each project's Strapi viewer-setting into
+// <projectsDir>/<project>/settings-backups/<updatedAt>/. See build-tools/settingsBackup.js.
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,9 +11,9 @@ import { backupProject, listBackupableProjects, TOKEN_ENV_KEY } from './settings
 const USAGE = `Usage: pnpm settings:backup <project...>
        pnpm settings:backup --all
 
-Saves the current viewer-setting (settings, wording, mappings) of each project into
-<projectsDir>/<project>/settings-backups/viewer-setting-<updatedAt>.json.
-A file is only written when the setting has changed since the last backup.
+Saves every attribute of each project's viewer-setting (settings, wording, mappings, ...)
+as one file each into <projectsDir>/<project>/settings-backups/<updatedAt>/, plus _meta.json.
+A folder is only written when the setting has changed since the last backup.
 
 Optional (env or .env.local): ${PROJECTS_DIR_ENV_KEY}, ${TOKEN_ENV_KEY} (Strapi JWT or API token).`
 
@@ -52,7 +52,8 @@ async function backupAll(names, token) {
     try {
       const result = await backupProject({ projectsDir, name, token })
       const state = result.written ? 'saved    ' : 'unchanged'
-      console.log(`${state} ${name}: ${path.relative(projectsDir, result.fileName)}  (${result.url})`)
+      const files = result.files.length ? `  [${result.files.join(', ')}]` : ''
+      console.log(`${state} ${name}: ${path.relative(projectsDir, result.dir)}${files}  (${result.url})`)
     } catch (error) {
       failures += 1
       console.error(`failed    ${name}: ${error.message}`)

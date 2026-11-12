@@ -136,14 +136,16 @@ sie lokal:
 - **Quelle:** `connectionProfile.baseUrl` + `configPath` aus
   `<project>/public/app-config/viewer-editor-app-config.v1.json` im Config-Repo. Projekte ohne diese Datei
   werden bei `--all` übergangen und bei expliziter Nennung als Fehler gemeldet.
-- **Ziel:** `<project>/settings-backups/viewer-setting-<updatedAt>.json` mit der unveränderten API-Antwort
-  (`data.settings`, `data.wording`, `data.mappings`). Der Ordner liegt außerhalb von `public/` und gelangt
-  nicht in den Build. Der Dateiname kommt aus dem `updatedAt` des Servers: Existiert die Datei schon, wird
-  nichts geschrieben (`unchanged`).
+- **Ziel:** `<project>/settings-backups/<updatedAt>/` mit einer Datei pro Attribut des Single Types:
+  `settings.json`, `wording.json`, `mappings.json` (und jedes später ergänzte Attribut), jeweils unverändert.
+  Strapis Systemfelder (`id`, `documentId`, `createdAt`, `updatedAt`, `publishedAt`, `locale`) und die
+  Quell-URL stehen in `_meta.json`. Der Ordner liegt außerhalb von `public/` und gelangt nicht in den Build.
+  Der Ordnername kommt aus dem `updatedAt` des Servers: Existiert er schon, wird nichts geschrieben
+  (`unchanged`).
 - **Auth:** ohne Token (der Endpoint ist öffentlich lesbar). Optional `VIEWER_SETTING_TOKEN` (JWT oder
   API-Token) in der `.env.local` dieses Repos oder in der Umgebung; wird als `Bearer` gesendet.
-- **Wiederherstellen:** im Strapi-Admin `data.settings` der Sicherung in das JSON-Feld `settings` des Single
-  Types kopieren, speichern und veröffentlichen.
+- **Wiederherstellen:** im Strapi-Admin den Inhalt von `<attribut>.json` in das gleichnamige JSON-Feld des
+  Single Types kopieren, speichern und veröffentlichen.
 - Exit-Code `1`, wenn ein Projekt fehlschlägt; die übrigen werden trotzdem gesichert.
 - Code: `build-tools/settingsBackup.js` (Logik), `build-tools/backupSettings.js` (CLI). Tests:
   `build-tools/settingsBackup.test.js`.
