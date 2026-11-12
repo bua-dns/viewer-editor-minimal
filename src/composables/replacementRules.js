@@ -13,9 +13,15 @@ export function isReplaceableFieldType(type) {
   return REPLACEABLE_FIELD_TYPES.includes(resolveConfiguredFieldType(type))
 }
 
+// Read-only locks the editor row. A hidden field has no row, so read-only does not keep
+// replacements away from it.
+function isLockedVisibleField(config) {
+  return config.readOnly === true && config.hidden !== true
+}
+
 /**
- * Field keys a replacement rule may touch: every configured field of type
- * `normal` or `text` that is neither reserved nor read-only.
+ * Field keys a replacement rule may touch: every configured field of type `normal` or `text`
+ * that is not reserved and not a visible read-only field. Hidden fields are included.
  */
 export function collectReplaceableFieldKeys(fieldConfigs = {}) {
   if (!isPlainObject(fieldConfigs)) return []
@@ -23,7 +29,7 @@ export function collectReplaceableFieldKeys(fieldConfigs = {}) {
   return Object.keys(fieldConfigs).filter((key) => {
     if (RESERVED_FIELD_KEYS.includes(key)) return false
     const config = isPlainObject(fieldConfigs[key]) ? fieldConfigs[key] : {}
-    if (config.readOnly === true) return false
+    if (isLockedVisibleField(config)) return false
     return isReplaceableFieldType(config.type)
   })
 }

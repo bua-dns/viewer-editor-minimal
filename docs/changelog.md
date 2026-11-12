@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11 - Replacements reach hidden fields
+
+- Hidden fields (`hidden: true`) of type normal or text are now listed in the replacements field select
+  and changed by replacement rules, also when they are read-only (read-only only locks a visible editor
+  row). An `alle Felder` rule now reaches them too. Visible read-only fields stay excluded.
+
 ## 2026-11 - Dump all items of a collection
 
 - New admin script `pnpm items:dump <project...>` / `--all` (`--collection /api/<name>`, `--page-size n`):
