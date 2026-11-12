@@ -576,6 +576,8 @@ Datenfelder. Pro konfiguriertem Feld einstellbar:
 - `fieldWidth` - Layoutbreite im Sidebar-Editor (`33%`, `50%`, `100%` für 3/2/1 Felder pro Zeile;
   ungültige Werte fallen auf `100%` zurück)
 - `readOnly` (nicht für `wikidata-autosuggest`) - sichtbar, aber nicht editierbar
+- `hidden` (alle Typen) - Feld erscheint nicht im Sidebar-Editor, bleibt aber in den Daten und in
+  der Konfiguration; so kann es weiter als `autosuggest.prefillWith`-Quelle dienen
 - Reihenfolge per Drag-and-Drop
 
 Zusätzlich können Felder manuell angelegt und wieder entfernt werden.

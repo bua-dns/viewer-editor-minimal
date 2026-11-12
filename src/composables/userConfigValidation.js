@@ -120,6 +120,10 @@ export function validateImportedConfigPayload(configPayload) {
       return { ok: false, error: `JSON-Config ist ungueltig: readOnly bei ${key} muss ein Boolean sein.` }
     }
 
+    if (fieldConfig.hidden != null && typeof fieldConfig.hidden !== 'boolean') {
+      return { ok: false, error: `JSON-Config ist ungueltig: hidden bei ${key} muss ein Boolean sein.` }
+    }
+
     if (type === 'wikidata-autosuggest' && fieldConfig.readOnly != null) {
       return {
         ok: false,

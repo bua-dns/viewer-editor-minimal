@@ -35,6 +35,7 @@
 - Pro Feld sind folgende Eigenschaften vorgesehen: `type`, `label`, `order`, `placeholder`, `hint`.
 - Optional pro Feld: `fieldWidth` mit `33%`, `50%` oder `100%` (Layout im Sidebar-Editor: 3/2/1 Felder pro Zeile).
 - Für Nicht-`wikidata-autosuggest`-Felder ist zusätzlich `readOnly` (Boolean) erlaubt.
+- Für alle Feldtypen ist optional `hidden` (Boolean) erlaubt: das Feld wird im Editor nicht angezeigt, bleibt aber in Daten und Config (z. B. als `prefillWith`-Quelle).
 - Für `wikidata-autosuggest` ist `readOnly` nicht erlaubt; stattdessen ist optional `autosuggest` als pass-through Objekt vorgesehen.
 - Für `candidate` ist zusätzlich ein Objekt `candidate` erforderlich:
   - `candidate.targetField` (Pflicht, String): muss auf ein vorhandenes Feld zeigen, darf nicht auf sich selbst und nicht auf ein weiteres `candidate`-Feld zeigen.
