@@ -72,13 +72,44 @@ describe('useFieldMapping', () => {
   test('hides fields configured as hidden but keeps them as autosuggest prefill source', () => {
     const store = useUserConfigStore()
     store.appliedUserConfigFields.value.note.hidden = true
-    store.appliedUserConfigFields.value.subject.autosuggest = { prefillWith: 'note' }
+    store.appliedUserConfigFields.value.subject.prefillWith = 'note'
 
     const { getDisplayedFieldKeys, getFieldEditorBinding } = useFieldMapping()
     const item = { title: 'A', subject: [], note: 'Berlin' }
 
     expect(getDisplayedFieldKeys(item)).toEqual(['title', 'subject'])
     expect(getFieldEditorBinding('subject', [], item).componentProps.prefillValue).toBe('Berlin')
+  })
+
+  test('proposes the prefill source value for an empty non-autosuggest field', () => {
+    const store = useUserConfigStore()
+    store.appliedUserConfigFields.value.title.prefillWith = 'note'
+    const { getPrefillProposal } = useFieldMapping()
+
+    expect(getPrefillProposal('title', { title: '', note: ' Berlin ' })).toBe('Berlin')
+    expect(getPrefillProposal('title', { title: 'Paris', note: 'Berlin' })).toBe('')
+    expect(getPrefillProposal('title', { title: '', note: 42 })).toBe('')
+    expect(getPrefillProposal('note', { title: '', note: '' })).toBe('')
+  })
+
+  test('makes no proposal for checkbox and autosuggest fields', () => {
+    const store = useUserConfigStore()
+    store.appliedUserConfigFields.value.title = { type: 'checkbox', prefillWith: 'note' }
+    store.appliedUserConfigFields.value.subject.prefillWith = 'note'
+    const { getPrefillProposal } = useFieldMapping()
+    const item = { title: false, subject: [], note: 'Berlin' }
+
+    expect(getPrefillProposal('title', item)).toBe('')
+    expect(getPrefillProposal('subject', item)).toBe('')
+  })
+
+  test('keeps an empty field with a prefill proposal visible when filtering non-empty fields', () => {
+    const store = useUserConfigStore()
+    store.appliedShowOnlyNonEmptyFields.value = true
+    store.appliedUserConfigFields.value.title.prefillWith = 'note'
+    const { getDisplayedFieldKeys } = useFieldMapping()
+
+    expect(getDisplayedFieldKeys({ title: '', note: 'Berlin' })).toEqual(['title', 'note'])
   })
 
   test('never shows __onlineMeta as editable field key', () => {

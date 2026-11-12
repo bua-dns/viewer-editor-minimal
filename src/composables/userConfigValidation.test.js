@@ -225,6 +225,41 @@ describe('validateImportedConfigPayload', () => {
     expect(result.ok).toBe(false)
   })
 
+  test('accepts field-level prefillWith on any field type with a normal source', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        source: { type: 'normal' },
+        title: { type: 'text', prefillWith: 'source' },
+        subject: { type: 'wikidata-autosuggest', prefillWith: 'source' },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+  })
+
+  test('rejects field-level prefillWith with a missing source or a non-string value', () => {
+    const missing = validateImportedConfigPayload({
+      fields: { title: { type: 'normal', prefillWith: 'source' } },
+    })
+    const notString = validateImportedConfigPayload({
+      fields: { source: { type: 'normal' }, title: { type: 'normal', prefillWith: 1 } },
+    })
+
+    expect(missing.ok).toBe(false)
+    expect(notString.ok).toBe(false)
+  })
+
+  test('still validates later fields after an empty prefillWith', () => {
+    const result = validateImportedConfigPayload({
+      fields: {
+        title: { type: 'normal', prefillWith: '' },
+        note: { type: 'normal', readOnly: 'yes' },
+      },
+    })
+
+    expect(result.ok).toBe(false)
+  })
+
   test('accepts autosuggest alsoGetDataFrom with valid property id', () => {
     const result = validateImportedConfigPayload({
       fields: {

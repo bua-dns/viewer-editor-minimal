@@ -198,6 +198,7 @@ const FIELD_REGISTRY = Object.freeze({
     labelKey: 'configTypeCheckbox',
     labelFallback: 'Ja/Nein (checkbox)',
     createEditorBinding: createCheckboxBinding,
+    supportsPrefill: false,
     createDefaultValue() {
       return false
     },
@@ -267,6 +268,11 @@ function inferFieldTypeFromValue(value) {
   if (typeof value === 'number') return 'integer'
   if (typeof value === 'boolean') return 'checkbox'
   return FALLBACK_FIELD_TYPE
+}
+
+// Every type but checkbox can take a proposal from another field (config key prefillWith).
+export function supportsPrefill(type) {
+  return FIELD_REGISTRY[resolveConfiguredFieldType(type)].supportsPrefill !== false
 }
 
 export function hasRegisteredFieldType(type) {

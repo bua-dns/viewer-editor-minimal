@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
-import { getRegisteredFieldTypeOptions } from '../fields/fieldRegistry'
+import { getRegisteredFieldTypeOptions, supportsPrefill } from '../fields/fieldRegistry'
 import AutosuggestFieldConfig from './config/AutosuggestFieldConfig.vue'
 
 const props = defineProps({
@@ -151,6 +151,13 @@ const prefillFieldOptionsByFieldKey = computed(() => {
   })
   return optionsByFieldKey
 })
+function onPrefillWithChange(fieldConfig, sourceKey) {
+  if (sourceKey) {
+    fieldConfig.prefillWith = sourceKey
+    return
+  }
+  delete fieldConfig.prefillWith
+}
 const autosuggestAdvancedCollapseToken = ref(0)
 const candidateTargetFieldOptionsByFieldKey = computed(() => {
   const optionsByFieldKey = {}
@@ -447,6 +454,7 @@ function onRemoveHierarchyField(index) {
         <strong>{{ t('configFieldWidthHeader', 'Feldbreite') }}</strong>
         <strong>{{ t('configPlaceholderHeader', 'Platzhalter') }}</strong>
         <strong>{{ t('configHintHeader', 'Hinweis') }}</strong>
+        <strong :title="t('configPrefillHeaderTitle', 'Ein leeres Feld zeigt den Wert dieses Feldes als Vorschlag')">{{ t('configPrefillHeader', 'Prefill') }}</strong>
         <strong>{{ t('configDisplayHeader', 'Anzeige') }}</strong>
         <strong></strong>
       </div>
@@ -481,6 +489,18 @@ function onRemoveHierarchyField(index) {
         </select>
         <input v-model="entry[1].placeholder" type="text" :placeholder="t('configPlaceholderInputPlaceholder', 'z. B. Titel eingeben')" />
         <input v-model="entry[1].hint" type="text" :placeholder="t('configHintInputPlaceholder', 'z. B. Vollstaendigen Namen eintragen')" />
+        <select
+          v-if="supportsPrefill(entry[1].type)"
+          :value="entry[1].prefillWith || ''"
+          :title="t('configPrefillHeaderTitle', 'Ein leeres Feld zeigt den Wert dieses Feldes als Vorschlag')"
+          @change="onPrefillWithChange(entry[1], $event.target.value)"
+        >
+          <option value="">{{ t('configPrefillNone', '-') }}</option>
+          <option v-for="fieldKey in prefillFieldOptionsByFieldKey[entry[0]] || []" :key="fieldKey" :value="fieldKey">
+            {{ fieldKey }}
+          </option>
+        </select>
+        <span v-else></span>
         <div class="display-toggles">
           <label v-if="entry[1].type !== 'wikidata-autosuggest'" class="readonly-toggle">
             <input v-model="entry[1].readOnly" type="checkbox" />
@@ -491,14 +511,34 @@ function onRemoveHierarchyField(index) {
             <span>{{ t('configHiddenToggleLabel', 'Hidden') }}</span>
           </label>
         </div>
-        <button type="button" class="remove-field-btn" @click.stop="removeUserConfigField(entry[0])">
-          {{ t('removeFieldButton', 'Feld entfernen') }}
+        <button
+          type="button"
+          class="remove-field-icon-btn"
+          :title="t('removeFieldButton', 'Feld entfernen')"
+          :aria-label="`${t('removeFieldButton', 'Feld entfernen')}: ${entry[0]}`"
+          @click.stop="removeUserConfigField(entry[0])"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="feather feather-x"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
 
         <div v-if="entry[1].type === 'wikidata-autosuggest'" class="user-config-autosuggest-row">
           <AutosuggestFieldConfig
             :model-value="entry[1].autosuggest"
-            :prefill-field-options="prefillFieldOptionsByFieldKey[entry[0]] || []"
             :t="t"
             :collapse-advanced-token="autosuggestAdvancedCollapseToken"
             @update:model-value="onAutosuggestConfigChange(entry[0], $event)"
@@ -667,6 +707,7 @@ function onRemoveHierarchyField(index) {
       minmax(140px, 0.75fr)
       minmax(150px, 0.95fr)
       minmax(170px, 1.05fr)
+      minmax(120px, 0.7fr)
       minmax(116px, 0.6fr)
       auto;
   gap: var(--ve-space-2);
@@ -724,6 +765,24 @@ function onRemoveHierarchyField(index) {
   background: var(--color-surface);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
+}
+
+.remove-field-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid transparent;
+}
+
+.remove-field-icon-btn:hover,
+.remove-field-icon-btn:focus-visible {
+  border-color: var(--color-border);
+  color: var(--ve-color-text-strong);
 }
 
 .user-config-row.is-dragging {

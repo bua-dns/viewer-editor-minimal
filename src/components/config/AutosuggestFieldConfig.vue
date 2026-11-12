@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
-  prefillFieldOptions: { type: Array, default: () => [] },
   t: { type: Function, required: true },
   collapseAdvancedToken: { type: Number, default: 0 },
 })
@@ -70,7 +69,6 @@ const limit = computed(() => {
   const value = getConfig().limit
   return Number.isFinite(value) ? String(value) : ''
 })
-const prefillWith = computed(() => String(getConfig().prefillWith || ''))
 
 function normalizeAlsoGetDataFromDefs(value) {
   if (typeof value === 'string') {
@@ -228,17 +226,6 @@ function addClaimPresenceDef() {
   })
 }
 
-function setPrefillWith(value) {
-  updateConfig((next) => {
-    const normalized = String(value || '').trim()
-    if (normalized) {
-      next.prefillWith = normalized
-      return
-    }
-    delete next.prefillWith
-  })
-}
-
 function addAlsoGetDataFromDef() {
   updateConfig((next) => {
     const defs = normalizeAlsoGetDataFromDefs(next.alsoGetDataFrom)
@@ -378,14 +365,6 @@ function toggleAdvancedConfig() {
 
         <label>{{ t('autosuggestLimit', 'Result limit') }}</label>
         <input :value="limit" type="number" min="1" @input="setPositiveNumberKey('limit', $event.target.value)" />
-
-        <label>{{ t('autosuggestPrefillWith', 'Prefill with') }}</label>
-        <select :value="prefillWith" @change="setPrefillWith($event.target.value)">
-          <option value="">{{ t('autosuggestPrefillWithNone', 'None') }}</option>
-          <option v-for="fieldKey in props.prefillFieldOptions" :key="fieldKey" :value="fieldKey">
-            {{ fieldKey }}
-          </option>
-        </select>
 
         <label>{{ t('autosuggestAlsoGetDataFrom', 'Also get statement data from') }}</label>
         <div class="claim-value-match-list">

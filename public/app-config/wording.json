@@ -571,6 +571,30 @@
     "de": "Feld entfernen",
     "en": "Remove field"
   },
+  "configPrefillHeader": {
+    "de": "Prefill",
+    "en": "Prefill"
+  },
+  "configPrefillHeaderTitle": {
+    "de": "Ein leeres Feld zeigt den Wert dieses Feldes als Vorschlag",
+    "en": "An empty field shows the value of this field as a proposal"
+  },
+  "configPrefillNone": {
+    "de": "-",
+    "en": "-"
+  },
+  "prefillProposalTitle": {
+    "de": "Vorschlag aus einem anderen Feld: Enter übernimmt ihn, Tippen ändert ihn.",
+    "en": "Proposal from another field: Enter accepts it, typing changes it."
+  },
+  "prefillClearLabel": {
+    "de": "Vorschlag verwerfen",
+    "en": "Discard proposal"
+  },
+  "prefillClearSearchLabel": {
+    "de": "Vorbefüllten Suchbegriff löschen",
+    "en": "Clear prefilled search term"
+  },
   "addFieldDuplicateError": {
     "de": "Feld existiert bereits.",
     "en": "Field already exists."

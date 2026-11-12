@@ -247,6 +247,34 @@ describe('useUserConfigStore autosuggest gui config', () => {
     expect(payload.fields.subject.hidden).toBe(true)
   })
 
+  test('keeps prefillWith on the field for every type but checkbox', () => {
+    const store = useUserConfigStore()
+    initializeWithDataKeys(store, ['source', 'title', 'done'])
+    store.userConfigFields.value.title.prefillWith = 'source'
+    store.userConfigFields.value.done.prefillWith = 'source'
+    store.setFieldType('done', 'checkbox')
+
+    const payload = store.createUserConfigPayload()
+
+    expect(payload.fields.title.prefillWith).toBe('source')
+    expect(payload.fields.done.prefillWith).toBeUndefined()
+  })
+
+  test('moves a legacy autosuggest.prefillWith to the field on import', () => {
+    const store = useUserConfigStore()
+    store.applyImportedConfigPayload({
+      fields: {
+        source: { type: 'normal' },
+        subject: { type: 'wikidata-autosuggest', autosuggest: { minChars: 2, prefillWith: ' source ' } },
+      },
+    })
+
+    const payload = store.createUserConfigPayload()
+
+    expect(payload.fields.subject.prefillWith).toBe('source')
+    expect(payload.fields.subject.autosuggest).toEqual({ minChars: 2 })
+  })
+
   test('initializes fieldWidth with 100% by default', () => {
     const store = useUserConfigStore()
     initializeWithDataKeys(store, ['species'])
