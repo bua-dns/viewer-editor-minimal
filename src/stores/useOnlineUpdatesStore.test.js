@@ -78,6 +78,26 @@ describe('useOnlineUpdatesStore', () => {
     expect(store.pendingUpdateCount.value).toBe(0)
   })
 
+  // A replacements run over the index cards tracks ~10 000 items. Copying the pending map per
+  // item made this quadratic and blocked the tab for minutes; the bound is far above linear cost.
+  test('tracks and drops 20 000 pending updates without copying the map per item', () => {
+    const store = useOnlineUpdatesStore()
+    const items = Array.from({ length: 20000 }, (_, index) => ({
+      date: '',
+      __onlineMeta: { id: `doc-${index}`, itemsPath: '/api/index-cards' },
+    }))
+    const startedAt = performance.now()
+    items.forEach((item) => {
+      store.trackOnlineFieldChange({ item, snapshotItem: { date: '0000-00-00' }, key: 'date', nextValue: '' })
+    })
+    expect(store.pendingUpdateCount.value).toBe(20000)
+    items.forEach((item) => {
+      store.trackOnlineFieldChange({ item, snapshotItem: { date: '0000-00-00' }, key: 'date', nextValue: '0000-00-00' })
+    })
+    expect(store.pendingUpdateCount.value).toBe(0)
+    expect(performance.now() - startedAt).toBeLessThan(5000)
+  })
+
   test('keeps failed updates and reports error', async () => {
     globalThis.fetch = mockStrapiFetch({
       'GET /api/cards/doc-a': okResponse({ data: { documentId: 'doc-a', label: 'A1' } }),

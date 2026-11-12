@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11 - Large replacement runs no longer freeze the browser
+
+- Fix: a replacements run over the whole collection copied the full list of pending updates for every
+  changed item. With ~10 000 matching index cards this blocked the tab for minutes until the browser
+  gave up. The pending lists now change in place (9 716 items: ~0.3 s). The same copy happened per item
+  during the save.
+
 ## 2026-11 - Replacements reach hidden fields
 
 - Hidden fields (`hidden: true`) of type normal or text are now listed in the replacements field select
