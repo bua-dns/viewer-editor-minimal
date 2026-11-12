@@ -1044,8 +1044,12 @@
     "en": "The data model could not be loaded"
   },
   "remoteFieldModelSampleNote": {
-    "de": "Das Schema ist für diese Rolle nicht lesbar (Strapi-Berechtigung \"Content-type-builder: getContentTypes\"), daher stammen die Felder aus einem Beispiel-Eintrag. Relationen ohne Leserecht können fehlen.",
-    "en": "The schema is not readable for this role (Strapi permission \"Content-type-builder: getContentTypes\"), so the fields were taken from one sample item. Relations without read permission may be missing."
+    "de": "Die Feldliste stammt aus einem Beispiel-Eintrag und ist möglicherweise unvollständig.",
+    "en": "The field list was taken from one sample item and may be incomplete."
+  },
+  "remoteFieldModelSampleHint": {
+    "de": "Für das vollständige Datenmodell braucht diese Rolle in Strapi die Berechtigung „Content-type-builder → getContentTypes“. Ohne sie fehlen Relationen, die die Rolle nicht lesen darf.",
+    "en": "For the full data model this role needs the Strapi permission \"Content-type-builder → getContentTypes\". Without it, relations the role may not read are missing."
   },
   "remoteFieldModelReload": {
     "de": "Datenmodell neu laden",

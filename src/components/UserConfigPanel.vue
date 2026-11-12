@@ -116,16 +116,24 @@ const remoteFieldModelNote = computed(() => {
     return `${t('remoteFieldModelError', 'The data model could not be loaded')}: ${props.remoteFieldModel.errorMessage}`
   }
   if (props.remoteFieldModel?.source === 'sample') {
-    return t(
-      'remoteFieldModelSampleNote',
-      'The schema is not readable for this role (Strapi permission "Content-type-builder: getContentTypes"), so the fields were taken from one sample item. Relations without read permission may be missing.',
-    )
+    return t('remoteFieldModelSampleNote', 'The field list was taken from one sample item and may be incomplete.')
   }
   if (remoteFieldModelStatus.value === 'ready' && !unconfiguredFieldEntries.value.length) {
     return t('remoteFieldsAllConfigured', 'All fields of the data model are configured.')
   }
   return ''
 })
+// The permission detail is for admins only, so it sits in the tooltip instead of the visible note.
+const remoteFieldModelNoteTitle = computed(() =>
+  remoteFieldModelStatus.value !== 'loading' &&
+  remoteFieldModelStatus.value !== 'error' &&
+  props.remoteFieldModel?.source === 'sample'
+    ? t(
+        'remoteFieldModelSampleHint',
+        'For the full data model this role needs the Strapi permission "Content-type-builder → getContentTypes". Without it, relations the role may not read are missing.',
+      )
+    : '',
+)
 function fieldEntryTitle(entry) {
   if (!entry.strapiType) return ''
   if (!entry.isStructured) return `Strapi: ${entry.strapiType}`
@@ -351,6 +359,7 @@ function onRemoveHierarchyField(index) {
         v-if="remoteFieldModelNote"
         class="user-config-add-note"
         :class="{ error: remoteFieldModelStatus === 'error' }"
+        :title="remoteFieldModelNoteTitle || undefined"
       >
         {{ remoteFieldModelNote }}
       </p>
