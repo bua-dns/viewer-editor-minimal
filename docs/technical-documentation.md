@@ -1247,7 +1247,9 @@ liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedTyp
 2. **Beispiel-Item (Fallback):** Ist das Schema nicht lesbar (z. B. 403) oder kein Content-Type passt,
    wird ein Item mit `pagination[pageSize]=1&populate=*` gelesen (bei Fehler ohne `populate`). Strapi
    liefert skalare Felder auch mit `null`; Typen werden aus den Werten geraten, `null` bleibt ohne Typ.
-   Relationen ohne Leserecht und Felder einer leeren Collection fehlen. Die UI sagt das.
+   Relationen ohne Leserecht und Felder einer leeren Collection fehlen. Die UI zeigt dann den kurzen
+   Hinweis `remoteFieldModelSampleNote`; die fehlende Berechtigung nennt erst dessen Tooltip
+   (`remoteFieldModelSampleHint`), da sie nur Admins etwas angeht.
 
 Ausgelassen werden die Strapi-Systemfelder (`id`, `documentId`, `createdAt`, `updatedAt`,
 `publishedAt`, `createdBy`, `updatedBy`, `locale`, `localizations`). `isStructured` markiert
