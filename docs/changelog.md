@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11 - Back up the viewer settings
+
+- New admin script `pnpm settings:backup <project...>` / `--all`: saves every attribute of a project's
+  Strapi `viewer-setting` (`settings`, `wording`, `mappings`, …) as one file each into
+  `<project>/settings-backups/<updatedAt>/` in the config repo, plus `_meta.json` (system fields, source URL).
+  A new folder is only written when the setting has changed.
+- Background: a settings save had replaced the index-card field config and hierarchy; it could only be
+  restored from a copy pasted into a task note.
+
 ## 2026-11 - Edit area on small laptop screens
 
 - Scan and fields now size to the width of the edit area (container queries) instead of the viewport.

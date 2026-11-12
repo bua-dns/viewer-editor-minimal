@@ -82,6 +82,7 @@ pnpm dev        # Vite Dev-Server
 pnpm build      # Produktionsbuild
 pnpm preview    # Build lokal serven
 pnpm test       # vitest run
+pnpm settings:backup <project> | --all   # Strapi viewer-setting lokal sichern (siehe unten)
 ```
 
 Die Skriptnamen sind identisch für `npm run ...`; ein `npm install` erzeugt allerdings ein
@@ -120,6 +121,34 @@ Build wie bisher: `base` `/viewer-editor/`, Ausgabe `dist/`. Jeder andere Modus 
 - Code: `build-tools/projectMode.js` (Auflösen, Overlay, `index.html`-Anpassung, Vite-Plugin), eingebunden
   in `vite.config.js`. Tests: `build-tools/projectMode.test.js`.
 - Deployment bleibt manuell (Inhalt von `dist-projects/<project>/` hochladen).
+
+### Backup der Viewer-Settings (`pnpm settings:backup`)
+
+```bash
+pnpm settings:backup xylothek-index-cards   # ein oder mehrere Projekte
+pnpm settings:backup --all                  # alle Projekte mit Grundkonfiguration
+```
+
+Die Online-Konfiguration (Felder, Hierarchie, Wording, Mappings) liegt nur im Strapi-Single-Type
+`viewer-setting`; ein Speichern im Tab `Konfiguration` überschreibt sie ohne Versionsstand. Das Skript sichert
+sie lokal:
+
+- **Quelle:** `connectionProfile.baseUrl` + `configPath` aus
+  `<project>/public/app-config/viewer-editor-app-config.v1.json` im Config-Repo. Projekte ohne diese Datei
+  werden bei `--all` übergangen und bei expliziter Nennung als Fehler gemeldet.
+- **Ziel:** `<project>/settings-backups/<updatedAt>/` mit einer Datei pro Attribut des Single Types:
+  `settings.json`, `wording.json`, `mappings.json` (und jedes später ergänzte Attribut), jeweils unverändert.
+  Strapis Systemfelder (`id`, `documentId`, `createdAt`, `updatedAt`, `publishedAt`, `locale`) und die
+  Quell-URL stehen in `_meta.json`. Der Ordner liegt außerhalb von `public/` und gelangt nicht in den Build.
+  Der Ordnername kommt aus dem `updatedAt` des Servers: Existiert er schon, wird nichts geschrieben
+  (`unchanged`).
+- **Auth:** ohne Token (der Endpoint ist öffentlich lesbar). Optional `VIEWER_SETTING_TOKEN` (JWT oder
+  API-Token) in der `.env.local` dieses Repos oder in der Umgebung; wird als `Bearer` gesendet.
+- **Wiederherstellen:** im Strapi-Admin den Inhalt von `<attribut>.json` in das gleichnamige JSON-Feld des
+  Single Types kopieren, speichern und veröffentlichen.
+- Exit-Code `1`, wenn ein Projekt fehlschlägt; die übrigen werden trotzdem gesichert.
+- Code: `build-tools/settingsBackup.js` (Logik), `build-tools/backupSettings.js` (CLI). Tests:
+  `build-tools/settingsBackup.test.js`.
 
 ---
 
