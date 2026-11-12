@@ -1443,8 +1443,22 @@ Layoutverhalten:
   `top` aus der Summe der Höhen darüber. `--ve-sticky-top-offset` fällt auf `58px` zurück, falls die
   gemessene Topbar-Höhe (noch) nicht vorliegt.
 - Responsive Umschaltung auf einspaltiges Layout bei `max-width: 768px`
-- Im erweiterten Modus wird die Sidebar nicht sticky gerendert, nutzt volle Inhaltsbreite und
-  vergrößert den Scanbereich relativ zur Feldspalte
+- Mit gewähltem Item: Liste `minmax(15rem, 1fr)`, Editierbereich `2fr`; ab `1600px` Viewport-Breite
+  `2fr / 3fr`. Alle Spuren mit `minmax(0, …)` bzw. fester Untergrenze, damit breite Inhalte die
+  Spalten nicht aufblähen.
+- Niedrige Viewports (`min-width: 769px` und `max-height: 820px`): Die Edit-Kopfzeile (Suche,
+  `Neues Item`) ist nicht sticky und scrollt mit; nur Topbar und Tab-Reihe bleiben stehen. Die
+  Sidebar rechnet ihr `top`/`max-height` dann ohne `--ve-edit-sticky-stack-height`.
+- Gescrollte Topbar bis `1440px` Breite: Der reine Offline-Hinweis (`.auth-note-inline`) entfällt,
+  damit die Controls einzeilig passen.
+- Tabs schrumpfen (`flex: 0 1 14rem`, mindestens `7rem`, Text mit Ellipse) statt horizontal zu scrollen.
+- Scan und Felder im Editierbereich richten sich per Container Query nach dessen Breite
+  (`container: sidebar-content`), nicht nach dem Viewport: unter `32rem` steht der Scan über den
+  Feldern (max. `40vh` hoch), ab `32rem` nebeneinander im Verhältnis Scan `2fr` / Felder `3fr`, ab
+  `64rem` (z. B. erweiterter Modus auf breiten Bildschirmen) `1fr / 1fr`.
+- Feldbreiten (`ItemFieldEditor`, `container: field-grid`): Unter `36rem` Feldspaltenbreite werden
+  33-%-Felder zu 50 %, unter `24rem` sind alle Felder volle Breite.
+- Im erweiterten Modus wird die Sidebar nicht sticky gerendert und nutzt die volle Inhaltsbreite
 - Kartenlayout `auto-fill, minmax(300px, 1fr)`; die Mindestbreite ist bewusst auf `300px` reduziert,
   um horizontalen Druck in kleinen Viewports zu verringern
 - Lightbox mit dunklem Overlay

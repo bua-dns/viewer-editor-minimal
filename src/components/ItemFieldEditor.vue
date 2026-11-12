@@ -212,6 +212,9 @@ async function onCopyRawData() {
 
 <style scoped lang="scss">
 .field-grid {
+  // Die Feldbreiten (33 / 50 / 100 %) gelten erst, wenn die Spalte breit genug ist; gemessen
+  // wird die Breite des Feldbereichs selbst, nicht der Viewport.
+  container: field-grid / inline-size;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.75rem;
@@ -318,15 +321,18 @@ async function onCopyRawData() {
   line-height: 1.35;
 }
 
-@media (max-width: 768px) {
-  .field-grid {
-    grid-template-columns: 1fr;
+// Mittlere Breite: Drittel-Felder werden zu halben Feldern.
+@container field-grid (max-width: 36rem) {
+  .field-row.field-width-33 {
+    grid-column: span 3;
   }
+}
 
+// Schmale Spalte: alle Felder volle Breite, eines pro Zeile.
+@container field-grid (max-width: 24rem) {
   .field-row.field-width-33,
-  .field-row.field-width-50,
-  .field-row.field-width-100 {
-    grid-column: 1;
+  .field-row.field-width-50 {
+    grid-column: 1 / -1;
   }
 }
 </style>
