@@ -1337,8 +1337,14 @@ watch(
                     <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
                   </div>
                   <div v-else class="scan-fallback">{{ t('scanUnavailable', 'Scan nicht verfuegbar') }}</div>
+                  <ItemFieldEditor v-if="hierarchicalFields.length" :key="`hierarchy-${selectedViewItem?._uid}`"
+                    class="sidebar-hierarchy-fields" :selected-raw-item="selectedRawItem"
+                    :selected-view-item="selectedViewItem" :include-keys="hierarchicalFields"
+                    :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
+                    @accept-candidate="onAcceptCandidate" />
                   <ItemFieldEditor :key="selectedViewItem?._uid" class="sidebar-checkbox-fields" :selected-raw-item="selectedRawItem"
                     :selected-view-item="selectedViewItem" :include-configured-types="['checkbox']"
+                    :exclude-keys="hierarchicalFields"
                     :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
                     @accept-candidate="onAcceptCandidate" />
                 </div>
@@ -1348,6 +1354,7 @@ watch(
                 <div class="sidebar-field-column">
                   <ItemFieldEditor :key="selectedViewItem?._uid" :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
                     :exclude-configured-types="hasScanField ? ['checkbox'] : []"
+                    :exclude-keys="hasScanField ? hierarchicalFields : []"
                     :show-raw-data-dev-preview="dataInspectionMode"
                     :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
                     :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"

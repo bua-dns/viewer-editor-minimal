@@ -369,19 +369,41 @@
   min-width: 0;
 }
 
+// Hierarchy fields under the scan: compact, two per row whatever field width is configured.
+// The class sits on ItemFieldEditor's root (.field-grid); .scan-column outranks its scoped rules.
+.scan-column .sidebar-hierarchy-fields.field-grid {
+  margin-top: var(--ve-space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.6rem;
+}
+
+.scan-column .sidebar-hierarchy-fields.field-grid > .field-row {
+  grid-column: auto;
+  gap: 0.15rem;
+}
+
+.scan-column .sidebar-hierarchy-fields .field-label {
+  font-size: 0.78rem;
+  color: var(--ve-color-text-muted);
+}
+
+.scan-column .sidebar-hierarchy-fields :is(input, textarea, select) {
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
 .sidebar-checkbox-fields {
   margin-top: var(--ve-space-3);
   margin-bottom: var(--ve-space-3);
 }
 
-.sidebar-checkbox-fields .field-grid {
-  grid-template-columns: 1fr;
-}
-
-.sidebar-checkbox-fields .field-row.field-width-33,
-.sidebar-checkbox-fields .field-row.field-width-50,
-.sidebar-checkbox-fields .field-row.field-width-100 {
-  grid-column: 1;
+// Checkbox fields under the scan: one field per line, whatever field width is configured.
+// The class sits on ItemFieldEditor's root, which is the .field-grid itself. A flex column
+// ignores the grid spans of the field widths; .scan-column outranks the scoped grid rule.
+.scan-column .sidebar-checkbox-fields.field-grid {
+  display: flex;
+  flex-direction: column;
 }
 
 .status-panel {
