@@ -8,9 +8,7 @@
 // The rest of the app keeps working on the v1 shape: in v2 the primary collection's attribute is
 // handed on as `settings`.
 
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
+import { isPlainObject } from '../domain/objects'
 
 export const LAYOUT_V1 = 'v1'
 export const LAYOUT_V2 = 'v2'

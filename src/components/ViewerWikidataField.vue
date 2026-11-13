@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import WikidataAutosuggestInput from './WikidataAutosuggestInput.vue'
 import { normalizeWikidataAutosuggestValue } from '../fields/wikidataAutosuggestField'
+import { isPlainObject } from '../domain/objects'
 
 const props = defineProps({
   modelValue: { type: [Array, Object, String, Number, Boolean], default: () => [] },
@@ -19,10 +20,6 @@ const selectedEntities = computed(() => normalizeWikidataAutosuggestValue(props.
 const expandedStatementDataByEntityId = ref({})
 const autosuggestInputRef = ref(null)
 const reloadingEntityIds = ref(new Set())
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function getStatementDataEntries(entity) {
   if (!isPlainObject(entity?.statementData)) {

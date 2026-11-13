@@ -6,16 +6,13 @@ import { markItemAsCreated } from './createdItems'
 import { tokenizeSearchQuery } from '../domain/searchQuery'
 import { hasNonEmptyValue } from '../domain/valueChecks'
 import { parseCsvRecords, splitCsvLine, toCsvCell } from '../domain/csvFormat'
+import { isPlainObject } from '../domain/objects'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
     return globalThis.crypto.randomUUID()
   }
   return `uid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function cloneData(data) {

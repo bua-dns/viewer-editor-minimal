@@ -4,6 +4,7 @@
 // the CLI is build-tools/backupSettings.js.
 import fs from 'node:fs'
 import path from 'node:path'
+import { isPlainObject } from '../src/domain/objects.js'
 
 export const APP_CONFIG_FILE = path.join('public', 'app-config', 'viewer-editor-app-config.v1.json')
 export const BACKUP_DIR_NAME = 'settings-backups'
@@ -11,10 +12,6 @@ export const TOKEN_ENV_KEY = 'VIEWER_SETTING_TOKEN'
 export const META_FILE_KEY = '_meta'
 // Fields Strapi adds to every entry; they go into _meta.json, not into a file of their own.
 const STRAPI_SYSTEM_FIELDS = new Set(['id', 'documentId', 'createdAt', 'updatedAt', 'publishedAt', 'locale', 'localizations'])
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
-}
 
 /** Projects (sub folders of projectsDir) that have a basic config file. */
 export function listBackupableProjects(projectsDir) {

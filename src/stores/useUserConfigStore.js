@@ -6,6 +6,7 @@ import {
   normalizeValueForConfiguredType,
   supportsPrefill,
 } from '../fields/fieldRegistry'
+import { isPlainObject } from '../domain/objects'
 
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
 const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
@@ -16,10 +17,6 @@ try {
   globalThis.sessionStorage?.removeItem('viewerEditor.userConfig.v1')
 } catch {
   // storage not available: nothing to clean up
-}
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function cloneValue(value) {

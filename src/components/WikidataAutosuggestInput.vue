@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useWikidataSearch } from '../composables/useWikidataSearch'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
+import { isPlainObject } from '../domain/objects'
 
 const props = defineProps({
   config: { type: Object, default: null },
@@ -49,10 +50,6 @@ let debounceTimer = null
 let requestId = 0
 let activeSearchController = null
 let suppressNextQueryWatcher = false
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function readLocalizedTextValue(value) {
   return typeof value === 'string' ? value.trim() : ''

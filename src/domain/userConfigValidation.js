@@ -1,8 +1,5 @@
 import { getRegisteredFieldTypes } from '../fields/fieldRegistry'
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
+import { isPlainObject } from './objects'
 
 function normalizeCandidateInputType(value) {
   return value === 'text' ? 'text' : 'normal'

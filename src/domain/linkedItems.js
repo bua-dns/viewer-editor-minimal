@@ -1,11 +1,8 @@
 // Pure helpers for items of a secondary collection shown under the selected primary item.
 import { createDefaultValueForFieldType, normalizeValueForConfiguredType } from '../fields/fieldRegistry'
+import { isPlainObject } from './objects'
 
 const ONLINE_META_KEY = '__onlineMeta'
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 /** Configuration scope of a secondary collection in useUserConfigStore. */
 export function secondaryConfigScope(collectionId) {

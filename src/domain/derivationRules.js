@@ -21,6 +21,9 @@
 //
 // Pure functions only; loading, saving and the click flow live elsewhere.
 
+import { normalizeCollectionPath } from './collectionPath'
+import { isPlainObject } from './objects'
+
 const ONLINE_META_KEY = '__onlineMeta'
 
 // Structured Strapi types a rule may copy 1:1; relation, media and dynamiczone stay out.
@@ -28,18 +31,8 @@ const COPYABLE_STRUCTURED_TYPES = new Set(['component', 'json', 'blocks'])
 // Attributes inside a component that cannot be sent back as they are read; dropped on copy.
 const DROPPED_COMPONENT_ATTRIBUTE_TYPES = new Set(['media', 'relation', 'dynamiczone'])
 
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
-
 function trimmedString(value) {
   return typeof value === 'string' ? value.trim() : ''
-}
-
-/** `/api/x?y#z/` → `/api/x`, so paths from settings and rules compare reliably. */
-export function normalizeCollectionPath(path) {
-  const withoutQuery = trimmedString(path).split('#')[0].split('?')[0]
-  return withoutQuery.replace(/\/+$/, '')
 }
 
 function isConstantMapping(raw) {

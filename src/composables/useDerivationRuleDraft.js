@@ -8,11 +8,11 @@ import { useDerivationRulesStore } from '../stores/useDerivationRulesStore'
 import {
   findIncompatibleMappings,
   findRuleForSource,
-  normalizeCollectionPath,
   normalizeDerivationRules,
   structureOfField,
   validateDerivationRule,
 } from '../domain/derivationRules'
+import { normalizeCollectionPath } from '../domain/collectionPath'
 import { createRequestSequence } from '../domain/requestSequence'
 
 const EMPTY_MODEL = { source: '', fields: [], status: 'idle', errorMessage: '' }

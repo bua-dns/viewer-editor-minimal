@@ -3,6 +3,7 @@
 // `public/`. Runs in Node (vite.config.js), never in the browser.
 import fs from 'node:fs'
 import path from 'node:path'
+import { isPlainObject } from '../src/domain/objects.js'
 
 // Modes Vite and Vitest use on their own; they keep the generic build.
 const GENERIC_MODES = new Set(['development', 'production', 'test'])
@@ -23,10 +24,6 @@ function listProjects(projectsDir) {
     .readdirSync(projectsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
     .map((entry) => entry.name)
-}
-
-function isPlainObject(value) {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
 function readStringOption(config, key, fileName) {

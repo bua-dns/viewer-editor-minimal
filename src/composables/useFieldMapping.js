@@ -1,10 +1,7 @@
 import { useUserConfigStore } from '../stores/useUserConfigStore'
 import { createFieldEditorBinding, supportsPrefill } from '../fields/fieldRegistry'
 import { isCreatedItem } from './createdItems'
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
+import { isPlainObject } from '../domain/objects'
 
 /**
  * Field config lookups of one configuration scope ('' = the primary collection). `fieldIdPrefix`

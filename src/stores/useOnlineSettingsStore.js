@@ -12,6 +12,7 @@ import {
   mergeSettingsIntoCollectionConfig,
   readViewerSettingsLayout,
 } from '../services/viewerSettingsLayout'
+import { normalizeCollectionPath } from '../domain/collectionPath'
 import { VIEWER_SETTING_KEYS, useAppConfigStore } from './useAppConfigStore'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
@@ -191,18 +192,14 @@ async function reloadSecondaryCollectionSettings(collectionId) {
   return { ok: true, config: result.config }
 }
 
-function normalizePath(path) {
-  return String(path || '').split('#')[0].split('?')[0].replace(/\/+$/, '')
-}
-
 /**
  * The (v1-shaped) settings of the collection behind `itemsPath`: a secondary collection's own
  * configuration, else the primary settings. Saving uses it to treat each item by its collection.
  */
 function settingsForItemsPath(itemsPath) {
-  const path = normalizePath(itemsPath)
+  const path = normalizeCollectionPath(itemsPath)
   const secondary = secondaryCollections.value.find(
-    (entry) => entry.config && normalizePath(entry.config.itemsPath) === path,
+    (entry) => entry.config && normalizeCollectionPath(entry.config.itemsPath) === path,
   )
   if (secondary) return collectionConfigToSettings(secondary.config, VIEWER_SETTING_KEYS)
   return settings.value && typeof settings.value === 'object' ? settings.value : {}

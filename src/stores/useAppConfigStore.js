@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { validateConnectionProfile } from '../domain/connectionProfile'
 import { fetchFirstAvailableConfigText, resolvePublicConfigUrls } from '../composables/publicConfigUrls'
+import { isPlainObject } from '../domain/objects'
 
 // Basic config: the one file a deployment ships next to the build. Without it the
 // normalisers below supply the defaults. Config that belongs to a data set lives with
@@ -14,10 +15,6 @@ const PUBLIC_CONFIG_FOLDER = 'app-config'
 const LEGACY_APP_CONFIG_STORAGE_KEY = 'viewerEditor.appConfig.v1'
 
 const localWordingOverrideKeys = new Set(['tabDatabaseConnection', 'dbConnectionOpenTab'])
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function normalizeLanguageMode(value) {
   const normalized = String(value || '')
