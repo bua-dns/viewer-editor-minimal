@@ -173,6 +173,46 @@ describe('useSecondaryItems', () => {
     expect(section.items[0].status).toBe('')
   })
 
+  describe('reloading the collection configuration', () => {
+    const changedRecord = {
+      ...record,
+      collection_items: {
+        ...record.collection_items,
+        fields: { ...record.collection_items.fields, collectors: { type: 'wikidata-autosuggest', autosuggest: { limit: 50 } } },
+      },
+    }
+
+    test('reads the configuration changed elsewhere and applies it to the tab', async () => {
+      const { secondary, confirmAction } = await setup()
+      const section = secondary.sections.value[0]
+      globalThis.fetch = vi.fn(async () => json({ data: changedRecord }))
+
+      const result = await secondary.reloadCollectionConfig(section)
+
+      expect(result).toEqual({ ok: true })
+      expect(confirmAction).not.toHaveBeenCalled()
+      expect(section.settings.fields.collectors.type).toBe('wikidata-autosuggest')
+      const scopeFields = useUserConfigStore(section.scope).appliedUserConfigFields.value
+      expect(Object.keys(scopeFields)).toEqual(['label', 'remarks', 'collectors'])
+    })
+
+    test('asks before discarding unapplied edits and keeps them when declined', async () => {
+      const { secondary, confirmAction } = await setup({ confirmed: false })
+      const section = secondary.sections.value[0]
+      const store = useUserConfigStore(section.scope)
+      store.setFieldType('remarks', 'normal')
+      expect(store.hasUnappliedUserConfigChanges.value).toBe(true)
+      globalThis.fetch = vi.fn(async () => json({ data: changedRecord }))
+
+      const result = await secondary.reloadCollectionConfig(section)
+
+      expect(result).toEqual({ ok: false, cancelled: true })
+      expect(confirmAction).toHaveBeenCalledWith('Discard the unapplied changes and load the configuration from Strapi?')
+      expect(globalThis.fetch).not.toHaveBeenCalled()
+      expect(store.hasUnappliedUserConfigChanges.value).toBe(true)
+    })
+  })
+
   test('unlinking removes only the link to the selected item and drops the item from the list', async () => {
     const { secondary, selectedItem, confirmAction } = await setup()
     selectedItem.value = cardItem('card-1')

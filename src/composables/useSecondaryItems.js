@@ -41,6 +41,27 @@ function cloneValue(value) {
 }
 
 /**
+ * "Reload data model" on a secondary collection's tab: reads the collection's configuration fresh
+ * from Strapi and applies it to the tab and the loaded items. Unapplied edits in the tab are
+ * discarded, so it asks first when there are any. `{ ok: false, cancelled: true }` when declined.
+ */
+async function reloadSectionConfig(section, { settingsStore, confirmAction, t }) {
+  const store = useUserConfigStore(section.scope)
+  if (store.hasUnappliedUserConfigChanges.value) {
+    const message = t('secondaryConfigReloadConfirm', 'Discard the unapplied changes and load the configuration from Strapi?')
+    if (!confirmAction(message)) return { ok: false, cancelled: true }
+  }
+  const result = await settingsStore.reloadSecondaryCollectionSettings(section.id)
+  if (!result.ok) return result
+
+  const applied = store.applyImportedConfigPayload(result.config)
+  if (!applied.ok) return { ok: false, error: applied.error || `The configuration of "${section.id}" is invalid.` }
+  section.settings = result.config
+  store.applyUserConfigToRawItems(section.items)
+  return { ok: true }
+}
+
+/**
  * @param {object} options
  * @param {import('vue').Ref<object|null>} options.selectedItem the selected primary item
  * @param {(item: object) => Promise<boolean>} options.saveItem saves one item's pending changes
@@ -310,6 +331,7 @@ ${t('linkedItemDiscardEdits', 'Its unsaved changes will be discarded.')}`
     changeField,
     saveLinkedItem,
     applyCollectionConfig,
+    reloadCollectionConfig: (section) => reloadSectionConfig(section, { settingsStore, confirmAction, t }),
     unlinkItem,
     deleteItem,
     toggleOpen,

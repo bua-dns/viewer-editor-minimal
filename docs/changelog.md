@@ -8,6 +8,9 @@
   be saved. Needs the content-type schema; relation, media and dynamic zone fields stay locked.
 - `Item ableiten` populates the copied components and sends them without their database ids and
   without nested media/relations. JSON content inside a component is kept as is.
+- On a secondary collection's configuration tab, `Datenmodell neu laden` now also reloads that
+  collection's configuration from Strapi, so changes saved elsewhere show without reloading the page.
+  Unapplied changes in the tab are only discarded after a question.
 
 ## 2026-11 - Editor layout under the scan
 

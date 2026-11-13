@@ -1473,7 +1473,11 @@ Item gewählt (gespeichert, kein Entwurf)
 das bisherige Panel samt Ableitungsregel-Editor; eine sekundäre (`SecondaryCollectionConfig.vue`) zeigt
 die Feldkonfiguration ohne Hierarchie und Bearbeitungsstand-Sortierung, mit dem Datenmodell ihrer
 Collection. `Konfiguration anwenden` schreibt nur das Prop dieser Collection (Lesen, Zusammenführen,
-`PUT`) und gilt damit in jedem Deployment, das die Collection zeigt.
+`PUT`) und gilt damit in jedem Deployment, das die Collection zeigt. `Datenmodell neu laden` lädt dort
+außer dem Datenmodell auch die Konfiguration der Collection frisch aus Strapi
+(`reloadCollectionConfig` → `reloadSecondaryCollectionSettings`), sodass eine anderswo gespeicherte
+Änderung ohne Seiten-Reload erscheint; nicht angewendete Änderungen im Tab werden nur nach Rückfrage
+verworfen. (Die primäre Collection lädt ihre Konfiguration weiterhin nur beim Laden der Settings.)
 
 **Nicht enthalten:** verknüpfte Items anlegen (außer per `Item ableiten`) oder vorhandene Items neu
 verknüpfen; Ersetzungen und Suche über sekundäre Items; offline gibt es kein Collection-Layout.
