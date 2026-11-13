@@ -7,6 +7,8 @@ import { usePendingOnlineChangesGuard } from '../composables/usePendingOnlineCha
 
 const props = defineProps({
   canEditViewerSettings: { type: Boolean, default: false },
+  // Collection layout: the viewer settings come only from the basic config of the deployment.
+  viewerSettingsFromBasicConfig: { type: Boolean, default: false },
   // (settings | null) => Promise<{ ok, error? }>; null removes the data source overrides.
   applyViewerSettings: { type: Function, default: null },
 })
@@ -352,7 +354,10 @@ async function onCheckDataModel() {
       </p>
     </header>
 
-    <p v-if="!props.canEditViewerSettings" class="saved-meta">
+    <p v-if="props.viewerSettingsFromBasicConfig" class="saved-meta">
+      {{ t('viewerSettingsFromBasicConfig', 'This deployment takes the viewer settings from its basic configuration only.') }}
+    </p>
+    <p v-else-if="!props.canEditViewerSettings" class="saved-meta">
       {{ t('viewerSettingsNoDataSource', 'Open a data source (load a file or log in online) to change the viewer settings.') }}
     </p>
 

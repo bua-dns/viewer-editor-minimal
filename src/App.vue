@@ -86,6 +86,7 @@ const { isOnlineSession, hasPendingOnlineChanges, confirmDiscardPendingOnlineCha
 const onlineItemsLoads = createRequestSequence()
 const {
   settings: onlineSettings,
+  isCollectionLayout,
   fetchOnlineSettings,
   persistOnlineSettings,
   clearOnlineSettings,
@@ -616,8 +617,11 @@ async function onApplyUserConfig() {
   await persistOnlineSettings(buildMergedOnlineSettings())
 }
 
-// Viewer settings live with the data source, so they can only be edited while one is open.
+// Viewer settings live with the data source, so they can only be edited while one is open. In the
+// collection layout the data source is shared by several deployments: the basic config decides.
+const viewerSettingsFromBasicConfig = computed(() => appMode.value === 'online' && isCollectionLayout.value)
 const canEditViewerSettings = computed(() => {
+  if (viewerSettingsFromBasicConfig.value) return false
   if (appMode.value === 'online') {
     return canWriteOnlineSettings.value && Boolean(onlineSettings.value)
   }
@@ -1381,6 +1385,7 @@ watch(
         <section v-if="activeTab === 'database-connection'" id="panel-database-connection"
           class="database-connection-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-database-connection">
           <DatabaseConnectionPanel :can-edit-viewer-settings="canEditViewerSettings"
+            :viewer-settings-from-basic-config="viewerSettingsFromBasicConfig"
             :apply-viewer-settings="onApplyViewerSettings" />
         </section>
 

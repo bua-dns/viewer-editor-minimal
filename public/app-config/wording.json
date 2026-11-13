@@ -1007,6 +1007,10 @@
     "de": "Werden mit der Datenquelle gespeichert: offline in der JSON-Datei, online in den Strapi-Settings. Werte, die die Datenquelle nicht setzt, kommen aus der Grundkonfiguration.",
     "en": "Stored with the data source: in the JSON file offline, in the Strapi settings online. Values the data source does not set come from the basic config."
   },
+  "viewerSettingsFromBasicConfig": {
+    "de": "Dieses Deployment nimmt die Viewer-Einstellungen nur aus seiner Grundkonfiguration.",
+    "en": "This deployment takes the viewer settings from its basic configuration only."
+  },
   "viewerSettingsNoDataSource": {
     "de": "Öffnen Sie eine Datenquelle (Datei laden oder online anmelden), um die Viewer-Einstellungen zu ändern.",
     "en": "Open a data source (load a file or log in online) to change the viewer settings."

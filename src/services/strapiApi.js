@@ -282,7 +282,7 @@ export async function findCollectionItemByFieldValue({ profile, itemsPath, token
   return rows[0] || null
 }
 
-function buildPathWithAdditionalQueryParams(path, entries = []) {
+export function buildPathWithAdditionalQueryParams(path, entries = []) {
   const normalizedPath = String(path || '').split('#')[0]
   const [basePath, existingQuery = ''] = normalizedPath.split('?')
   const query = new URLSearchParams(existingQuery)

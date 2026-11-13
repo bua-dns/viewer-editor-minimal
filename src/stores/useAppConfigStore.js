@@ -51,6 +51,23 @@ function normalizeBasicConnectionProfile(value) {
   return validation.ok ? validation.profile : null
 }
 
+function normalizeCollectionId(value) {
+  return String(value || '').trim()
+}
+
+// Secondary collections: unique ids, never the primary one.
+function normalizeSecondaryCollections(value, primaryCollection) {
+  const ids = (Array.isArray(value) ? value : []).map(normalizeCollectionId).filter(Boolean)
+  return ids.filter((id, index) => id !== primaryCollection && ids.indexOf(id) === index)
+}
+
+// A language map like `{ de: '…', en: '…' }`; anything else means "not set".
+function normalizeLanguageMap(value) {
+  if (!isPlainObject(value)) return null
+  const entries = Object.entries(value).filter(([key, text]) => String(key).trim() && typeof text === 'string' && text.trim())
+  return entries.length ? Object.fromEntries(entries) : null
+}
+
 export function normalizeBasicConfig(input = {}) {
   const source = isPlainObject(input) ? input : {}
   return {
@@ -63,7 +80,25 @@ export function normalizeBasicConfig(input = {}) {
     dataInspectionMode: Boolean(source.dataInspectionMode),
     // Feature switch per deployment: "derive item" (online only, rules in viewer-setting.mappings).
     deriveItems: source.deriveItems === true,
+    // Collection layout (v2): the `viewer-setting` attribute shown as list, and those shown as
+    // linked items under it. '' = the classic single-collection `settings`.
+    primaryCollection: normalizeCollectionId(source.primaryCollection),
+    secondaryCollections: normalizeSecondaryCollections(
+      source.secondaryCollections,
+      normalizeCollectionId(source.primaryCollection),
+    ),
+    // Per-deployment app title; wins over `wording.appTitle` of the data source.
+    appTitle: normalizeLanguageMap(source.appTitle),
   }
+}
+
+// Keys written to the exported file only when they are set.
+function dropUnsetCollectionKeys(config) {
+  const next = { ...config }
+  if (!next.primaryCollection) delete next.primaryCollection
+  if (!next.secondaryCollections.length) delete next.secondaryCollections
+  if (!next.appTitle) delete next.appTitle
+  return next
 }
 
 function getLocalStorageSafe() {
@@ -171,7 +206,7 @@ function exportBasicConfigAsJson(draft = basicConfig.value) {
   const profile = normalized.connectionProfile
   return JSON.stringify(
     {
-      ...normalized,
+      ...dropUnsetCollectionKeys(normalized),
       connectionProfile: profile
         ? { ...(profile.label ? { label: profile.label } : {}), baseUrl: profile.baseUrl, configPath: profile.configPath }
         : null,
@@ -252,6 +287,7 @@ const mergedWording = computed(() => {
     }
   })
 
+  if (basicConfig.value.appTitle) merged.appTitle = { ...basicConfig.value.appTitle }
   return merged
 })
 
@@ -311,6 +347,8 @@ export function useAppConfigStore() {
     connectionMode,
     basicConnectionProfile,
     isDeriveItemsEnabled: computed(() => basicConfig.value.deriveItems),
+    primaryCollection: computed(() => basicConfig.value.primaryCollection),
+    secondaryCollections: computed(() => basicConfig.value.secondaryCollections),
     dataSourceViewerSettings,
     effectiveViewerSettings,
     setDataSourceViewerSettings,
