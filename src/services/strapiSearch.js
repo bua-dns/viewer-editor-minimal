@@ -1,5 +1,6 @@
 // Collection-wide text search with plain Strapi filters (`$containsi`), no server extension needed.
 import { fetchAllCollectionItemsFromStrapi, parseInvalidStrapiQueryKey, TOO_MANY_ITEMS } from './strapiApi'
+import { isPlainObject } from '../domain/objects'
 
 // A short query can match most of a large collection; above this many hits nothing is loaded and the
 // user is asked to refine the search.
@@ -8,10 +9,6 @@ export const MAX_SEARCH_HITS = 500
 // Field types whose values are plain strings in Strapi. A field without a type counts as `normal`
 // (the registry's fallback). Wikidata fields are relations/components and are not searched.
 const TEXT_FIELD_TYPES = new Set(['normal', 'text', 'candidate'])
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function isTextFieldConfig(fieldConfig) {
   const type = String(fieldConfig?.type ?? '').trim()

@@ -22,6 +22,7 @@ import { useOnlineModeStore } from '../stores/useOnlineModeStore'
 import { useOnlineSettingsStore } from '../stores/useOnlineSettingsStore'
 import { useOnlineUpdatesStore } from '../stores/useOnlineUpdatesStore'
 import { clearSecondaryUserConfigScopes, useUserConfigStore } from '../stores/useUserConfigStore'
+import { sameCollectionPath } from '../domain/collectionPath'
 import { createRequestSequence } from '../domain/requestSequence'
 import {
   describeLinkedItem,
@@ -30,11 +31,6 @@ import {
   resolveLinkTarget,
   secondaryConfigScope,
 } from '../domain/linkedItems'
-
-function samePath(left, right) {
-  const normalize = (path) => String(path || '').split('?')[0].replace(/\/+$/, '')
-  return normalize(left) === normalize(right)
-}
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))
@@ -198,7 +194,7 @@ export function useSecondaryItems({ selectedItem, saveItem, confirmAction = (mes
         section.status = 'idle'
         return
       }
-      const isTarget = Boolean(collectionPath) && samePath(section.settings.itemsPath, collectionPath)
+      const isTarget = Boolean(collectionPath) && sameCollectionPath(section.settings.itemsPath, collectionPath)
       loadSection(section, linkedTo, isCurrent, isTarget ? openId : '')
     })
   }

@@ -2,7 +2,8 @@
 
 > Bei Abweichungen zwischen diesem Dokument und dem Code gilt der Code.
 > Dieses Dokument ist die maßgebliche Implementierungs-/Architekturreferenz;
-> `README.md` ist die kurze Einstiegs- und Setup-Beschreibung.
+> `README.md` ist die kurze Einstiegs- und Setup-Beschreibung; die Bedienung aus Nutzersicht steht in der
+> [Bedienungsanleitung](how-to-use-this-tool.md).
 
 ## Inhalt
 
@@ -273,7 +274,9 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
 - `DeriveItemDialog.vue` - Bestätigungsdialog für `Item ableiten`: Vorschau der Werte, Hinweis aufs
   Vorab-Speichern, Ergebnis bzw. Fehler (siehe [12.12](#1212-items-ableiten))
 - `DerivationRuleEditor.vue` - Editor der Ableitungsregel im Tab `Konfiguration` (unter der Feldkonfiguration)
-- `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen
+- `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen; `App.vue` lädt ihn
+  erst beim ersten Öffnen des Tabs (`defineAsyncComponent`), damit `markdown-it` und `highlight.js` nicht im
+  Haupt-Chunk liegen
 - `footer/Identity.vue` - Footer-Identity mit Credit und Link zu den Berlin University Collections
 
 ### Composables (`src/composables/`)
@@ -287,8 +290,6 @@ Vue-Composables und Abläufe, die über Stores Zustand lesen oder ändern.
 - `useModalKeyboard.js` - gemeinsames Escape-Handling für Modals
 - `useModalFocus.js` - Fokus in Modals: erstes Element fokussieren, Tab im Dialog halten, Fokus zurückgeben
 - `useReplacementsApply.js` - Orchestrierung eines Ersetzungslaufs (lokal bzw. über die ganze Collection)
-- `useWikidataSearch.js` - Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen, Lokalisierung
-- `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 - `usePendingOnlineChangesGuard.js` - Online-Sitzung, ungespeicherte Online-Änderungen und die Rückfrage vor dem Verwerfen
 - `useCollectionSearch.js` - Suchbereich in der Hierarchie (Kategorie oder gesamter Bestand), Zustand der
   Trefferansicht, navigierbare Items (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie))
@@ -311,6 +312,8 @@ Vue-Composables und Abläufe, die über Stores Zustand lesen oder ändern.
 Reine Logik ohne Vue, Stores und Netzwerk. Stores, Services und Composables importieren von hier,
 nie umgekehrt; `domain/` nutzt nur `fields/`.
 
+- `collectionPath.js` - `normalizeCollectionPath` / `sameCollectionPath`: Collection-Pfade ohne Query,
+  Fragment und abschließende `/` vergleichen (Settings, Ableitungsregeln, sekundäre Collections)
 - `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
 - `csvFormat.js` - CSV lesen (`parseCsvRecords`, quote-aware über Zeilenumbrüche) und schreiben
   (`toCsvCell`); genutzt von Import, Export und Start-from-Scratch (siehe [9.3](#93-csv-import))
@@ -319,6 +322,7 @@ nie umgekehrt; `domain/` nutzt nur `fields/`.
 - `hierarchyConfig.js` - reine Hierarchie-Helfer: Feldlisten normalisieren, Hierarchie-Felder aus Settings auflösen, Level-1-/Level-2-Optionen aus Items zählen
 - `linkedItems.js` - reine Helfer für verknüpfte Items einer sekundären Collection: Konfigurations-Scope,
   Verknüpfungsziel, Schlüssel, Felder mit Defaults, Kopfzeile, Sprach-Fallback
+- `objects.js` - `isPlainObject`, auch von `build-tools/` genutzt
 - `onlineSaveConflicts.js` - Konfliktprüfung beim Speichern: welche Felder auf dem Server seit dem
   Laden geändert wurden (leere Werte gleich, Zahl = String-Form, Objektschlüssel-Reihenfolge egal)
 - `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
@@ -371,6 +375,9 @@ nie umgekehrt; `domain/` nutzt nur `fields/`.
   frisch lesen und schreiben, verknüpfte Items laden, lösen und löschen
 - `viewerSettingsLayout.js` - liest den Settings-Datensatz als v1 oder v2 (Collection-Layout) und führt
   geänderte Settings bzw. Ersetzungen in ein Collection-Attribut zurück
+- `wikidataApi.js` - `createWikidataClient()`: Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen,
+  Lokalisierung, jeder Request mit Timeout
+- `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 
 ### Assets (`src/assets/`)
 
@@ -463,7 +470,7 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 
 - **Laden:** `main.js` ruft `loadBasicConfig()` auf und mountet die App erst danach. Grundkonfiguration
   und `wording.json` werden parallel über `resolvePublicConfigUrls(..., 'app-config')` und
-  `fetchFirstAvailableConfigText` (`src/composables/publicConfigUrls.js`) geladen: ein Dateiname wird
+  `fetchFirstAvailableConfigText` (`src/services/publicConfigUrls.js`) geladen: ein Dateiname wird
   unter den Präfixen `location.pathname`, `import.meta.env.BASE_URL` und `/` gesucht.
 - **Fehlerfall:** fehlt eine Datei oder ist sie ungültig, gelten die fest eingebauten Defaults der
   Normalizer bzw. die Inline-Fallbacks der `t()`-Aufrufe. Die App startet immer; der Grund steht in
@@ -868,16 +875,19 @@ Die Data-Transfer-Funktion ist modularisiert:
    - gültiges JSON
    - entweder Top-Level-Array oder Objekt mit `data`-Array
    - jedes Datenelement ist ein Plain Object
-   - falls vorhanden: `config` ist ein Objekt
+   - falls vorhanden: `config` ist ein Objekt und besteht `validateImportedConfigPayload`
+     (`src/domain/userConfigValidation.js`); eine ungültige `config` lehnt die ganze Datei ab
    - falls vorhanden: `replacements` ist ein Objekt
    - falls vorhanden: `suspendedItems` ist ein Array von Item-Indizes
 4. Bei Erfolg initialisiert `initializeFromJsonArray` die Datenstates, übernimmt eine optionale `config`
    in `importedConfig` und übergibt `replacements` an den Replacements-Store. `suspendedItems` wird
    gegen die Itemanzahl normalisiert (nur nicht-negative Integer im gültigen Bereich, dedupliziert, sortiert).
-5. `useDataImportExport` setzt die Feldkonfiguration zurück, validiert eine eingebettete `config` strikt
-   und wendet sie an, inklusive der Viewer-Einstellungen (siehe [4.3](#43-konfiguration-der-datenquelle)).
-   Bei ungültiger `config` erscheint eine Fehlermeldung; die Daten bleiben ohne Feldkonfiguration geladen.
-6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten. `errorMessage` und die
+5. `useDataImportExport` setzt die Feldkonfiguration zurück und wendet eine eingebettete `config` an,
+   inklusive der Viewer-Einstellungen (siehe [4.3](#43-konfiguration-der-datenquelle)). Weil Schritt 3
+   dieselbe Prüfung schon gemacht hat, scheitert das hier für JSON-Dateien nicht mehr; der Fehlerzweig
+   (Grundkonfiguration, Meldung) bleibt als Absicherung.
+6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt vollständig erhalten: Daten,
+   Dateiname, `config` und Ersetzungsregeln (der Import ist atomar, auch beim CSV-Import). `errorMessage` und die
    Mismatch-Meldung (`modeErrorMessage`) erscheinen im Statusbereich unter der Liste (`role="alert"`).
 
 **Kopierstrategie:** Daten werden via `cloneData` (`JSON.parse(JSON.stringify(...))`) tief kopiert.
@@ -1178,11 +1188,20 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
 
 `useOnlineItemsStore.js` bestimmt die Ladestrategie aus den Settings:
 
-- **Hierarchie-Erkennung** (`normalizeHierarchyFields`) ist bewusst tolerant: `hierarchyFields`,
-  `hierarchy_fields`, `hierarchicalFields`, `hierarchy.fields`, `config.hierarchyFields`,
-  `config.hierarchy_fields`, ein Objekt `hierarchy: { level1, level2 }` sowie kommaseparierte Strings.
-  Greift nichts davon, wird auf Feld-Auto-Erkennung zurückgefallen (`level_1`/`level_2`, sonst
-  `level1`/`level2`). Hierarchie ist aktiv ab zwei Feldschlüsseln.
+- **Hierarchie-Erkennung** (`resolveHierarchyFieldsFromSettings` in `src/domain/hierarchyConfig.js`) ist
+  bewusst tolerant und gilt gleich für Strapi-Settings (online), die `config` einer importierten Datei
+  und `App.vue`, damit dieselbe Form in beiden Modi dieselbe Hierarchie ergibt:
+  1. die erste Liste mit mindestens zwei Einträgen aus `hierarchyFields`, `hierarchy_fields`,
+     `hierarchicalFields`, `hierarchy.fields`, `config.hierarchyFields`, `config.hierarchy_fields`
+     (Array oder kommaseparierter String; eine leere Liste verdeckt keinen späteren Schlüssel);
+  2. ein Objekt `hierarchy: { level1, level2 }` (auch `level_1`/`level_2`);
+  3. Feld-Auto-Erkennung: Felder `level_1` + `level_2`, sonst `level1` + `level2`;
+  4. sonst die erste nicht-leere Liste, auch mit nur einem Eintrag (eine halb fertige Hierarchie aus dem
+     Tab `Konfiguration` übersteht so Export und Import).
+
+  Hierarchie ist aktiv ab zwei Feldschlüsseln. `firstLevelStaticList` liest
+  `resolveFirstLevelStaticList`: das erste Array aus `firstLevelStaticList`, `first_level_static_list`,
+  `hierarchy.firstLevelStaticList`, `config.firstLevelStaticList`.
 - **Ohne Hierarchie:** Items werden paginiert vollständig geladen und normalisiert.
 - **Mit Hierarchie und `firstLevelStaticList`:** Die Level-1-Boxen werden direkt aus der Liste gerendert
   (getrimmt, leere Einträge entfernt, dedupliziert, Reihenfolge bleibt erhalten). Beim Start erfolgt
@@ -1292,7 +1311,10 @@ Strapi-Instanz.
   Feld bleibt pending (mit dem gesendeten Wert als Baseline). Für Entwürfe gilt dasselbe: Änderungen
   während des `POST` werden zu einem regulären Update des neu angelegten Items.
 - Bei Vollerfolg synchronisiert `markAsSaved(...)` die Baseline; bei Teilfehlern bleibt ein
-  konsistenter, retry-fähiger Pending-Stand erhalten.
+  konsistenter, retry-fähiger Pending-Stand erhalten. Die Items, deren Create oder Update durchging,
+  meldet der Save als `createdItems` / `updatedItems`; `useOnlineSave` übernimmt für sie per
+  `syncSnapshotItemAtIndex` den gespeicherten Stand als Snapshot, damit ein späteres `Reset` keine Werte
+  zurückholt, die der Server nicht mehr hat.
 - Im selben Speichervorgang werden geänderte **Ersetzungsregeln** nach Strapi geschrieben
   (siehe [11.4](#114-persistenz-der-regeln)). Der Save-Button ist deshalb auch dann aktiv, wenn nur
   Regeln geändert wurden und kein Item-Delta ansteht.
@@ -1658,7 +1680,9 @@ Zusatzfunktionen:
 
 - Lightbox für das `scan`-Bild mit Fullscreen-Umschaltung; Fallback-UI bei Bildladefehlern
   (Liste, Sidebar, Lightbox).
-- `beforeunload`-Warnung bei `isDirty` oder nicht angewendeten User-Config-Änderungen.
+- `beforeunload`-Warnung bei `isDirty`, geänderten Ersetzungsregeln, nicht angewendeten User-Config-Änderungen
+  und ungespeicherten Online-Änderungen (`hasPendingOnlineChanges`, auch für nicht geladene Items nach einem
+  bestandsweiten Ersetzungslauf).
 - `Escape` schließt Start-From-Scratch-Modal und Lightbox; bei offener Sidebar hebt `Escape` die
   aktuelle Auswahl auf.
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein
@@ -1762,15 +1786,17 @@ Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `domain/csvFormat.test.js` | Quoted Zellen mit Zeilenumbruch, Trennzeichen und `""`; CRLF als Satzende und in Quotes; leere Zeilen und BOM; nicht geschlossenes Anführungszeichen als Fehler mit Zeile; `toCsvCell`-Ausgabe liest sich zurück |
-| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip, Export-Import-Roundtrip mehrzeiliger Werte, Zeilenangabe nach mehrzeiliger Zelle), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
+| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip, Export-Import-Roundtrip mehrzeiliger Werte, Zeilenangabe nach mehrzeiliger Zelle), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), atomarer Import (ungültige eingebettete `config` oder defekte Datei: Daten, Dateiname und Ersetzungsregeln bleiben), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
 | `domain/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
-| `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
+| `services/wikidataApi.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
 | `domain/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne sichtbare Read-only-Felder und Reservierte, ausgeblendete auch read-only enthalten); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
-| `domain/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `domain/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Formen-Matrix der Hierarchie-Auflösung (alle Schlüssel, Objektform, Auto-Erkennung, Konfliktregel, ein Eintrag, Live-Settings-Beispiel aus `fixtures/` ergibt `[]`) und von `firstLevelStaticList`; Level-1-Optionen aus reinen Feldwerten (online); Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `domain/collectionPath.test.js` | Query, Fragment, abschließende `/` und Leerraum werden ignoriert; Nicht-Strings ergeben `''`; verschiedene Collections bleiben verschieden |
+| `domain/objects.test.js` | `isPlainObject` akzeptiert Objekte, lehnt `null`, Arrays und Primitive ab |
 | `domain/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
 | `composables/useCollectionSearch.test.js` | Suchbereich: lokal in einer Kategorie, bestandsweit ohne Auswahl, Schalter überschreibt; ohne Hierarchie keine Trefferansicht; Panel-Zustand (Suchfeld online ohne Items aktiv); offline: nur Kategorie-Treffer navigierbar, Trefferansicht live, Zurück leert Anfrage und schließt das Item, Schalter aus behält die Anfrage; online: Suche erst bei Submit, nicht in einer Kategorie ohne Schalter, Fehler/Abbruch behalten die Kategorieansicht, entfernte Felder, leere Anfrage kehrt zurück, abgebrochene Rückkehr bleibt in den Treffern, Schalter aus lädt die Kategorie neu |
 | `domain/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |

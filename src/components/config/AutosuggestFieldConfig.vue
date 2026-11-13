@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { isPlainObject } from '../../domain/objects'
 
 const props = defineProps({
   modelValue: { type: Object, default: () => ({}) },
@@ -28,10 +29,6 @@ watch(
     isAdvancedOpen.value = false
   },
 )
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function cloneValue(value) {
   return JSON.parse(JSON.stringify(value))

@@ -26,7 +26,7 @@ This app helps you review and edit item data (JSON/CSV), including scan previews
 ## 3) Configure and replace values
 
 - In **Configuration**, add/remove/reorder fields and set labels, placeholders, and field types.
-- Supported types: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+- Supported types: `normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`.
 - Click **Apply configuration** to update all loaded items.
 - In **Replacements**, define text replacements globally or per field.
 
@@ -34,7 +34,7 @@ This app helps you review and edit item data (JSON/CSV), including scan previews
 
 ## 4) Optional: connect to database (Online)
 
-- In **Database connection**, set your Strapi connection profile and test it.
+- In the **Settings** tab, set your Strapi connection profile and test it.
 - In **Online** mode, log in and load settings/items from Strapi.
 - Local upload/download controls are hidden in Online mode.
 - Use **Save changes** to send edits (and new draft items) to Strapi.

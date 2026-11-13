@@ -450,7 +450,7 @@ function rankResults(results, claimsById, prioritizationBlocks, requiredProperti
     .map(({ _originalOrder, ...item }) => item)
 }
 
-export function useWikidataSearch() {
+export function createWikidataClient() {
   async function search(query, options = {}) {
     const {
       searchLanguages = ['de', 'en'],

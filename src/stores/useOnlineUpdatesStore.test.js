@@ -108,11 +108,12 @@ describe('useOnlineUpdatesStore', () => {
 
     const store = useOnlineUpdatesStore()
 
+    const itemA = {
+      label: 'A2',
+      __onlineMeta: { id: 'doc-a', itemsPath: '/api/cards' },
+    }
     store.trackOnlineFieldChange({
-      item: {
-        label: 'A2',
-        __onlineMeta: { id: 'doc-a', itemsPath: '/api/cards' },
-      },
+      item: itemA,
       snapshotItem: { label: 'A1' },
       key: 'label',
       nextValue: 'A2',
@@ -136,6 +137,8 @@ describe('useOnlineUpdatesStore', () => {
     expect(result.ok).toBe(false)
     expect(result.savedCount).toBe(1)
     expect(result.failedCount).toBe(1)
+    // The saved item is reported, so the caller can re-baseline it (plan 0.3).
+    expect(result.updatedItems).toEqual([itemA])
     expect(store.saveStatus.value).toBe('error')
     expect(store.pendingUpdateCount.value).toBe(1)
     expect(store.lastSaveError.value).toContain('update(s) failed')

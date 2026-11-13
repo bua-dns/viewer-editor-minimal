@@ -1,6 +1,4 @@
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
+import { isPlainObject } from '../domain/objects'
 
 function normalizeEntity(candidate) {
   if (!isPlainObject(candidate)) return null

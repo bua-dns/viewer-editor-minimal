@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { ref } from 'vue'
 import { isCreatedItem } from './createdItems'
 import { __test, useViewerData } from './useViewerData'
+import { useReplacementsStore } from '../stores/useReplacementsStore'
 
 describe('useViewerData helpers', () => {
   test('parseJsonPayload validates top-level array', () => {
@@ -139,6 +140,44 @@ describe('useViewerData flow', () => {
     model.resetToImportedSnapshot()
     expect(model.rawItems.value[1].species).toBe('Pine')
     expect(model.isDirty.value).toBe(false)
+  })
+
+  test('a file with an invalid embedded config is rejected and leaves the loaded data unchanged', () => {
+    const replacementsStore = useReplacementsStore()
+    const model = useViewerData()
+    const loaded = JSON.stringify({
+      data: [{ inventory_number: 'A1' }],
+      replacements: { allFields: { foo: 'bar' } },
+    })
+    expect(model.importFromJsonText(loaded, 'first.json')).toBe(true)
+    const replacementsBefore = JSON.stringify(replacementsStore.replacements.value)
+
+    const broken = JSON.stringify({
+      data: [{ inventory_number: 'B2' }, { inventory_number: 'C3' }],
+      config: { fields: 'not an object' },
+      replacements: {},
+    })
+    const ok = model.importFromJsonText(broken, 'broken.json')
+
+    expect(ok).toBe(false)
+    expect(model.errorMessage.value).toContain('config.fields')
+    expect(model.rawItems.value).toEqual([{ inventory_number: 'A1' }])
+    expect(model.importFileName.value).toBe('first.json')
+    expect(model.importedConfig.value).toBeNull()
+    expect(JSON.stringify(replacementsStore.replacements.value)).toBe(replacementsBefore)
+  })
+
+  test('a broken file keeps the replacement rules of the loaded data', () => {
+    const replacementsStore = useReplacementsStore()
+    const model = useViewerData()
+    model.importFromJsonText(JSON.stringify({ data: [{ a: 'x' }], replacements: { allFields: { x: 'y' } } }), 'a.json')
+    const replacementsBefore = JSON.stringify(replacementsStore.replacements.value)
+
+    expect(model.importFromJsonText('{ not json', 'b.json')).toBe(false)
+    expect(model.importFromCsvText('a,b\n1,2,3', 'c.csv')).toBe(false)
+
+    expect(JSON.stringify(replacementsStore.replacements.value)).toBe(replacementsBefore)
+    expect(model.rawItems.value).toEqual([{ a: 'x' }])
   })
 
   test('parseJsonPayload accepts suspendedItems array', () => {

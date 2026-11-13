@@ -1,11 +1,8 @@
 import { joinBaseUrlAndPath } from '../domain/connectionProfile'
 import { hasNonEmptyValue } from '../domain/valueChecks'
+import { isPlainObject } from '../domain/objects'
 
 const ONLINE_META_KEY = '__onlineMeta'
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 async function parseJsonResponseSafe(response) {
   try {

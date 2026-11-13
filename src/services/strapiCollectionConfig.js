@@ -1,13 +1,10 @@
 // Strapi calls for the collection layout (v2, see viewerSettingsLayout.js): the raw viewer-settings
 // record, writing one collection attribute, and loading the items linked to a primary item.
 import { buildPathWithAdditionalQueryParams, strapiFetchJson } from './strapiApi'
+import { isPlainObject } from '../domain/objects'
 
 /** Upper bound of linked items loaded per primary item and collection. */
 export const LINKED_ITEMS_PAGE_SIZE = 100
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 /** `data` of GET <configPath>, unchecked beyond being an object. */
 export async function fetchViewerSettingsRecordFromStrapi({ profile, token = '' }) {

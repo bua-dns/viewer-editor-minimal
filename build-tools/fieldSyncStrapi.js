@@ -13,12 +13,9 @@ import {
   syncBlocker,
 } from './fieldConfigSync.js'
 import { backupProject, readConnectionProfile, REQUEST_TIMEOUT_MS, resolveSettingsUrl, TOKEN_ENV_KEY } from './settingsBackup.js'
+import { isPlainObject } from '../src/domain/objects.js'
 
 const CONTENT_TYPES_PATH = '/api/content-type-builder/content-types'
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function readEnvFile(fileName) {
   return fs.existsSync(fileName) ? parseEnv(fs.readFileSync(fileName, 'utf8')) : {}

@@ -97,12 +97,8 @@
 
 ## Bedienung
 
-- Die App ist in fünf Tabs gegliedert: `Editieren`, `Konfiguration`, `Ersetzungen`, `Einstellungen`, `Info`.
-- Die Volltextsuche befindet sich im Bereich `Digitalisate` oberhalb der Karten- bzw. Listenansicht.
-- `Escape` schließt die Start-From-Scratch-Modal und die Lightbox.
-- `Escape` hebt außerdem eine aktive Sidebar-Auswahl auf.
-- Im Online-Modus kann optional `Configuration only` aktiviert werden, um beim Start nur Settings (ohne Item-Requests) zu laden.
-- Auch bei aktiviertem `Configuration only` wird die Settings-Config aus Strapi in die Konfigurations-Ansicht übernommen; nur Item-Requests bleiben aus.
+Die Bedienung (Tabs, Suche, Speichern, Tastatur, `Nur Konfiguration laden`) beschreibt die
+[Bedienungsanleitung](how-to-use-this-tool.md).
 
 ## Items ableiten (`mappings`)
 

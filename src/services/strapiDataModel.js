@@ -4,6 +4,7 @@
 // its keys are taken; that finds scalar fields (Strapi returns them even when null) and, with
 // `populate=*`, relations, media and components.
 import { strapiFetchJson } from './strapiApi'
+import { isPlainObject } from '../domain/objects'
 
 const CONTENT_TYPES_PATH = '/api/content-type-builder/content-types'
 const COMPONENTS_PATH = '/api/content-type-builder/components'
@@ -32,10 +33,6 @@ const VIEWER_TYPE_BY_STRAPI_TYPE = {
 
 // Values the viewer's text fields cannot edit as plain values.
 const STRUCTURED_STRAPI_TYPES = new Set(['relation', 'media', 'component', 'dynamiczone', 'json', 'blocks'])
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 function lastPathSegment(itemsPath) {
   const path = String(itemsPath || '').split('#')[0].split('?')[0]

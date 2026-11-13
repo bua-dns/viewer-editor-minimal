@@ -1,6 +1,7 @@
-//src\composables\hierarchyConfig.js
 // Pure hierarchy helpers shared by the online and the offline hierarchy view.
 // No Vue, no stores: every input is passed in.
+
+import { isPlainObject } from './objects'
 
 export function normalizeHierarchyValue(value) {
   if (value == null) return ''
@@ -26,35 +27,74 @@ export function normalizeHierarchyFieldList(rawFields) {
   return []
 }
 
+// Where a settings record or a config file may name its hierarchy fields, in order of precedence.
+// Canonical is `hierarchyFields`; the others are legacy shapes still found in exported files.
+const HIERARCHY_FIELD_LIST_KEYS = [
+  (source) => source.hierarchyFields,
+  (source) => source.hierarchy_fields,
+  (source) => source.hierarchicalFields,
+  (source) => source.hierarchy?.fields,
+  (source) => source.config?.hierarchyFields,
+  (source) => source.config?.hierarchy_fields,
+]
+
+const FIRST_LEVEL_STATIC_LIST_KEYS = [
+  (source) => source.firstLevelStaticList,
+  (source) => source.first_level_static_list,
+  (source) => source.hierarchy?.firstLevelStaticList,
+  (source) => source.config?.firstLevelStaticList,
+]
+
+// Field keys that name the two levels by themselves when no list is configured.
+const AUTO_DETECTED_LEVEL_FIELDS = [
+  ['level_1', 'level_2'],
+  ['level1', 'level2'],
+]
+
+function levelsFromHierarchyObject(hierarchy) {
+  if (!isPlainObject(hierarchy)) return null
+  const level1 = normalizeHierarchyValue(hierarchy.level1 || hierarchy.level_1)
+  const level2 = normalizeHierarchyValue(hierarchy.level2 || hierarchy.level_2)
+  return level1 && level2 ? [level1, level2] : null
+}
+
+function autoDetectedLevelFields(fields) {
+  if (!isPlainObject(fields)) return null
+  const pair = AUTO_DETECTED_LEVEL_FIELDS.find(([level1, level2]) =>
+    Object.prototype.hasOwnProperty.call(fields, level1) && Object.prototype.hasOwnProperty.call(fields, level2),
+  )
+  return pair ? [...pair] : null
+}
+
 /**
- * Hierarchy fields as read from the Strapi settings singleton (online mode).
- * Takes the first candidate with at least two entries.
+ * Hierarchy fields of a Strapi settings record (online) or of a config payload (file, offline):
+ * one resolver for both, so the same shape gives the same hierarchy in both modes.
+ *
+ * 1. the first list candidate (see HIERARCHY_FIELD_LIST_KEYS) with at least two entries;
+ * 2. `hierarchy: { level1, level2 }` (also `level_1` / `level_2`);
+ * 3. fields named `level_1` + `level_2` or `level1` + `level2`;
+ * 4. otherwise the first non-empty list, even with one entry: an unfinished hierarchy from the
+ *    Konfiguration tab survives export and import. Consumers enable the hierarchy only with two.
  */
 export function resolveHierarchyFieldsFromSettings(settings) {
-  const direct = normalizeHierarchyFieldList(
-    settings?.hierarchyFields || settings?.hierarchy_fields || settings?.hierarchicalFields,
+  if (!isPlainObject(settings)) return []
+  const lists = HIERARCHY_FIELD_LIST_KEYS.map((read) => normalizeHierarchyFieldList(read(settings)))
+  const complete = lists.find((list) => list.length >= 2)
+  if (complete) return complete
+
+  return (
+    levelsFromHierarchyObject(settings.hierarchy) ||
+    autoDetectedLevelFields(settings.fields) ||
+    lists.find((list) => list.length > 0) ||
+    []
   )
-  if (direct.length >= 2) return direct
+}
 
-  const nested = normalizeHierarchyFieldList(settings?.hierarchy?.fields || settings?.config?.hierarchyFields)
-  if (nested.length >= 2) return nested
-
-  const hierarchyObject = settings?.hierarchy
-  if (hierarchyObject && typeof hierarchyObject === 'object' && !Array.isArray(hierarchyObject)) {
-    const level1 = String(hierarchyObject.level1 || hierarchyObject.level_1 || '').trim()
-    const level2 = String(hierarchyObject.level2 || hierarchyObject.level_2 || '').trim()
-    if (level1 && level2) return [level1, level2]
-  }
-
-  const fields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
-  if (Object.prototype.hasOwnProperty.call(fields, 'level_1') && Object.prototype.hasOwnProperty.call(fields, 'level_2')) {
-    return ['level_1', 'level_2']
-  }
-  if (Object.prototype.hasOwnProperty.call(fields, 'level1') && Object.prototype.hasOwnProperty.call(fields, 'level2')) {
-    return ['level1', 'level2']
-  }
-
-  return []
+/** Fixed level-1 values (order of the boxes): the first array among FIRST_LEVEL_STATIC_LIST_KEYS. */
+export function resolveFirstLevelStaticList(settings) {
+  if (!isPlainObject(settings)) return []
+  const list = FIRST_LEVEL_STATIC_LIST_KEYS.map((read) => read(settings)).find(Array.isArray) || []
+  return Array.from(new Set(list.map(normalizeHierarchyValue).filter(Boolean)))
 }
 
 function countValues(items, groupFieldKey, includeItem) {
@@ -84,6 +124,15 @@ function toSortedOptions(countsByValue) {
   }
 
   return assigned
+}
+
+/**
+ * Level-1 boxes from the level-1 values alone, one per item (online: fetched without the items).
+ * Alphabetically, the unassigned bucket last.
+ */
+export function buildHierarchyLevel1OptionsFromValues(values) {
+  const valueItems = (Array.isArray(values) ? values : []).map((value) => ({ value }))
+  return toSortedOptions(countValues(valueItems, 'value', () => true))
 }
 
 /**

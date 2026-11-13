@@ -6,6 +6,8 @@ import {
   normalizeValueForConfiguredType,
   supportsPrefill,
 } from '../fields/fieldRegistry'
+import { isPlainObject } from '../domain/objects'
+import { resolveFirstLevelStaticList, resolveHierarchyFieldsFromSettings } from '../domain/hierarchyConfig'
 
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
 const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
@@ -16,10 +18,6 @@ try {
   globalThis.sessionStorage?.removeItem('viewerEditor.userConfig.v1')
 } catch {
   // storage not available: nothing to clean up
-}
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
 function cloneValue(value) {
@@ -93,95 +91,46 @@ function normalizeFieldWidth(value) {
   return '100%'
 }
 
-function resolveHierarchyFieldsFromConfig(configPayload) {
-  const candidateArrays = [
-    configPayload?.hierarchyFields,
-    configPayload?.hierarchy_fields,
-    configPayload?.hierarchicalFields,
-    configPayload?.hierarchy?.fields,
-  ]
-
-  let source = candidateArrays.find((entry) => Array.isArray(entry)) || []
-
-  if (!source.length) {
-    const stringCandidate = [
-      configPayload?.hierarchyFields,
-      configPayload?.hierarchy_fields,
-      configPayload?.hierarchicalFields,
-    ].find((entry) => typeof entry === 'string' && entry.trim())
-
-    if (stringCandidate) {
-      source = stringCandidate.split(',')
-    }
-  }
-
-  if (!source.length) {
-    const hierarchyObject =
-      configPayload?.hierarchy &&
-      typeof configPayload.hierarchy === 'object' &&
-      !Array.isArray(configPayload.hierarchy)
-        ? configPayload.hierarchy
-        : null
-
-    if (hierarchyObject) {
-      const level1 = String(hierarchyObject.level1 || hierarchyObject.level_1 || '').trim()
-      const level2 = String(hierarchyObject.level2 || hierarchyObject.level_2 || '').trim()
-      if (level1 && level2) {
-        source = [level1, level2]
-      }
-    }
-  }
-
-  return normalizeStringArrayUnique(source)
+// prefillWith now sits on the field itself; resolvePrefillWith still reads the old autosuggest.prefillWith,
+// so it is dropped from the autosuggest block here.
+function normalizeAutosuggestConfig(raw) {
+  const autosuggest = isPlainObject(raw) ? cloneValue(raw) : createMinimalAutosuggestConfig()
+  delete autosuggest.prefillWith
+  return autosuggest
 }
 
-function resolveFirstLevelStaticListFromConfig(configPayload) {
-  const candidateArrays = [
-    configPayload?.firstLevelStaticList,
-    configPayload?.first_level_static_list,
-    configPayload?.hierarchy?.firstLevelStaticList,
-  ]
-  const source = candidateArrays.find((entry) => Array.isArray(entry)) || []
-  return normalizeStringArrayUnique(source)
+function normalizeCandidateConfig(raw) {
+  const candidate = isPlainObject(raw) ? cloneValue(raw) : createMinimalCandidateConfig()
+  candidate.targetField = String(candidate.targetField || '').trim()
+  candidate.inputType = normalizeCandidateInputType(candidate.inputType)
+  return candidate
 }
 
-function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
-  const type = source.type || 'normal'
-  const readOnly = type !== 'wikidata-autosuggest' ? Boolean(source.readOnly) : undefined
-  const autosuggest =
-    type === 'wikidata-autosuggest' && isPlainObject(source.autosuggest)
-      ? cloneValue(source.autosuggest)
-      : type === 'wikidata-autosuggest'
-      ? createMinimalAutosuggestConfig()
-      : undefined
-  const candidate =
-    type === 'candidate' && isPlainObject(source.candidate)
-      ? cloneValue(source.candidate)
-      : type === 'candidate'
-        ? createMinimalCandidateConfig()
-        : undefined
-
-  // prefillWith now sits on the field itself; resolvePrefillWith still reads the old autosuggest.prefillWith.
-  const prefillWith = supportsPrefill(type) ? resolvePrefillWith(source) : ''
-  if (isPlainObject(autosuggest)) delete autosuggest.prefillWith
-
-  if (isPlainObject(candidate)) {
-    candidate.targetField = String(candidate.targetField || '').trim()
-    candidate.inputType = normalizeCandidateInputType(candidate.inputType)
-  }
-
+// Settings every field type has.
+function normalizeCommonFieldSettings(source, fallbackOrder) {
   return {
-    type,
     fieldWidth: normalizeFieldWidth(source.fieldWidth),
     label: source.label || '',
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',
     hint: typeof source.hint === 'string' ? source.hint : '',
     hidden: source.hidden === true,
-    ...(type !== 'wikidata-autosuggest' ? { readOnly } : {}),
+  }
+}
+
+// The key order of the result is part of the snapshot comparison (serializeUserConfigFields).
+function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
+  const type = source.type || 'normal'
+  const isWikidata = type === 'wikidata-autosuggest'
+  const prefillWith = supportsPrefill(type) ? resolvePrefillWith(source) : ''
+
+  return {
+    type,
+    ...normalizeCommonFieldSettings(source, fallbackOrder),
+    ...(isWikidata ? {} : { readOnly: Boolean(source.readOnly) }),
     ...(prefillWith ? { prefillWith } : {}),
-    ...(autosuggest ? { autosuggest } : {}),
-    ...(candidate ? { candidate } : {}),
+    ...(isWikidata ? { autosuggest: normalizeAutosuggestConfig(source.autosuggest) } : {}),
+    ...(type === 'candidate' ? { candidate: normalizeCandidateConfig(source.candidate) } : {}),
   }
 }
 
@@ -592,8 +541,10 @@ function createUserConfigState() {
         ? requestedMarkAsEditedBasis
         : ''
     const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
-    const normalizedHierarchyFields = resolveHierarchyFieldsFromConfig(configPayload)
-    const normalizedFirstLevelStaticList = resolveFirstLevelStaticListFromConfig(configPayload)
+    // The same resolver as for the online settings, so a file and a settings record of the same
+    // shape give the same hierarchy (review F6).
+    const normalizedHierarchyFields = resolveHierarchyFieldsFromSettings(configPayload)
+    const normalizedFirstLevelStaticList = resolveFirstLevelStaticList(configPayload)
 
     normalizeCandidateTargets(nextFields)
 

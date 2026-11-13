@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import {
   buildHierarchyLevel1Options,
+  buildHierarchyLevel1OptionsFromValues,
   buildHierarchyLevel2Options,
   isItemInHierarchyLevel1,
   normalizeHierarchyFieldList,
+  resolveFirstLevelStaticList,
   resolveHierarchyFieldsFromSettings,
 } from './hierarchyConfig'
 
@@ -43,6 +46,60 @@ describe('resolveHierarchyFieldsFromSettings', () => {
       'level_2',
     ])
     expect(resolveHierarchyFieldsFromSettings(null)).toEqual([])
+  })
+
+  // Shape matrix (review F6 / plan step 3.1): every shape any of the three former resolvers
+  // accepted. Online settings and offline config files go through this one function now.
+  const liveSample = JSON.parse(
+    readFileSync(new URL('./fixtures/viewer-setting.sample.json', import.meta.url), 'utf8'),
+  )
+  const shapeMatrix = [
+    ['canonical array', { hierarchyFields: ['a', 'b'] }, ['a', 'b']],
+    ['comma string', { hierarchyFields: 'a, b' }, ['a', 'b']],
+    ['snake_case key', { hierarchy_fields: ['a', 'b'] }, ['a', 'b']],
+    ['hierarchicalFields key', { hierarchicalFields: ['a', 'b'] }, ['a', 'b']],
+    ['hierarchy.fields', { hierarchy: { fields: ['a', 'b'] } }, ['a', 'b']],
+    ['config.hierarchyFields', { config: { hierarchyFields: ['a', 'b'] } }, ['a', 'b']],
+    ['config.hierarchy_fields', { config: { hierarchy_fields: ['a', 'b'] } }, ['a', 'b']],
+    ['hierarchy object, camelCase', { hierarchy: { level1: 'a', level2: 'b' } }, ['a', 'b']],
+    ['hierarchy object, snake_case', { hierarchy: { level_1: 'a', level_2: 'b' } }, ['a', 'b']],
+    ['auto-detected level_1/level_2', { fields: { level_1: {}, level_2: {} } }, ['level_1', 'level_2']],
+    ['auto-detected level1/level2', { fields: { level1: {}, level2: {} } }, ['level1', 'level2']],
+    ['empty canonical list does not hide a legacy key', { hierarchyFields: [], hierarchy_fields: ['a', 'b'] }, ['a', 'b']],
+    ['conflict: first candidate with two entries wins', { hierarchyFields: ['x'], hierarchy: { fields: ['a', 'b'] } }, ['a', 'b']],
+    ['one entry only: kept, the hierarchy stays off', { hierarchyFields: ['a'] }, ['a']],
+    ['complete list beats auto-detection', { hierarchyFields: ['a', 'b'], fields: { level_1: {}, level_2: {} } }, ['a', 'b']],
+    ['nothing configured', { fields: { title: {} } }, []],
+    ['live settings sample (hierarchyFields: [])', liveSample.data.settings, []],
+  ]
+
+  test.each(shapeMatrix)('%s', (_label, settings, expected) => {
+    expect(resolveHierarchyFieldsFromSettings(settings)).toEqual(expected)
+  })
+})
+
+describe('resolveFirstLevelStaticList', () => {
+  test.each([
+    ['canonical', { firstLevelStaticList: [' 001 ', '002', '001', ''] }, ['001', '002']],
+    ['snake_case', { first_level_static_list: ['a'] }, ['a']],
+    ['hierarchy object', { hierarchy: { firstLevelStaticList: ['a'] } }, ['a']],
+    ['config object', { config: { firstLevelStaticList: ['a'] } }, ['a']],
+    ['first array wins', { firstLevelStaticList: ['a'], first_level_static_list: ['b'] }, ['a']],
+    ['a comma string is not a list', { firstLevelStaticList: 'a, b' }, []],
+    ['nothing', null, []],
+  ])('%s', (_label, settings, expected) => {
+    expect(resolveFirstLevelStaticList(settings)).toEqual(expected)
+  })
+})
+
+describe('buildHierarchyLevel1OptionsFromValues', () => {
+  test('counts trimmed values alphabetically and puts the unassigned bucket last', () => {
+    expect(buildHierarchyLevel1OptionsFromValues(['B', ' A ', 'B', '', null, 'A'])).toEqual([
+      { value: 'A', count: 2, isUnassigned: false },
+      { value: 'B', count: 2, isUnassigned: false },
+      { value: '', count: 2, isUnassigned: true },
+    ])
+    expect(buildHierarchyLevel1OptionsFromValues(undefined)).toEqual([])
   })
 })
 

@@ -1,13 +1,10 @@
 import { resolveConfiguredFieldType } from '../fields/fieldRegistry'
+import { isPlainObject } from './objects'
 
 export const ALL_FIELDS_REPLACEMENT_KEY = 'allFields'
 
 const REPLACEABLE_FIELD_TYPES = ['normal', 'text']
 const RESERVED_FIELD_KEYS = ['scan', 'suspendEditing', '__onlineMeta']
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 export function isReplaceableFieldType(type) {
   return REPLACEABLE_FIELD_TYPES.includes(resolveConfiguredFieldType(type))

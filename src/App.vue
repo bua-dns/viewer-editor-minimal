@@ -1,6 +1,6 @@
 <script setup>
 //src\App.vue
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useDataImportExport } from './composables/useDataImportExport'
 import { useReplacementsApply } from './composables/useReplacementsApply'
@@ -16,7 +16,6 @@ import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
 import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
-import InfoPanel from './components/InfoPanel.vue'
 import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
@@ -48,7 +47,10 @@ import {
   resolveHierarchyFieldsFromSettings,
 } from './domain/hierarchyConfig'
 
-const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
+// Loaded on first open: its Markdown renderer and highlighter are a quarter of the main chunk.
+const InfoPanel = defineAsyncComponent(() => import('./components/InfoPanel.vue'))
+
+const tabs =['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
 const appShellRef = ref(null)
 const topbarRef = ref(null)
@@ -101,7 +103,6 @@ const {
   searchOnlineItems,
   clearOnlineItems,
   activeItemsPath,
-  hierarchyFields: onlineHierarchyFields,
   hierarchyLevel1Options: onlineHierarchyLevel1Options,
   selectedHierarchyLevel1Value,
   itemsStatus: onlineItemsStatus,
@@ -813,8 +814,11 @@ function onSidebarClose() {
   clearSelection()
 }
 
+// Online changes count on their own: those of items not loaded (replacement run) leave isDirty unset.
 function beforeUnloadListener(event) {
-  if (!hasPendingChanges.value && !hasUnappliedUserConfigChanges.value) return
+  const wouldLoseWork =
+    hasPendingChanges.value || hasUnappliedUserConfigChanges.value || hasPendingOnlineChanges.value
+  if (!wouldLoseWork) return
   event.preventDefault()
   event.returnValue = ''
 }
@@ -938,12 +942,11 @@ watch(
   },
 )
 
+// Selecting a suspended item resumes it. Only a new selection counts: watching the suspend list too
+// would resume the last item right after suspending it, since it stays selected.
 watch(
-  [
-    () => selectedViewItem.value?._uid || null,
-    () => suspendedItemIndices.value.join('|'),
-  ],
-  ([nextSelectedUid]) => {
+  () => selectedViewItem.value?._uid || null,
+  (nextSelectedUid) => {
     candidateAutosuggestPrefills.value = {}
     if (!nextSelectedUid) return
     const nextSelectedIndex = selectedViewItem.value?._index
@@ -1224,14 +1227,6 @@ watch(
           :show-edited-sort-toggle="showEditedSortToggle" :edited-items-first="editedItemsFirst"
           :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
-          :hierarchy-fields="hierarchicalFields"
-          :hierarchy-level1-options="hierarchyLevel1Options" :hierarchy-loading="isOnlineItemsLoading"
-          :selected-hierarchy-level1="selectedHierarchyLevel1"
-          :has-selected-hierarchy-level1="hasSelectedHierarchyLevel1"
-          :expanded-hierarchy-level2-values="expandedHierarchyLevel2Values"
-          :hierarchy-unassigned-label="t('hierarchyUnassignedLabel', 'Ohne Zuordnung')"
-          :hierarchy-select-level1-label="t('hierarchySelectLevel1Label', 'Bitte waehlen Sie zuerst eine Kategorie.')"
-          :hierarchy-collapse-all-label="t('hierarchyCollapseAllLabel', 'Alle Unterkategorien einklappen')"
           :render-body="false" :show-create-item-button="canCreateItem"
           :create-item-label="t('onlineCreateItem', 'New item')"
           :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateItem"

@@ -3,14 +3,12 @@
 // of the `viewer-setting` (v2 layout) — and builds the target config that makes them identical.
 // Pure functions only; Strapi access is in fieldSyncStrapi.js, the CLI in syncFieldConfig.js.
 
+import { isPlainObject } from '../src/domain/objects.js'
+
 // Keys that belong to the collection, not to the field: never compared, never copied.
 const COLLECTION_SPECIFIC_KEYS = ['order']
 // The v1 attribute that some records still carry next to the v2 collection attributes.
 const LEGACY_SETTINGS_KEY = 'settings'
-
-function isPlainObject(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-}
 
 /** The collection attributes of a viewer-setting record (`itemsPath` + `fields`), without v1 `settings`. */
 export function listCollections(data) {

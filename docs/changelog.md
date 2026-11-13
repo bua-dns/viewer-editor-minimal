@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-11 - Fewer ways to lose work
+
+- `Bearbeitung aussetzen` on the last item of the list (or of a category) now sticks; before, the item
+  was resumed again at once because it stayed selected.
+- Closing or reloading the page now also asks when only online changes are pending that belong to items
+  not shown (for example after a collection-wide replacement run).
+- After a save where some items failed, the items that were saved keep their saved values as the new
+  starting point; a later `Reset` no longer brings back their old values.
+
+## 2026-11 - User manual
+
+- New `docs/how-to-use-this-tool.md` (German): working offline and online, saving and conflicts,
+  categories, configuration, replacements, deriving items, and a table of error messages with what to
+  do. Linked from the README; the usage bullets of `conventions.md` moved there.
+
+## 2026-11 - One rule for reading the hierarchy fields
+
+- Online settings and imported config files now read the hierarchy fields by the same rule (before, there
+  were three slightly different ones). What changes:
+  - Offline, a config file may now use every shape the online settings accept: `config.hierarchy_fields`,
+    and fields named `level_1` + `level_2` (or `level1` + `level2`), which switch on the hierarchy by
+    themselves when no hierarchy fields are set.
+  - An empty `hierarchyFields: []` no longer hides a legacy key such as `hierarchy_fields` next to it.
+- `firstLevelStaticList` is also read the same way in both modes (offline it now accepts
+  `config.firstLevelStaticList` as well).
+
+## 2026-11 - Import is all or nothing
+
+- A JSON file whose embedded `config` is invalid is now rejected as a whole, with the reason in the
+  status area. Before, its data was loaded without a field config.
+- A rejected file (broken JSON or CSV, invalid config) no longer touches what is loaded: data, file name,
+  config and replacement rules stay as they were. Before, a broken file cleared the replacement rules.
+
 ## 2026-11 - Pure logic in `src/domain/`
 
 - Internal: the 11 modules without Vue, stores or network calls (validation, hierarchy, replacement and
@@ -7,6 +40,11 @@
   Stores and services now import pure logic from there instead of from `composables/`. The duplicated
   `hasNonEmptyOnlineFieldValue` in `strapiApi.js` was dropped for `domain/valueChecks.js`. No change in
   behaviour.
+- Internal: the two modules that make network calls moved on to `src/services/`: `publicConfigUrls.js`
+  and the Wikidata client (`useWikidataSearch.js` → `wikidataApi.js`, `createWikidataClient()`).
+- Internal: one `isPlainObject` (`domain/objects.js`, 21 copies removed, also used by `build-tools/`) and
+  one collection-path rule (`domain/collectionPath.js`). Paths with a `#fragment` or surrounding spaces
+  now compare equal everywhere; before, the secondary-collection check did not ignore the fragment.
 
 ## 2026-11 - Import errors visible, sturdier storage and admin scripts
 
