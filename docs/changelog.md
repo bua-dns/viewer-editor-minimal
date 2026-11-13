@@ -2,8 +2,8 @@
 
 ## 2026-11 - Editor layout under the scan
 
-- Under the scan, the hierarchy fields (`level_0`, `level_1`, …) come first, then the checkbox fields,
-  one per line. A checkbox sits in front of its label, centred on its line.
+- Under the scan, the hierarchy fields (`level_0`, `level_1`, …) come first, compact and two per row,
+  then the checkbox fields, one per line. A checkbox sits in front of its label, centred on its line.
 
 ## 2026-11 - Unlink or delete linked items
 

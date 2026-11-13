@@ -369,8 +369,28 @@
   min-width: 0;
 }
 
-.sidebar-hierarchy-fields {
+// Hierarchy fields under the scan: compact, two per row whatever field width is configured.
+// The class sits on ItemFieldEditor's root (.field-grid); .scan-column outranks its scoped rules.
+.scan-column .sidebar-hierarchy-fields.field-grid {
   margin-top: var(--ve-space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 0.6rem;
+}
+
+.scan-column .sidebar-hierarchy-fields.field-grid > .field-row {
+  grid-column: auto;
+  gap: 0.15rem;
+}
+
+.scan-column .sidebar-hierarchy-fields .field-label {
+  font-size: 0.78rem;
+  color: var(--ve-color-text-muted);
+}
+
+.scan-column .sidebar-hierarchy-fields :is(input, textarea, select) {
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
 }
 
 .sidebar-checkbox-fields {
