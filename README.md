@@ -36,7 +36,7 @@ Details zu jedem Punkt stehen in der [Technischen Dokumentation](docs/technical-
 
 ## Tech Stack
 
-- Vue 3, Vite, Vitest
+- Vue 3, Vite, Vitest (+ jsdom, @vue/test-utils), ESLint
 - Sass (SCSS)
 - `markdown-it` + `highlight.js` (Info-Tab)
 
@@ -73,11 +73,14 @@ pnpm build --mode xylothek      # Ausgabe: dist-projects/xylothek/ -> auf dem Se
 
 Details: [technische Dokumentation, Projekt-Modi](docs/technical-documentation.md#projekt-modi---mode-project).
 
-## Tests
+## Tests und Lint
 
 ```bash
 pnpm test
+pnpm lint
 ```
+
+CI (`.github/workflows/ci.yml`) führt bei jedem Push Lint, Tests und Build aus.
 
 ## Admin-Skripte
 

@@ -46,6 +46,8 @@ const renderedHtml = computed(() => markdown.render(infoMarkdown.value))
 </script>
 
 <template>
+  <!-- Safe: only bundled Markdown, rendered with html: false (review V1). -->
+  <!-- eslint-disable-next-line vue/no-v-html -->
   <article class="info-panel" v-html="renderedHtml" />
 </template>
 

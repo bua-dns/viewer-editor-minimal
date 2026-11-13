@@ -157,8 +157,8 @@ describe('checkField', () => {
   test('formats the report with the differences and notes', () => {
     const lines = formatReport(check(), { from: 'index_cards', to: 'collection_items' })
     expect(lines[0]).toBe('Field "collectors": index_cards → collection_items')
-    expect(lines[1]).toMatch(/Strapi:  same structure — source: component metadata-forms.wikidata-reference, repeatable/)
+    expect(lines[1]).toContain('Strapi:  same structure — source: component metadata-forms.wikidata-reference, repeatable')
     expect(lines).toContain('  Config:  2 difference(s) (target vs. source):')
-    expect(lines.at(-1)).toMatch(/^  Note:    prefillWith "ai_collector" is left out/)
+    expect(lines.at(-1).startsWith('  Note:    prefillWith "ai_collector" is left out')).toBe(true)
   })
 })

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11 - Lint, CI and a test of the whole app
+
+- Internal: Vitest 4 (the 15 audit advisories of Vitest 2 are gone; 2 moderate dev-only ones remain via
+  `@vue/test-utils`), ESLint 9 with the Vue rules (`pnpm lint`), and a GitHub Actions workflow that runs
+  lint, tests and build on every push.
+- Internal: `src/App.smoke.test.js` mounts the whole app in `jsdom` and checks ten offline and online
+  flows; shared test helpers live in `test/helpers/`.
+
 ## 2026-11 - Fewer ways to lose work
 
 - `Bearbeitung aussetzen` on the last item of the list (or of a category) now sticks; before, the item

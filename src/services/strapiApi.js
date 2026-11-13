@@ -386,7 +386,7 @@ function normalizeOnlineFieldValueForStrapi(value, fieldConfig) {
 
 export function parseInvalidStrapiQueryKey(error) {
   const message = String(error?.message || '').trim()
-  const match = message.match(/invalid key\s+([A-Za-z0-9_\-]+)/i)
+  const match = message.match(/invalid key\s+([A-Za-z0-9_-]+)/i)
   if (!match) return ''
   return String(match[1] || '').trim()
 }
@@ -648,7 +648,7 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
       return {
         fieldKey,
         status: 'error',
-        message: `Missing field \"${fieldKey}\" in items payload.`,
+        message: `Missing field "${fieldKey}" in items payload.`,
       }
     }
 
@@ -657,7 +657,7 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
       return {
         fieldKey,
         status: 'error',
-        message: `Field \"${fieldKey}\" must be an array.`,
+        message: `Field "${fieldKey}" must be an array.`,
       }
     }
 
@@ -665,7 +665,7 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
       return {
         fieldKey,
         status: 'warning',
-        message: `Field \"${fieldKey}\" is an empty array, no entity shape could be verified.`,
+        message: `Field "${fieldKey}" is an empty array, no entity shape could be verified.`,
       }
     }
 
@@ -674,7 +674,7 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
       return {
         fieldKey,
         status: 'error',
-        message: `Field \"${fieldKey}\" entries must be objects.`,
+        message: `Field "${fieldKey}" entries must be objects.`,
       }
     }
 
@@ -687,7 +687,7 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
       return {
         fieldKey,
         status: 'ok',
-        message: `Field \"${fieldKey}\" matches viewer shape (id + label).`,
+        message: `Field "${fieldKey}" matches viewer shape (id + label).`,
       }
     }
 
@@ -695,14 +695,14 @@ export async function checkDataModelImplementationInStrapi({ profile, token = ''
       return {
         fieldKey,
         status: 'error',
-        message: `Field \"${fieldKey}\" uses \"wikidata_id\". Viewer expects \"id\" + \"label\" in each entity.`,
+        message: `Field "${fieldKey}" uses "wikidata_id". Viewer expects "id" + "label" in each entity.`,
       }
     }
 
     return {
       fieldKey,
       status: 'error',
-      message: `Field \"${fieldKey}\" entities must contain \"id\" and \"label\".`,
+      message: `Field "${fieldKey}" entities must contain "id" and "label".`,
     }
   })
 

@@ -3,21 +3,7 @@ import { useAppConfigStore } from './useAppConfigStore'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 import { useOnlineSettingsStore } from './useOnlineSettingsStore'
-
-function createLocalStorageMock() {
-  const store = new Map()
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null
-    },
-    setItem(key, value) {
-      store.set(key, String(value))
-    },
-    removeItem(key) {
-      store.delete(key)
-    },
-  }
-}
+import { createLocalStorageMock } from '../../test/helpers/storageMock.js'
 
 describe('useOnlineSettingsStore', () => {
   beforeEach(() => {
