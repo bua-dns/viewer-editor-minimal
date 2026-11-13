@@ -7,6 +7,7 @@ import {
   supportsPrefill,
 } from '../fields/fieldRegistry'
 import { isPlainObject } from '../domain/objects'
+import { resolveFirstLevelStaticList, resolveHierarchyFieldsFromSettings } from '../domain/hierarchyConfig'
 
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
 const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
@@ -88,58 +89,6 @@ function normalizeFieldWidth(value) {
   const normalized = String(value || '').trim()
   if (ALLOWED_FIELD_WIDTHS.has(normalized)) return normalized
   return '100%'
-}
-
-function resolveHierarchyFieldsFromConfig(configPayload) {
-  const candidateArrays = [
-    configPayload?.hierarchyFields,
-    configPayload?.hierarchy_fields,
-    configPayload?.hierarchicalFields,
-    configPayload?.hierarchy?.fields,
-  ]
-
-  let source = candidateArrays.find((entry) => Array.isArray(entry)) || []
-
-  if (!source.length) {
-    const stringCandidate = [
-      configPayload?.hierarchyFields,
-      configPayload?.hierarchy_fields,
-      configPayload?.hierarchicalFields,
-    ].find((entry) => typeof entry === 'string' && entry.trim())
-
-    if (stringCandidate) {
-      source = stringCandidate.split(',')
-    }
-  }
-
-  if (!source.length) {
-    const hierarchyObject =
-      configPayload?.hierarchy &&
-      typeof configPayload.hierarchy === 'object' &&
-      !Array.isArray(configPayload.hierarchy)
-        ? configPayload.hierarchy
-        : null
-
-    if (hierarchyObject) {
-      const level1 = String(hierarchyObject.level1 || hierarchyObject.level_1 || '').trim()
-      const level2 = String(hierarchyObject.level2 || hierarchyObject.level_2 || '').trim()
-      if (level1 && level2) {
-        source = [level1, level2]
-      }
-    }
-  }
-
-  return normalizeStringArrayUnique(source)
-}
-
-function resolveFirstLevelStaticListFromConfig(configPayload) {
-  const candidateArrays = [
-    configPayload?.firstLevelStaticList,
-    configPayload?.first_level_static_list,
-    configPayload?.hierarchy?.firstLevelStaticList,
-  ]
-  const source = candidateArrays.find((entry) => Array.isArray(entry)) || []
-  return normalizeStringArrayUnique(source)
 }
 
 function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
@@ -589,8 +538,10 @@ function createUserConfigState() {
         ? requestedMarkAsEditedBasis
         : ''
     const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
-    const normalizedHierarchyFields = resolveHierarchyFieldsFromConfig(configPayload)
-    const normalizedFirstLevelStaticList = resolveFirstLevelStaticListFromConfig(configPayload)
+    // The same resolver as for the online settings, so a file and a settings record of the same
+    // shape give the same hierarchy (review F6).
+    const normalizedHierarchyFields = resolveHierarchyFieldsFromSettings(configPayload)
+    const normalizedFirstLevelStaticList = resolveFirstLevelStaticList(configPayload)
 
     normalizeCandidateTargets(nextFields)
 

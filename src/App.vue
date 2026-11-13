@@ -104,7 +104,6 @@ const {
   searchOnlineItems,
   clearOnlineItems,
   activeItemsPath,
-  hierarchyFields: onlineHierarchyFields,
   hierarchyLevel1Options: onlineHierarchyLevel1Options,
   selectedHierarchyLevel1Value,
   itemsStatus: onlineItemsStatus,
@@ -1227,14 +1226,6 @@ watch(
           :show-edited-sort-toggle="showEditedSortToggle" :edited-items-first="editedItemsFirst"
           :edited-sort-toggle-label="t('editedSortToggleLabel', 'Bearbeitete zuerst')"
           :looks-like-image-url="looksLikeImageUrl" :has-list-image-failed="hasListImageFailed" :render-header="true"
-          :hierarchy-fields="hierarchicalFields"
-          :hierarchy-level1-options="hierarchyLevel1Options" :hierarchy-loading="isOnlineItemsLoading"
-          :selected-hierarchy-level1="selectedHierarchyLevel1"
-          :has-selected-hierarchy-level1="hasSelectedHierarchyLevel1"
-          :expanded-hierarchy-level2-values="expandedHierarchyLevel2Values"
-          :hierarchy-unassigned-label="t('hierarchyUnassignedLabel', 'Ohne Zuordnung')"
-          :hierarchy-select-level1-label="t('hierarchySelectLevel1Label', 'Bitte waehlen Sie zuerst eine Kategorie.')"
-          :hierarchy-collapse-all-label="t('hierarchyCollapseAllLabel', 'Alle Unterkategorien einklappen')"
           :render-body="false" :show-create-item-button="canCreateItem"
           :create-item-label="t('onlineCreateItem', 'New item')"
           :new-item-fallback-label="t('onlineNewItemFallback', 'New item')" @create-item="onCreateItem"

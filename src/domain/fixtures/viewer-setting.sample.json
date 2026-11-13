@@ -1,0 +1,56 @@
+{
+  "data": {
+    "id": 1,
+    "documentId": "sampledocumentid00000000",
+    "settings": {
+      "version": 1,
+      "itemsPath": "/api/items",
+      "scanField": "scan_url",
+      "hierarchyFields": [],
+      "firstLevelStaticList": [],
+      "fields": {
+        "title": {
+          "type": "normal",
+          "fieldWidth": "100%",
+          "label": "",
+          "order": 0,
+          "placeholder": "Title",
+          "hint": "Transcription",
+          "readOnly": false
+        },
+        "description": {
+          "type": "text",
+          "fieldWidth": "100%",
+          "label": "",
+          "order": 1,
+          "placeholder": "Description",
+          "hint": "Transcription",
+          "readOnly": false
+        }
+      },
+      "itemLabelField": "title",
+      "showOnlyNonEmptyFields": false,
+      "markAsEditedBasis": ""
+    },
+    "wording": {
+      "appTitle": {
+        "de": "Viewer-Editor (Beispiel)",
+        "en": "Viewer Editor (sample)"
+      },
+      "footerIdentityCredit": {
+        "de": "Zeile 1<br>Zeile 2",
+        "en": "Line 1<br>Line 2"
+      }
+    },
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "updatedAt": "2026-01-01T00:00:00.000Z",
+    "publishedAt": "2026-01-01T00:00:00.000Z",
+    "replacements": {
+      "allFields": {},
+      "description": {
+        "/ Sample": "/Sample"
+      }
+    }
+  },
+  "meta": {}
+}

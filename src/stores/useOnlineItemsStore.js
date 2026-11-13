@@ -9,6 +9,12 @@ import {
 } from '../services/strapiApi'
 import { resolveSearchableFieldKeys, searchCollectionItemsInStrapi } from '../services/strapiSearch'
 import { tokenizeSearchQuery } from '../domain/searchQuery'
+import {
+  buildHierarchyLevel1OptionsFromValues,
+  normalizeHierarchyValue,
+  resolveFirstLevelStaticList,
+  resolveHierarchyFieldsFromSettings,
+} from '../domain/hierarchyConfig'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 
@@ -19,114 +25,6 @@ const activeItemsPath = ref('')
 const hierarchyFields = ref([])
 const hierarchyLevel1Options = ref([])
 const selectedHierarchyLevel1Value = ref('')
-
-function normalizeHierarchyValue(value) {
-  if (value == null) return ''
-  return String(value).trim()
-}
-
-function normalizeHierarchyFields(settings) {
-  const candidateArrays = [
-    settings?.hierarchyFields,
-    settings?.hierarchy_fields,
-    settings?.hierarchicalFields,
-    settings?.hierarchy?.fields,
-    settings?.config?.hierarchyFields,
-    settings?.config?.hierarchy_fields,
-  ]
-
-  let source = candidateArrays.find((entry) => Array.isArray(entry)) || []
-  if (!source.length) {
-    const objectShape =
-      settings?.hierarchy && typeof settings.hierarchy === 'object' && !Array.isArray(settings.hierarchy)
-        ? settings.hierarchy
-        : null
-    if (objectShape) {
-      const level1 = String(objectShape.level1 || objectShape.level_1 || '').trim()
-      const level2 = String(objectShape.level2 || objectShape.level_2 || '').trim()
-      if (level1 && level2) {
-        source = [level1, level2]
-      }
-    }
-  }
-
-  if (!source.length) {
-    const candidateString = [
-      settings?.hierarchyFields,
-      settings?.hierarchy_fields,
-      settings?.hierarchicalFields,
-    ].find((entry) => typeof entry === 'string')
-
-    if (typeof candidateString === 'string' && candidateString.trim()) {
-      source = candidateString.split(',')
-    }
-  }
-
-  const normalized = (Array.isArray(source) ? source : [])
-    .map((entry) => String(entry || '').trim())
-    .filter(Boolean)
-
-  if (normalized.length >= 2) {
-    return Array.from(new Set(normalized))
-  }
-
-  const fields = settings?.fields && typeof settings.fields === 'object' ? settings.fields : {}
-  const hasSnakeCaseLevels =
-    Object.prototype.hasOwnProperty.call(fields, 'level_1') &&
-    Object.prototype.hasOwnProperty.call(fields, 'level_2')
-  if (hasSnakeCaseLevels) {
-    return ['level_1', 'level_2']
-  }
-
-  const hasCamelCaseLevels =
-    Object.prototype.hasOwnProperty.call(fields, 'level1') &&
-    Object.prototype.hasOwnProperty.call(fields, 'level2')
-  if (hasCamelCaseLevels) {
-    return ['level1', 'level2']
-  }
-
-  return Array.from(new Set(normalized))
-}
-
-function normalizeFirstLevelStaticList(settings) {
-  const candidateLists = [
-    settings?.firstLevelStaticList,
-    settings?.first_level_static_list,
-    settings?.hierarchy?.firstLevelStaticList,
-    settings?.config?.firstLevelStaticList,
-  ]
-
-  const source = candidateLists.find((entry) => Array.isArray(entry)) || []
-  return source
-    .map((entry) => normalizeHierarchyValue(entry))
-    .filter(Boolean)
-    .filter((value, index, list) => list.indexOf(value) === index)
-}
-
-function buildHierarchyLevel1Options(values) {
-  const countsByValue = new Map()
-  ;(Array.isArray(values) ? values : []).forEach((value) => {
-    const normalized = normalizeHierarchyValue(value)
-    countsByValue.set(normalized, (countsByValue.get(normalized) || 0) + 1)
-  })
-
-  const assigned = []
-  let unassignedCount = 0
-  countsByValue.forEach((count, value) => {
-    if (!value) {
-      unassignedCount += count
-      return
-    }
-    assigned.push({ value, count, isUnassigned: false })
-  })
-
-  assigned.sort((left, right) => left.value.localeCompare(right.value))
-  if (unassignedCount > 0) {
-    assigned.push({ value: '', count: unassignedCount, isUnassigned: true })
-  }
-
-  return assigned
-}
 
 function buildHierarchyLevel1OptionsFromStaticList(values) {
   return (Array.isArray(values) ? values : []).map((value) => ({
@@ -204,7 +102,7 @@ async function loadHierarchyLevel1Options(context, normalizedHierarchyFields, fi
     token,
     fieldKey: normalizedHierarchyFields[0],
   })
-  return buildHierarchyLevel1Options(level1Values)
+  return buildHierarchyLevel1OptionsFromValues(level1Values)
 }
 
 async function fetchOnlineItems({ settings }) {
@@ -212,7 +110,7 @@ async function fetchOnlineItems({ settings }) {
   if (context.error) return failItemsLoad(context.error)
 
   const { itemsPath } = context
-  const normalizedHierarchyFields = normalizeHierarchyFields(settings)
+  const normalizedHierarchyFields = resolveHierarchyFieldsFromSettings(settings)
 
   startItemsLoad(itemsPath, normalizedHierarchyFields)
   hierarchyLevel1Options.value = []
@@ -224,7 +122,7 @@ async function fetchOnlineItems({ settings }) {
       hierarchyLevel1Options.value = await loadHierarchyLevel1Options(
         context,
         normalizedHierarchyFields,
-        normalizeFirstLevelStaticList(settings),
+        resolveFirstLevelStaticList(settings),
       )
       items.value = []
       itemsStatus.value = 'ready'
@@ -278,7 +176,7 @@ async function fetchOnlineItemsForHierarchyLevel1({ settings, level1Value }) {
   const context = resolveItemsLoadContext(settings)
   if (context.error) return failItemsLoad(context.error)
 
-  const normalizedHierarchyFields = normalizeHierarchyFields(settings)
+  const normalizedHierarchyFields = resolveHierarchyFieldsFromSettings(settings)
   if (normalizedHierarchyFields.length < 2) {
     return fetchOnlineItems({ settings })
   }
@@ -327,7 +225,7 @@ async function searchOnlineItems({ settings, query, loadExcludedFieldKeys = asyn
   const context = resolveItemsLoadContext(settings)
   if (context.error) return failItemsLoad(context.error)
 
-  const normalizedHierarchyFields = normalizeHierarchyFields(settings)
+  const normalizedHierarchyFields = resolveHierarchyFieldsFromSettings(settings)
   startItemsLoad(context.itemsPath, normalizedHierarchyFields)
 
   try {

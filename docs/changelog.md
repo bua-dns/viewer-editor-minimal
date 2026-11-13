@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11 - One rule for reading the hierarchy fields
+
+- Online settings and imported config files now read the hierarchy fields by the same rule (before, there
+  were three slightly different ones). What changes:
+  - Offline, a config file may now use every shape the online settings accept: `config.hierarchy_fields`,
+    and fields named `level_1` + `level_2` (or `level1` + `level2`), which switch on the hierarchy by
+    themselves when no hierarchy fields are set.
+  - An empty `hierarchyFields: []` no longer hides a legacy key such as `hierarchy_fields` next to it.
+- `firstLevelStaticList` is also read the same way in both modes (offline it now accepts
+  `config.firstLevelStaticList` as well).
+
 ## 2026-11 - Import is all or nothing
 
 - A JSON file whose embedded `config` is invalid is now rejected as a whole, with the reason in the

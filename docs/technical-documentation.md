@@ -1187,11 +1187,20 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
 
 `useOnlineItemsStore.js` bestimmt die Ladestrategie aus den Settings:
 
-- **Hierarchie-Erkennung** (`normalizeHierarchyFields`) ist bewusst tolerant: `hierarchyFields`,
-  `hierarchy_fields`, `hierarchicalFields`, `hierarchy.fields`, `config.hierarchyFields`,
-  `config.hierarchy_fields`, ein Objekt `hierarchy: { level1, level2 }` sowie kommaseparierte Strings.
-  Greift nichts davon, wird auf Feld-Auto-Erkennung zurückgefallen (`level_1`/`level_2`, sonst
-  `level1`/`level2`). Hierarchie ist aktiv ab zwei Feldschlüsseln.
+- **Hierarchie-Erkennung** (`resolveHierarchyFieldsFromSettings` in `src/domain/hierarchyConfig.js`) ist
+  bewusst tolerant und gilt gleich für Strapi-Settings (online), die `config` einer importierten Datei
+  und `App.vue`, damit dieselbe Form in beiden Modi dieselbe Hierarchie ergibt:
+  1. die erste Liste mit mindestens zwei Einträgen aus `hierarchyFields`, `hierarchy_fields`,
+     `hierarchicalFields`, `hierarchy.fields`, `config.hierarchyFields`, `config.hierarchy_fields`
+     (Array oder kommaseparierter String; eine leere Liste verdeckt keinen späteren Schlüssel);
+  2. ein Objekt `hierarchy: { level1, level2 }` (auch `level_1`/`level_2`);
+  3. Feld-Auto-Erkennung: Felder `level_1` + `level_2`, sonst `level1` + `level2`;
+  4. sonst die erste nicht-leere Liste, auch mit nur einem Eintrag (eine halb fertige Hierarchie aus dem
+     Tab `Konfiguration` übersteht so Export und Import).
+
+  Hierarchie ist aktiv ab zwei Feldschlüsseln. `firstLevelStaticList` liest
+  `resolveFirstLevelStaticList`: das erste Array aus `firstLevelStaticList`, `first_level_static_list`,
+  `hierarchy.firstLevelStaticList`, `config.firstLevelStaticList`.
 - **Ohne Hierarchie:** Items werden paginiert vollständig geladen und normalisiert.
 - **Mit Hierarchie und `firstLevelStaticList`:** Die Level-1-Boxen werden direkt aus der Liste gerendert
   (getrimmt, leere Einträge entfernt, dedupliziert, Reihenfolge bleibt erhalten). Beim Start erfolgt
@@ -1779,7 +1788,7 @@ Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. 
 | `services/wikidataApi.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
 | `domain/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne sichtbare Read-only-Felder und Reservierte, ausgeblendete auch read-only enthalten); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
-| `domain/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `domain/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Formen-Matrix der Hierarchie-Auflösung (alle Schlüssel, Objektform, Auto-Erkennung, Konfliktregel, ein Eintrag, Live-Settings-Beispiel aus `fixtures/` ergibt `[]`) und von `firstLevelStaticList`; Level-1-Optionen aus reinen Feldwerten (online); Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
 | `domain/collectionPath.test.js` | Query, Fragment, abschließende `/` und Leerraum werden ignoriert; Nicht-Strings ergeben `''`; verschiedene Collections bleiben verschieden |
 | `domain/objects.test.js` | `isPlainObject` akzeptiert Objekte, lehnt `null`, Arrays und Primitive ab |
 | `domain/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
