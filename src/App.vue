@@ -47,8 +47,7 @@ import {
   resolveHierarchyFieldsFromSettings,
 } from './domain/hierarchyConfig'
 
-// Loaded when the Info tab is first opened: its Markdown renderer and highlighter would otherwise
-// make up more than a quarter of the main chunk.
+// Loaded on first open: its Markdown renderer and highlighter are a quarter of the main chunk.
 const InfoPanel = defineAsyncComponent(() => import('./components/InfoPanel.vue'))
 
 const tabs =['edit', 'configuration', 'replacements', 'database-connection', 'info']
@@ -815,9 +814,7 @@ function onSidebarClose() {
   clearSelection()
 }
 
-// Asks before closing or reloading the page while anything would be lost: offline edits, unapplied
-// configuration, and pending online changes (also those of items not loaded, e.g. from a
-// collection-wide replacement run).
+// Online changes count on their own: those of items not loaded (replacement run) leave isDirty unset.
 function beforeUnloadListener(event) {
   const wouldLoseWork =
     hasPendingChanges.value || hasUnappliedUserConfigChanges.value || hasPendingOnlineChanges.value
@@ -946,8 +943,7 @@ watch(
 )
 
 // Selecting a suspended item resumes it. Only a new selection counts: watching the suspend list too
-// would resume the item right after suspending it whenever it stays selected (the last item of the
-// list or of a category, where there is no next item to move to).
+// would resume the last item right after suspending it, since it stays selected.
 watch(
   () => selectedViewItem.value?._uid || null,
   (nextSelectedUid) => {
