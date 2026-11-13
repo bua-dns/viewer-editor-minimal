@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-11 - Editor layout under the scan
+
+- Under the scan, the hierarchy fields (`level_0`, `level_1`, …) come first, then the checkbox fields,
+  one per line. A checkbox sits in front of its label, centred on its line.
+
 ## 2026-11 - Unlink or delete linked items
 
 - Each linked item has `Verknüpfung lösen` (removes only the link to the selected item; the item and its

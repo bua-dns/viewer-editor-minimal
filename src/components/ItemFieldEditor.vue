@@ -20,6 +20,9 @@ const props = defineProps({
   configScope: { type: String, default: '' },
   // Prefix of the input ids; must differ between editors shown at the same time.
   fieldIdPrefix: { type: String, default: 'field' },
+  // Field keys to show only (in this order) or to leave out; empty = no restriction.
+  includeKeys: { type: Array, default: () => [] },
+  excludeKeys: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits(['field-change', 'accept-candidate'])
@@ -63,7 +66,14 @@ function shouldIncludeConfiguredType(configuredType) {
   return includeConfiguredTypeSet.value.has(normalizedType)
 }
 
-const displayedFieldKeys = computed(() => getDisplayedFieldKeys(props.selectedRawItem))
+function selectRowKeys(keys) {
+  const excludedKeys = new Set(props.excludeKeys)
+  const keptKeys = keys.filter((key) => !excludedKeys.has(key))
+  if (props.includeKeys.length === 0) return keptKeys
+  return props.includeKeys.filter((key) => keptKeys.includes(key))
+}
+
+const displayedFieldKeys = computed(() => selectRowKeys(getDisplayedFieldKeys(props.selectedRawItem)))
 
 const fieldRows = computed(() =>
   displayedFieldKeys.value.map((key) => {
@@ -271,6 +281,15 @@ async function onCopyRawData() {
 .field-row.is-checkbox > :not(.field-label, .field-hint) {
   grid-row: 1;
   grid-column: 1;
+  display: flex;
+  align-items: center;
+}
+
+// Without the browser's default margin and at text size, the box centres on the label's line.
+.field-row.is-checkbox :deep(input[type='checkbox']) {
+  margin: 0;
+  width: 1.05em;
+  height: 1.05em;
 }
 
 .field-row.is-checkbox > .field-label {
