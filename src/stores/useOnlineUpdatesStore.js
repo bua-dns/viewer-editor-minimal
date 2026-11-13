@@ -249,33 +249,45 @@ function settleSentFields(entry, sentFields) {
   })
 }
 
-function buildSaveContext({ profile, token }) {
-  const { settings } = useOnlineSettingsStore()
-  const currentSettings = settings.value && typeof settings.value === 'object' ? settings.value : {}
-  const fieldConfigs = currentSettings.fields && typeof currentSettings.fields === 'object'
-    ? currentSettings.fields
+function describeCollectionForSave(collectionSettings) {
+  const fieldConfigs = collectionSettings.fields && typeof collectionSettings.fields === 'object'
+    ? collectionSettings.fields
     : {}
+  return {
+    fieldConfigs,
+    scanFieldKey: resolveScanFieldFromSettings(collectionSettings),
+    wikidataFieldKeys: getWikidataAutosuggestFieldKeysFromSettings(collectionSettings),
+    createKeyField: resolveCreateKeyFieldFromSettings(collectionSettings),
+  }
+}
 
+// Every entry is saved with the configuration of its own collection (primary or secondary).
+function buildSaveContext({ profile, token }) {
+  const { settingsForItemsPath } = useOnlineSettingsStore()
+  const collectionsByPath = new Map()
   return {
     profile,
     token,
-    fieldConfigs,
-    scanFieldKey: resolveScanFieldFromSettings(currentSettings),
-    wikidataFieldKeys: getWikidataAutosuggestFieldKeysFromSettings(currentSettings),
-    createKeyField: resolveCreateKeyFieldFromSettings(currentSettings),
+    collectionOf(entry) {
+      if (!collectionsByPath.has(entry.itemsPath)) {
+        collectionsByPath.set(entry.itemsPath, describeCollectionForSave(settingsForItemsPath(entry.itemsPath)))
+      }
+      return collectionsByPath.get(entry.itemsPath)
+    },
   }
 }
 
 async function loadServerItem(context, entry, fieldKeys) {
+  const collection = context.collectionOf(entry)
   const row = await fetchCollectionItemFromStrapi({
     profile: context.profile,
     itemsPath: entry.itemsPath,
     token: context.token,
     id: entry.id,
-    populateFields: fieldKeys.filter((key) => context.wikidataFieldKeys.includes(key)),
+    populateFields: fieldKeys.filter((key) => collection.wikidataFieldKeys.includes(key)),
   })
-  const knownFields = { ...Object.fromEntries(fieldKeys.map((key) => [key, {}])), ...context.fieldConfigs }
-  return normalizeStrapiItem(row, knownFields, entry.itemsPath, context.scanFieldKey)
+  const knownFields = { ...Object.fromEntries(fieldKeys.map((key) => [key, {}])), ...collection.fieldConfigs }
+  return normalizeStrapiItem(row, knownFields, entry.itemsPath, collection.scanFieldKey)
 }
 
 /**
@@ -309,7 +321,7 @@ async function saveUpdateEntry(context, entryKey, entry) {
     itemsPath: entry.itemsPath,
     id: entry.id,
     token: context.token,
-    changedFields: normalizeOnlineChangedFieldsForStrapi(sentFields, context.fieldConfigs),
+    changedFields: normalizeOnlineChangedFieldsForStrapi(sentFields, context.collectionOf(entry).fieldConfigs),
   })
 
   // Edits during the request may have replaced the entry (e.g. revert, then another edit).
@@ -359,21 +371,23 @@ function describeUnknownCreateOutcome(error, canCheckForDuplicate) {
  * lost (timeout, network), the next save looks the key up instead of creating the item again.
  */
 async function findEarlierCreate(context, entry) {
-  if (!context.createKeyField || !entry.createOutcomeUnknown) return null
+  const { createKeyField } = context.collectionOf(entry)
+  if (!createKeyField || !entry.createOutcomeUnknown) return null
   return findCollectionItemByFieldValue({
     profile: context.profile,
     itemsPath: entry.itemsPath,
     token: context.token,
-    fieldKey: context.createKeyField,
+    fieldKey: createKeyField,
     value: entry.createKey,
   })
 }
 
 async function postCreate(context, entry, sentFields) {
-  const fields = pickNonEmptyOnlineFields(normalizeOnlineChangedFieldsForStrapi(sentFields, context.fieldConfigs))
-  if (context.createKeyField) {
+  const { fieldConfigs, createKeyField } = context.collectionOf(entry)
+  const fields = pickNonEmptyOnlineFields(normalizeOnlineChangedFieldsForStrapi(sentFields, fieldConfigs))
+  if (createKeyField) {
     entry.createKey = entry.createKey || generateCreateKey()
-    fields[context.createKeyField] = entry.createKey
+    fields[createKeyField] = entry.createKey
   }
   entry.lastSentFields = sentFields
 
@@ -388,7 +402,7 @@ async function postCreate(context, entry, sentFields) {
   } catch (error) {
     if (!error?.outcomeUnknown) throw error
     entry.createOutcomeUnknown = true
-    throw describeUnknownCreateOutcome(error, Boolean(context.createKeyField))
+    throw describeUnknownCreateOutcome(error, Boolean(createKeyField))
   }
 }
 
@@ -460,6 +474,11 @@ function resolveItemEntryKey(item) {
 function pickEntry(entriesById, entryKey) {
   const entry = entryKey ? entriesById[entryKey] : null
   return entry ? [[entryKey, entry]] : []
+}
+
+/** The edited item object of a pending update, so reloading linked items keeps unsaved edits. */
+function findPendingUpdateItem(itemsPath, id) {
+  return pendingUpdatesById.value[createEntryKey(itemsPath, id)]?.item || null
 }
 
 function hasPendingChangesForItem(item) {
@@ -538,5 +557,6 @@ export function useOnlineUpdatesStore() {
     saveOnlineUpdates,
     saveOnlineItem,
     hasPendingChangesForItem,
+    findPendingUpdateItem,
   }
 }

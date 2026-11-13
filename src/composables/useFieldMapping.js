@@ -6,8 +6,9 @@ function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-export function useFieldMapping() {
-  const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
+/** Field config lookups of one configuration scope ('' = the primary collection). */
+export function useFieldMapping(configScope = '') {
+  const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore(configScope)
   const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
 
   function getFieldConfig(key) {

@@ -16,6 +16,10 @@ const props = defineProps({
   remoteFieldModel: { type: Object, default: null },
   // Shown above the form when no data is loaded.
   noDataHint: { type: String, default: '' },
+  // Which configuration this panel edits: '' = the primary collection, else a secondary one.
+  configScope: { type: String, default: '' },
+  // Hierarchy and edited-mark sorting only matter for the collection shown as list.
+  showListOptions: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['apply', 'reload-remote-field-model'])
@@ -49,7 +53,7 @@ const {
   startDrag,
   dropAt,
   endDrag,
-} = useUserConfigStore()
+} = useUserConfigStore(props.configScope)
 
 const isPanelOpen = computed(() => props.forceOpen || isUserConfigOpen.value)
 const canRenderConfig = computed(() => props.hasData || props.allowWithoutData)
@@ -390,7 +394,7 @@ function onRemoveHierarchyField(index) {
         </select>
       </div>
 
-      <div class="user-config-label-row">
+      <div v-if="showListOptions" class="user-config-label-row">
         <strong>{{ t('markAsEditedBasisLabel', 'Liste: Mark-as-edited Basis') }}</strong>
         <select :value="markAsEditedBasis" @change="onMarkAsEditedBasisChange">
           <option value="">{{ t('markAsEditedBasisDefault', 'Keine Sortierung nach Bearbeitungsstand') }}</option>
@@ -410,7 +414,7 @@ function onRemoveHierarchyField(index) {
         </label>
       </div>
 
-      <div class="user-config-label-row user-config-hierarchy-row">
+      <div v-if="showListOptions" class="user-config-label-row user-config-hierarchy-row">
         <strong>{{ t('hierarchyFieldsLabel', 'Hierarchie-Felder') }}</strong>
         <div class="hierarchy-fields-editor">
           <div
@@ -434,7 +438,7 @@ function onRemoveHierarchyField(index) {
         </div>
       </div>
 
-      <div class="user-config-label-row user-config-hierarchy-row">
+      <div v-if="showListOptions" class="user-config-label-row user-config-hierarchy-row">
         <strong>{{ t('hierarchyFirstLevelStaticListLabel', 'Hierarchie: Preset-Liste Ebene 1') }}</strong>
         <textarea
           v-model="firstLevelStaticListText"

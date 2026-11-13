@@ -10,23 +10,6 @@ import {
 const EXCLUDED_CONFIG_FIELD_KEYS = new Set(['scan', 'suspendEditing', '__onlineMeta'])
 const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
 
-const userConfigFields = ref({})
-const appliedUserConfigFields = ref({})
-const itemLabelField = ref('')
-const appliedItemLabelField = ref('')
-const markAsEditedBasis = ref('')
-const appliedMarkAsEditedBasis = ref('')
-const showOnlyNonEmptyFields = ref(false)
-const appliedShowOnlyNonEmptyFields = ref(false)
-const hierarchyFields = ref([])
-const appliedHierarchyFields = ref([])
-const firstLevelStaticList = ref([])
-const appliedFirstLevelStaticList = ref([])
-const appliedUserConfigSnapshot = ref('')
-const draggedFieldKey = ref('')
-const isUserConfigOpen = ref(false)
-const newFieldName = ref('')
-const addFieldError = ref('')
 
 // Field config used to be mirrored to the session storage. It is no longer read; remove the leftover.
 try {
@@ -217,398 +200,421 @@ function serializeUserConfigFields(fields) {
   return JSON.stringify(normalized)
 }
 
-function serializeUserConfigState(
-  fields,
-  nextItemLabelField,
-  nextMarkAsEditedBasis,
-  nextShowOnlyNonEmptyFields,
-  nextHierarchyFields,
-  nextFirstLevelStaticList,
-) {
+function serializeUserConfigState({
+  fields = {},
+  itemLabelField = '',
+  markAsEditedBasis = '',
+  showOnlyNonEmptyFields = false,
+  hierarchyFields = [],
+  firstLevelStaticList = [],
+} = {}) {
   return JSON.stringify({
     fields: JSON.parse(serializeUserConfigFields(fields)),
-    itemLabelField: String(nextItemLabelField || ''),
-    markAsEditedBasis: String(nextMarkAsEditedBasis || ''),
-    showOnlyNonEmptyFields: Boolean(nextShowOnlyNonEmptyFields),
-    hierarchyFields: normalizeStringArrayUnique(nextHierarchyFields),
-    firstLevelStaticList: normalizeStringArrayUnique(nextFirstLevelStaticList),
+    itemLabelField: String(itemLabelField || ''),
+    markAsEditedBasis: String(markAsEditedBasis || ''),
+    showOnlyNonEmptyFields: Boolean(showOnlyNonEmptyFields),
+    hierarchyFields: normalizeStringArrayUnique(hierarchyFields),
+    firstLevelStaticList: normalizeStringArrayUnique(firstLevelStaticList),
   })
 }
 
-const sortedConfigFieldEntries = computed(() =>
-  Object.entries(userConfigFields.value).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
-)
+// One configuration state per scope: the primary collection, and each secondary collection
+// (layout v2) shown as linked items. Scope '' is the primary one.
+function createUserConfigState() {
+  const userConfigFields = ref({})
+  const appliedUserConfigFields = ref({})
+  const itemLabelField = ref('')
+  const appliedItemLabelField = ref('')
+  const markAsEditedBasis = ref('')
+  const appliedMarkAsEditedBasis = ref('')
+  const showOnlyNonEmptyFields = ref(false)
+  const appliedShowOnlyNonEmptyFields = ref(false)
+  const hierarchyFields = ref([])
+  const appliedHierarchyFields = ref([])
+  const firstLevelStaticList = ref([])
+  const appliedFirstLevelStaticList = ref([])
+  const appliedUserConfigSnapshot = ref('')
+  const draggedFieldKey = ref('')
+  const isUserConfigOpen = ref(false)
+  const newFieldName = ref('')
+  const addFieldError = ref('')
 
-const hasUnappliedUserConfigChanges = computed(
-  () =>
-    serializeUserConfigState(
-      userConfigFields.value,
-      itemLabelField.value,
-      markAsEditedBasis.value,
-      showOnlyNonEmptyFields.value,
-      hierarchyFields.value,
-      firstLevelStaticList.value,
-    ) !== appliedUserConfigSnapshot.value,
-)
+  function serializeDraftState() {
+    return serializeUserConfigState({
+      fields: userConfigFields.value,
+      itemLabelField: itemLabelField.value,
+      markAsEditedBasis: markAsEditedBasis.value,
+      showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
+      hierarchyFields: hierarchyFields.value,
+      firstLevelStaticList: firstLevelStaticList.value,
+    })
+  }
 
-// Field config has no default: it always comes from the data source. Every newly opened
-// data source starts empty until its config is applied or the user builds one.
-function initializeUserConfig() {
-  userConfigFields.value = {}
-  appliedUserConfigFields.value = {}
-  itemLabelField.value = ''
-  appliedItemLabelField.value = ''
-  markAsEditedBasis.value = ''
-  appliedMarkAsEditedBasis.value = ''
-  showOnlyNonEmptyFields.value = false
-  appliedShowOnlyNonEmptyFields.value = false
-  hierarchyFields.value = []
-  appliedHierarchyFields.value = []
-  firstLevelStaticList.value = []
-  appliedFirstLevelStaticList.value = []
-  appliedUserConfigSnapshot.value = serializeUserConfigState({}, '', '', false, [], [])
-}
+  function serializeAppliedState() {
+    return serializeUserConfigState({
+      fields: appliedUserConfigFields.value,
+      itemLabelField: appliedItemLabelField.value,
+      markAsEditedBasis: appliedMarkAsEditedBasis.value,
+      showOnlyNonEmptyFields: appliedShowOnlyNonEmptyFields.value,
+      hierarchyFields: appliedHierarchyFields.value,
+      firstLevelStaticList: appliedFirstLevelStaticList.value,
+    })
+  }
 
-// Adds keys found in the data as `normal` fields. Reserved and already configured keys are
-// skipped. Returns the keys that were added.
-function addUserConfigFieldsFromDataKeys(dataKeys = []) {
-  const added = []
-  dataKeys.forEach((rawKey) => {
-    const key = String(rawKey || '').trim()
-    if (!isConfigFieldAllowed(key)) return
-    if (Object.prototype.hasOwnProperty.call(userConfigFields.value, key)) return
-    userConfigFields.value[key] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
-    added.push(key)
-  })
-  return added
-}
-
-function normalizeConfigOrder() {
-  const sortedKeys = Object.entries(userConfigFields.value)
-    .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
-    .map(([key]) => key)
-  sortedKeys.forEach((key, index) => {
-    userConfigFields.value[key].order = index
-  })
-}
-
-function applyUserConfigToRawItems(rawItems) {
-  normalizeCandidateTargets(userConfigFields.value)
-  normalizeConfigOrder()
-
-  const removedFieldKeys = Object.keys(appliedUserConfigFields.value).filter(
-    (key) => !Object.prototype.hasOwnProperty.call(userConfigFields.value, key),
+  const sortedConfigFieldEntries = computed(() =>
+    Object.entries(userConfigFields.value).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
   )
-  if (removedFieldKeys.length) {
-    rawItems.forEach((item) => {
-      removedFieldKeys.forEach((key) => delete item[key])
-    })
-  }
 
-  Object.entries(userConfigFields.value).forEach(([key, config]) => {
-    rawItems.forEach((item) => {
-      if (!Object.prototype.hasOwnProperty.call(item, key)) {
-        item[key] = createDefaultValueForFieldType(config.type)
-      }
-    })
-  })
+  const hasUnappliedUserConfigChanges = computed(() => serializeDraftState() !== appliedUserConfigSnapshot.value)
 
-  rawItems.forEach((item) => {
-    Object.keys(userConfigFields.value).forEach((key) => {
-      const configuredType = userConfigFields.value[key]?.type
-      const currentValue = item[key]
-      item[key] = normalizeValueForConfiguredType(configuredType, currentValue)
-    })
-  })
-
-  appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
-  appliedItemLabelField.value = itemLabelField.value
-  appliedMarkAsEditedBasis.value = markAsEditedBasis.value
-  appliedShowOnlyNonEmptyFields.value = showOnlyNonEmptyFields.value
-  appliedHierarchyFields.value = normalizeStringArrayUnique(hierarchyFields.value)
-  appliedFirstLevelStaticList.value = normalizeStringArrayUnique(firstLevelStaticList.value)
-  appliedUserConfigSnapshot.value = serializeUserConfigState(
-    appliedUserConfigFields.value,
-    appliedItemLabelField.value,
-    appliedMarkAsEditedBasis.value,
-    appliedShowOnlyNonEmptyFields.value,
-    appliedHierarchyFields.value,
-    appliedFirstLevelStaticList.value,
-  )
-}
-
-function setShowOnlyNonEmptyFields(nextValue) {
-  showOnlyNonEmptyFields.value = Boolean(nextValue)
-}
-
-function addHierarchyField() {
-  hierarchyFields.value = [...hierarchyFields.value, '']
-}
-
-function updateHierarchyFieldAt(index, nextValue) {
-  if (!Number.isInteger(index) || index < 0 || index >= hierarchyFields.value.length) return false
-  const nextHierarchyFields = [...hierarchyFields.value]
-  nextHierarchyFields[index] = String(nextValue || '').trim()
-  hierarchyFields.value = nextHierarchyFields
-  return true
-}
-
-function removeHierarchyFieldAt(index) {
-  if (!Number.isInteger(index) || index < 0 || index >= hierarchyFields.value.length) return false
-  hierarchyFields.value = hierarchyFields.value.filter((_, currentIndex) => currentIndex !== index)
-  return true
-}
-
-function setFirstLevelStaticListFromText(nextValue) {
-  const tokens = String(nextValue || '')
-    .split(/[\n,]/)
-    .map((entry) => String(entry || '').trim())
-    .filter(Boolean)
-  firstLevelStaticList.value = normalizeStringArrayUnique(tokens)
-}
-
-function sanitizeFieldName(name) {
-  return name.trim().replace(/\s+/g, '_')
-}
-
-function addUserConfigField(t) {
-  const nextKey = sanitizeFieldName(newFieldName.value)
-  addFieldError.value = ''
-  if (!nextKey) {
-    addFieldError.value = t('addFieldEmptyError', 'Bitte einen gueltigen Feldnamen eingeben.')
-    return
-  }
-  if (Object.prototype.hasOwnProperty.call(userConfigFields.value, nextKey)) {
-    addFieldError.value = t('addFieldDuplicateError', 'Feld existiert bereits.')
-    return
-  }
-  if (!isConfigFieldAllowed(nextKey)) {
-    addFieldError.value = t('addFieldReservedError', 'Feldname ist reserviert.')
-    return
-  }
-
-  userConfigFields.value[nextKey] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
-  newFieldName.value = ''
-}
-
-function removeUserConfigField(fieldKey) {
-  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, fieldKey)) return
-  delete userConfigFields.value[fieldKey]
-  if (itemLabelField.value === fieldKey) {
+  // Field config has no default: it always comes from the data source. Every newly opened
+  // data source starts empty until its config is applied or the user builds one.
+  function initializeUserConfig() {
+    userConfigFields.value = {}
+    appliedUserConfigFields.value = {}
     itemLabelField.value = ''
-  }
-  if (appliedItemLabelField.value === fieldKey) {
     appliedItemLabelField.value = ''
-  }
-  if (markAsEditedBasis.value === fieldKey) {
     markAsEditedBasis.value = ''
-  }
-  if (appliedMarkAsEditedBasis.value === fieldKey) {
     appliedMarkAsEditedBasis.value = ''
+    showOnlyNonEmptyFields.value = false
+    appliedShowOnlyNonEmptyFields.value = false
+    hierarchyFields.value = []
+    appliedHierarchyFields.value = []
+    firstLevelStaticList.value = []
+    appliedFirstLevelStaticList.value = []
+    appliedUserConfigSnapshot.value = serializeUserConfigState()
   }
-  normalizeCandidateTargets(userConfigFields.value)
-}
 
-function setItemLabelField(nextFieldKey) {
-  const normalized = String(nextFieldKey || '').trim()
-  if (!normalized) {
-    itemLabelField.value = ''
+  // Adds keys found in the data as `normal` fields. Reserved and already configured keys are
+  // skipped. Returns the keys that were added.
+  function addUserConfigFieldsFromDataKeys(dataKeys = []) {
+    const added = []
+    dataKeys.forEach((rawKey) => {
+      const key = String(rawKey || '').trim()
+      if (!isConfigFieldAllowed(key)) return
+      if (Object.prototype.hasOwnProperty.call(userConfigFields.value, key)) return
+      userConfigFields.value[key] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
+      added.push(key)
+    })
+    return added
+  }
+
+  function normalizeConfigOrder() {
+    const sortedKeys = Object.entries(userConfigFields.value)
+      .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
+      .map(([key]) => key)
+    sortedKeys.forEach((key, index) => {
+      userConfigFields.value[key].order = index
+    })
+  }
+
+  function applyUserConfigToRawItems(rawItems) {
+    normalizeCandidateTargets(userConfigFields.value)
+    normalizeConfigOrder()
+
+    const removedFieldKeys = Object.keys(appliedUserConfigFields.value).filter(
+      (key) => !Object.prototype.hasOwnProperty.call(userConfigFields.value, key),
+    )
+    if (removedFieldKeys.length) {
+      rawItems.forEach((item) => {
+        removedFieldKeys.forEach((key) => delete item[key])
+      })
+    }
+
+    Object.entries(userConfigFields.value).forEach(([key, config]) => {
+      rawItems.forEach((item) => {
+        if (!Object.prototype.hasOwnProperty.call(item, key)) {
+          item[key] = createDefaultValueForFieldType(config.type)
+        }
+      })
+    })
+
+    rawItems.forEach((item) => {
+      Object.keys(userConfigFields.value).forEach((key) => {
+        const configuredType = userConfigFields.value[key]?.type
+        const currentValue = item[key]
+        item[key] = normalizeValueForConfiguredType(configuredType, currentValue)
+      })
+    })
+
+    appliedUserConfigFields.value = JSON.parse(JSON.stringify(userConfigFields.value))
+    appliedItemLabelField.value = itemLabelField.value
+    appliedMarkAsEditedBasis.value = markAsEditedBasis.value
+    appliedShowOnlyNonEmptyFields.value = showOnlyNonEmptyFields.value
+    appliedHierarchyFields.value = normalizeStringArrayUnique(hierarchyFields.value)
+    appliedFirstLevelStaticList.value = normalizeStringArrayUnique(firstLevelStaticList.value)
+    appliedUserConfigSnapshot.value = serializeAppliedState()
+  }
+
+  function setShowOnlyNonEmptyFields(nextValue) {
+    showOnlyNonEmptyFields.value = Boolean(nextValue)
+  }
+
+  function addHierarchyField() {
+    hierarchyFields.value = [...hierarchyFields.value, '']
+  }
+
+  function isHierarchyFieldIndex(index) {
+    const isInteger = Number.isInteger(index)
+    return isInteger && index >= 0 && index < hierarchyFields.value.length
+  }
+
+  function updateHierarchyFieldAt(index, nextValue) {
+    if (!isHierarchyFieldIndex(index)) return false
+    const nextHierarchyFields = [...hierarchyFields.value]
+    nextHierarchyFields[index] = String(nextValue || '').trim()
+    hierarchyFields.value = nextHierarchyFields
     return true
   }
 
-  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, normalized)) {
-    return false
-  }
-
-  itemLabelField.value = normalized
-  return true
-}
-
-function setMarkAsEditedBasis(nextFieldKey) {
-  const normalized = String(nextFieldKey || '').trim()
-  if (!normalized) {
-    markAsEditedBasis.value = ''
+  function removeHierarchyFieldAt(index) {
+    if (!isHierarchyFieldIndex(index)) return false
+    hierarchyFields.value = hierarchyFields.value.filter((_, currentIndex) => currentIndex !== index)
     return true
   }
 
-  if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, normalized)) {
-    return false
+  function setFirstLevelStaticListFromText(nextValue) {
+    const tokens = String(nextValue || '')
+      .split(/[\n,]/)
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean)
+    firstLevelStaticList.value = normalizeStringArrayUnique(tokens)
   }
 
-  markAsEditedBasis.value = normalized
-  return true
-}
-
-function startDrag(fieldKey) {
-  draggedFieldKey.value = fieldKey
-}
-
-function dropAt(targetFieldKey) {
-  if (!draggedFieldKey.value || draggedFieldKey.value === targetFieldKey) return
-  const orderedKeys = sortedConfigFieldEntries.value.map(([key]) => key)
-  const fromIndex = orderedKeys.indexOf(draggedFieldKey.value)
-  const toIndex = orderedKeys.indexOf(targetFieldKey)
-  if (fromIndex === -1 || toIndex === -1) return
-  const [movedKey] = orderedKeys.splice(fromIndex, 1)
-  orderedKeys.splice(toIndex, 0, movedKey)
-  orderedKeys.forEach((key, index) => {
-    userConfigFields.value[key].order = index
-  })
-  draggedFieldKey.value = ''
-}
-
-function endDrag() {
-  draggedFieldKey.value = ''
-}
-
-function createUserConfigPayload() {
-  normalizeCandidateTargets(userConfigFields.value)
-  const normalizedFields = {}
-  Object.keys(userConfigFields.value).forEach((key, index) => {
-    normalizedFields[key] = normalizeUserConfigField(userConfigFields.value[key], index)
-  })
-  return {
-    version: 1,
-    fields: normalizedFields,
-    itemLabelField: itemLabelField.value,
-    markAsEditedBasis: markAsEditedBasis.value,
-    showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
-    hierarchyFields: normalizeStringArrayUnique(hierarchyFields.value),
-    firstLevelStaticList: normalizeStringArrayUnique(firstLevelStaticList.value),
+  function sanitizeFieldName(name) {
+    return name.trim().replace(/\s+/g, '_')
   }
-}
 
-function dropUnsupportedPrefill(field) {
-  if (!supportsPrefill(field.type)) delete field.prefillWith
-}
+  function addUserConfigField(t) {
+    const nextKey = sanitizeFieldName(newFieldName.value)
+    addFieldError.value = ''
+    if (!nextKey) {
+      addFieldError.value = t('addFieldEmptyError', 'Bitte einen gueltigen Feldnamen eingeben.')
+      return
+    }
+    if (Object.prototype.hasOwnProperty.call(userConfigFields.value, nextKey)) {
+      addFieldError.value = t('addFieldDuplicateError', 'Feld existiert bereits.')
+      return
+    }
+    if (!isConfigFieldAllowed(nextKey)) {
+      addFieldError.value = t('addFieldReservedError', 'Feldname ist reserviert.')
+      return
+    }
 
-function setFieldType(fieldKey, nextType) {
-  const field = userConfigFields.value[fieldKey]
-  if (!field) return false
-
-  field.type = nextType
-
-  if (nextType === 'wikidata-autosuggest') {
-    delete field.readOnly
-    delete field.candidate
-    if (!isPlainObject(field.autosuggest)) {
-      field.autosuggest = createMinimalAutosuggestConfig()
-    }
-  } else if (nextType === 'candidate') {
-    delete field.autosuggest
-    if (typeof field.readOnly !== 'boolean') {
-      field.readOnly = false
-    }
-    if (!isPlainObject(field.candidate)) {
-      field.candidate = createMinimalCandidateConfig()
-    }
-    field.candidate.inputType = normalizeCandidateInputType(field.candidate.inputType)
-    field.candidate.targetField = String(field.candidate.targetField || '').trim()
-  } else {
-    if (typeof field.readOnly !== 'boolean') {
-      field.readOnly = false
-    }
-    delete field.autosuggest
-    delete field.candidate
+    userConfigFields.value[nextKey] = normalizeUserConfigField({}, Object.keys(userConfigFields.value).length)
+    newFieldName.value = ''
   }
-  dropUnsupportedPrefill(field)
 
-  normalizeCandidateTargets(userConfigFields.value)
-  return true
-}
+  function removeUserConfigField(fieldKey) {
+    if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, fieldKey)) return
+    delete userConfigFields.value[fieldKey]
+    if (itemLabelField.value === fieldKey) {
+      itemLabelField.value = ''
+    }
+    if (appliedItemLabelField.value === fieldKey) {
+      appliedItemLabelField.value = ''
+    }
+    if (markAsEditedBasis.value === fieldKey) {
+      markAsEditedBasis.value = ''
+    }
+    if (appliedMarkAsEditedBasis.value === fieldKey) {
+      appliedMarkAsEditedBasis.value = ''
+    }
+    normalizeCandidateTargets(userConfigFields.value)
+  }
 
-function updateFieldCandidateConfig(fieldKey, nextCandidateConfig) {
-  const field = userConfigFields.value[fieldKey]
-  if (!field || field.type !== 'candidate') return false
-  if (!isPlainObject(nextCandidateConfig)) return false
+  function setItemLabelField(nextFieldKey) {
+    const normalized = String(nextFieldKey || '').trim()
+    if (!normalized) {
+      itemLabelField.value = ''
+      return true
+    }
 
-  const normalizedTargetField = String(nextCandidateConfig.targetField || '').trim()
-  const normalizedInputType = normalizeCandidateInputType(nextCandidateConfig.inputType)
-  const hasTarget = Boolean(normalizedTargetField)
-
-  if (hasTarget) {
-    if (normalizedTargetField === fieldKey) return false
-    const targetConfig = userConfigFields.value[normalizedTargetField]
-    if (!isPlainObject(targetConfig) || targetConfig.type === 'candidate') {
+    if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, normalized)) {
       return false
     }
+
+    itemLabelField.value = normalized
+    return true
   }
 
-  field.candidate = {
-    targetField: normalizedTargetField,
-    inputType: normalizedInputType,
+  function setMarkAsEditedBasis(nextFieldKey) {
+    const normalized = String(nextFieldKey || '').trim()
+    if (!normalized) {
+      markAsEditedBasis.value = ''
+      return true
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(userConfigFields.value, normalized)) {
+      return false
+    }
+
+    markAsEditedBasis.value = normalized
+    return true
   }
 
-  return true
-}
-
-function updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig) {
-  const field = userConfigFields.value[fieldKey]
-  if (!field || field.type !== 'wikidata-autosuggest') return false
-  if (!isPlainObject(nextAutosuggestConfig)) return false
-
-  field.autosuggest = cloneValue(nextAutosuggestConfig)
-  return true
-}
-
-function applyImportedConfigPayload(configPayload) {
-  const validation = validateImportedConfigPayload(configPayload)
-  if (!validation.ok) {
-    return validation
+  function startDrag(fieldKey) {
+    draggedFieldKey.value = fieldKey
   }
 
-  const nextFields = {}
-  Object.keys(configPayload.fields).forEach((key, index) => {
-    if (!isConfigFieldAllowed(key)) return
-    const source = configPayload.fields[key] || {}
-    nextFields[key] = normalizeUserConfigField(source, index)
-  })
+  function dropAt(targetFieldKey) {
+    if (!draggedFieldKey.value || draggedFieldKey.value === targetFieldKey) return
+    const orderedKeys = sortedConfigFieldEntries.value.map(([key]) => key)
+    const fromIndex = orderedKeys.indexOf(draggedFieldKey.value)
+    const toIndex = orderedKeys.indexOf(targetFieldKey)
+    if (fromIndex === -1 || toIndex === -1) return
+    const [movedKey] = orderedKeys.splice(fromIndex, 1)
+    orderedKeys.splice(toIndex, 0, movedKey)
+    orderedKeys.forEach((key, index) => {
+      userConfigFields.value[key].order = index
+    })
+    draggedFieldKey.value = ''
+  }
 
-  const requestedItemLabelField =
-    typeof configPayload.itemLabelField === 'string' ? configPayload.itemLabelField.trim() : ''
-  const normalizedItemLabelField =
-    requestedItemLabelField && Object.prototype.hasOwnProperty.call(nextFields, requestedItemLabelField)
-      ? requestedItemLabelField
-      : ''
+  function endDrag() {
+    draggedFieldKey.value = ''
+  }
 
-  const requestedMarkAsEditedBasis =
-    typeof configPayload.markAsEditedBasis === 'string' ? configPayload.markAsEditedBasis.trim() : ''
-  const normalizedMarkAsEditedBasis =
-    requestedMarkAsEditedBasis && Object.prototype.hasOwnProperty.call(nextFields, requestedMarkAsEditedBasis)
-      ? requestedMarkAsEditedBasis
-      : ''
-  const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
-  const normalizedHierarchyFields = resolveHierarchyFieldsFromConfig(configPayload)
-  const normalizedFirstLevelStaticList = resolveFirstLevelStaticListFromConfig(configPayload)
+  function createUserConfigPayload() {
+    normalizeCandidateTargets(userConfigFields.value)
+    const normalizedFields = {}
+    Object.keys(userConfigFields.value).forEach((key, index) => {
+      normalizedFields[key] = normalizeUserConfigField(userConfigFields.value[key], index)
+    })
+    return {
+      version: 1,
+      fields: normalizedFields,
+      itemLabelField: itemLabelField.value,
+      markAsEditedBasis: markAsEditedBasis.value,
+      showOnlyNonEmptyFields: showOnlyNonEmptyFields.value,
+      hierarchyFields: normalizeStringArrayUnique(hierarchyFields.value),
+      firstLevelStaticList: normalizeStringArrayUnique(firstLevelStaticList.value),
+    }
+  }
 
-  normalizeCandidateTargets(nextFields)
+  function dropUnsupportedPrefill(field) {
+    if (!supportsPrefill(field.type)) delete field.prefillWith
+  }
 
-  userConfigFields.value = nextFields
-  appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
-  normalizeCandidateTargets(appliedUserConfigFields.value)
-  itemLabelField.value = normalizedItemLabelField
-  appliedItemLabelField.value = normalizedItemLabelField
-  markAsEditedBasis.value = normalizedMarkAsEditedBasis
-  appliedMarkAsEditedBasis.value = normalizedMarkAsEditedBasis
-  showOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
-  appliedShowOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
-  hierarchyFields.value = normalizedHierarchyFields
-  appliedHierarchyFields.value = normalizedHierarchyFields
-  firstLevelStaticList.value = normalizedFirstLevelStaticList
-  appliedFirstLevelStaticList.value = normalizedFirstLevelStaticList
-  appliedUserConfigSnapshot.value = serializeUserConfigState(
-    appliedUserConfigFields.value,
-    appliedItemLabelField.value,
-    appliedMarkAsEditedBasis.value,
-    appliedShowOnlyNonEmptyFields.value,
-    appliedHierarchyFields.value,
-    appliedFirstLevelStaticList.value,
-  )
+  function setFieldType(fieldKey, nextType) {
+    const field = userConfigFields.value[fieldKey]
+    if (!field) return false
 
-  return { ok: true }
-}
+    field.type = nextType
 
-export function useUserConfigStore() {
+    if (nextType === 'wikidata-autosuggest') {
+      delete field.readOnly
+      delete field.candidate
+      if (!isPlainObject(field.autosuggest)) {
+        field.autosuggest = createMinimalAutosuggestConfig()
+      }
+    } else if (nextType === 'candidate') {
+      delete field.autosuggest
+      if (typeof field.readOnly !== 'boolean') {
+        field.readOnly = false
+      }
+      if (!isPlainObject(field.candidate)) {
+        field.candidate = createMinimalCandidateConfig()
+      }
+      field.candidate.inputType = normalizeCandidateInputType(field.candidate.inputType)
+      field.candidate.targetField = String(field.candidate.targetField || '').trim()
+    } else {
+      if (typeof field.readOnly !== 'boolean') {
+        field.readOnly = false
+      }
+      delete field.autosuggest
+      delete field.candidate
+    }
+    dropUnsupportedPrefill(field)
+
+    normalizeCandidateTargets(userConfigFields.value)
+    return true
+  }
+
+  function updateFieldCandidateConfig(fieldKey, nextCandidateConfig) {
+    const field = userConfigFields.value[fieldKey]
+    if (!field || field.type !== 'candidate') return false
+    if (!isPlainObject(nextCandidateConfig)) return false
+
+    const normalizedTargetField = String(nextCandidateConfig.targetField || '').trim()
+    const normalizedInputType = normalizeCandidateInputType(nextCandidateConfig.inputType)
+    const hasTarget = Boolean(normalizedTargetField)
+
+    if (hasTarget) {
+      if (normalizedTargetField === fieldKey) return false
+      const targetConfig = userConfigFields.value[normalizedTargetField]
+      if (!isPlainObject(targetConfig) || targetConfig.type === 'candidate') {
+        return false
+      }
+    }
+
+    field.candidate = {
+      targetField: normalizedTargetField,
+      inputType: normalizedInputType,
+    }
+
+    return true
+  }
+
+  function updateFieldAutosuggestConfig(fieldKey, nextAutosuggestConfig) {
+    const field = userConfigFields.value[fieldKey]
+    if (!field || field.type !== 'wikidata-autosuggest') return false
+    if (!isPlainObject(nextAutosuggestConfig)) return false
+
+    field.autosuggest = cloneValue(nextAutosuggestConfig)
+    return true
+  }
+
+  function applyImportedConfigPayload(configPayload) {
+    const validation = validateImportedConfigPayload(configPayload)
+    if (!validation.ok) {
+      return validation
+    }
+
+    const nextFields = {}
+    Object.keys(configPayload.fields).forEach((key, index) => {
+      if (!isConfigFieldAllowed(key)) return
+      const source = configPayload.fields[key] || {}
+      nextFields[key] = normalizeUserConfigField(source, index)
+    })
+
+    const requestedItemLabelField =
+      typeof configPayload.itemLabelField === 'string' ? configPayload.itemLabelField.trim() : ''
+    const normalizedItemLabelField =
+      requestedItemLabelField && Object.prototype.hasOwnProperty.call(nextFields, requestedItemLabelField)
+        ? requestedItemLabelField
+        : ''
+
+    const requestedMarkAsEditedBasis =
+      typeof configPayload.markAsEditedBasis === 'string' ? configPayload.markAsEditedBasis.trim() : ''
+    const normalizedMarkAsEditedBasis =
+      requestedMarkAsEditedBasis && Object.prototype.hasOwnProperty.call(nextFields, requestedMarkAsEditedBasis)
+        ? requestedMarkAsEditedBasis
+        : ''
+    const normalizedShowOnlyNonEmptyFields = Boolean(configPayload.showOnlyNonEmptyFields)
+    const normalizedHierarchyFields = resolveHierarchyFieldsFromConfig(configPayload)
+    const normalizedFirstLevelStaticList = resolveFirstLevelStaticListFromConfig(configPayload)
+
+    normalizeCandidateTargets(nextFields)
+
+    userConfigFields.value = nextFields
+    appliedUserConfigFields.value = JSON.parse(JSON.stringify(nextFields))
+    normalizeCandidateTargets(appliedUserConfigFields.value)
+    itemLabelField.value = normalizedItemLabelField
+    appliedItemLabelField.value = normalizedItemLabelField
+    markAsEditedBasis.value = normalizedMarkAsEditedBasis
+    appliedMarkAsEditedBasis.value = normalizedMarkAsEditedBasis
+    showOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
+    appliedShowOnlyNonEmptyFields.value = normalizedShowOnlyNonEmptyFields
+    hierarchyFields.value = normalizedHierarchyFields
+    appliedHierarchyFields.value = normalizedHierarchyFields
+    firstLevelStaticList.value = normalizedFirstLevelStaticList
+    appliedFirstLevelStaticList.value = normalizedFirstLevelStaticList
+    appliedUserConfigSnapshot.value = serializeAppliedState()
+
+    return { ok: true }
+  }
+
   return {
     userConfigFields,
     sortedConfigFieldEntries,
@@ -650,4 +656,22 @@ export function useUserConfigStore() {
     applyImportedConfigPayload,
     validateImportedConfigPayload,
   }
+}
+
+export const PRIMARY_CONFIG_SCOPE = ''
+
+const statesByScope = new Map()
+
+/** The configuration state of `scope` (default: the primary collection), created on first use. */
+export function useUserConfigStore(scope = PRIMARY_CONFIG_SCOPE) {
+  const key = String(scope || '')
+  if (!statesByScope.has(key)) statesByScope.set(key, createUserConfigState())
+  return statesByScope.get(key)
+}
+
+/** Drops every secondary scope (when the data source closes or its collections change). */
+export function clearSecondaryUserConfigScopes() {
+  Array.from(statesByScope.keys())
+    .filter((key) => key !== PRIMARY_CONFIG_SCOPE)
+    .forEach((key) => statesByScope.delete(key))
 }

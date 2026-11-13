@@ -16,6 +16,8 @@ const props = defineProps({
   candidateChooseTargetLabel: { type: String, default: 'Select target in configuration' },
   isEditableSimpleValue: { type: Function, required: true },
   candidateAutosuggestPrefills: { type: Object, default: () => ({}) },
+  // Field configuration to render with: '' = the primary collection, else a secondary one.
+  configScope: { type: String, default: '' },
 })
 
 const emit = defineEmits(['field-change', 'accept-candidate'])
@@ -29,7 +31,7 @@ const {
   getFieldEditorBinding,
   getPrefillProposal,
   getDisplayedFieldKeys,
-} = useFieldMapping()
+} = useFieldMapping(props.configScope)
 
 // Fields whose prefill proposal was discarded with the x button. The editor is keyed per item, so
 // this resets when another item is opened.

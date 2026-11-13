@@ -268,6 +268,16 @@ describe('useOnlineSettingsStore', () => {
       expect(JSON.parse(init.body).data.index_cards.fields).toEqual({ label: { type: 'normal' } })
     })
 
+    test('resolves the settings of the collection an item belongs to', async () => {
+      respondWith({ data: record })
+      const store = useOnlineSettingsStore()
+      await store.fetchOnlineSettings()
+
+      expect(store.settingsForItemsPath('/api/collection-items/').itemsPath).toBe('/api/collection-items')
+      expect(store.settingsForItemsPath('/api/index-cards').fields).toEqual({ label: { type: 'normal' } })
+      expect(store.settingsForItemsPath('/api/unknown').itemsPath).toBe('/api/index-cards')
+    })
+
     test('writes a secondary collection into its own attribute', async () => {
       respondWith({ data: record })
       const store = useOnlineSettingsStore()
