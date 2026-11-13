@@ -17,7 +17,7 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 - Wikidata-Autosuggest inkl. Priorisierung, Statement-Nachladen und mehrsprachigen Labels
 - User-Config-GUI pro Feld (Typ, Beschriftung, Hinweis, Breite, Reihenfolge per Drag-and-Drop)
 - Volltextsuche über alle Felder sowie Sortierung nach Bearbeitungsstand und `suspendEditing`
-- Ersetzungslisten je Feld (werden gesammelt und exportiert, nicht automatisch angewendet)
+- Ersetzungsregeln je Feld: werden auf Nutzeraktion angewendet (beim Hinzufügen einer Regel bzw. über `Ersetzungen anwenden`), gespeichert und exportiert
 - Kartenansicht mit Bildvorschau (`scan`-URL) inkl. Lightbox; ohne `scan` automatische Listenansicht
 - Lokalisierung über Wording-Handles (DE/EN), optional aus dem Backend überschreibbar
 - Tab `Einstellungen` für das Strapi-Verbindungsprofil und die Viewer-Einstellungen der geöffneten Datenquelle
@@ -34,7 +34,7 @@ Details zu jedem Punkt stehen in der [Technischen Dokumentation](docs/technical-
 
 ## Voraussetzungen
 
-- Node.js 18+ (empfohlen: aktuelle LTS)
+- Node.js 20.12+ (die Admin-Skripte nutzen `process.loadEnvFile` und `util.parseEnv`; empfohlen: aktuelle LTS)
 - pnpm (im Repository liegt ausschließlich `pnpm-lock.yaml`)
 
 ## Lokale Entwicklung
@@ -70,6 +70,18 @@ Details: [technische Dokumentation, Projekt-Modi](docs/technical-documentation.m
 ```bash
 pnpm test
 ```
+
+## Admin-Skripte
+
+Lokal ausgeführt, gegen die Strapi-Instanz eines Projekts aus `../viewer-editor-projects/`:
+
+```bash
+pnpm settings:backup <project> | --all   # viewer-setting sichern
+pnpm items:dump <project> | --all        # alle Items einer Collection ablegen
+pnpm fields:sync                         # Feldkonfiguration zwischen Collections prüfen/angleichen (Menü)
+```
+
+Details: [technische Dokumentation, Kapitel 2](docs/technical-documentation.md#2-tech-stack-und-lokale-entwicklung).
 
 ## Erwartetes JSON-Format
 
@@ -183,7 +195,8 @@ Hinweise:
 - `src/composables/` – Datenlogik, Import/Export, Feld-Mapping, Navigation, Wikidata-Suche, Validierung
 - `src/stores/` – App-Config, User-Config, Datenmodus, Ersetzungen, Auth, Online-Modus/-Settings/-Items/-Updates
 - `src/fields/` – zentrale Feldtypen-Registry
-- `src/services/strapiApi.js` – gesamter Strapi-HTTP-Zugriff
+- `src/services/` – Strapi-HTTP-Zugriff (`strapiApi.js` als Basis, dazu Suche, Datenmodell, Ableitungsregeln, Collection-Layout)
+- `build-tools/` – Projekt-Modi (Vite) und Admin-Skripte (Node)
 - `src/assets/` – Styles (Tokens/Base/Layout/Components/Legacy), Info-Texte, Icons, Logos
 - `public/app-config/` – Grundkonfiguration (`viewer-editor-app-config.v1.json`) und Wording (`wording.json`), beide zur Laufzeit geladen
 - `public/` – Beispieldaten, Beispielscans

@@ -1,8 +1,5 @@
 # Technical Documentation
 
-> **Referenzstand:** verifiziert am 2026-09-03 gegen Commit `256758f` (`main`) zuzüglich des
-> Replacements-Features (siehe [Kapitel 11](#11-ersetzungen-replacements)); Kapitel 4, 5, 7, 9, 12.1,
-> 12.3, 12.7 und 16 am 2026-09-17 an die zwei Konfigurationsebenen angepasst.
 > Bei Abweichungen zwischen diesem Dokument und dem Code gilt der Code.
 > Dieses Dokument ist die maßgebliche Implementierungs-/Architekturreferenz;
 > `README.md` ist die kurze Einstiegs- und Setup-Beschreibung.
@@ -311,6 +308,10 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
   Verdrahtung in `App.vue` (Button-Beschriftung, Sichtbarkeit des Regel-Editors)
 - `useDerivationRuleDraft.js` - Entwurfszustand des Regel-Editors: Ziel-Collections, Datenmodell des Ziels,
   Fehler, Speichern
+- `linkedItems.js` - reine Helfer für verknüpfte Items einer sekundären Collection: Konfigurations-Scope,
+  Verknüpfungsziel, Schlüssel, Felder mit Defaults, Kopfzeile, Sprach-Fallback
+- `useSecondaryItems.js` - verknüpfte Items je sekundärer Collection laden, bearbeiten, speichern, lösen,
+  löschen; Konfiguration der Collection anwenden bzw. neu laden (siehe [12.13](#1213-collection-layout-und-verknüpfte-items))
 - `csvFormat.js` - CSV lesen (`parseCsvRecords`, quote-aware über Zeilenumbrüche) und schreiben
   (`toCsvCell`); genutzt von Import, Export und Start-from-Scratch (siehe [9.3](#93-csv-import))
 
@@ -344,7 +345,8 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
 
 ### Services (`src/services/`)
 
-- `strapiApi.js` - gesamter Strapi-HTTP-Zugriff: Login, `/api/users/me`, Settings lesen/schreiben,
+- `strapiApi.js` - Basis des Strapi-HTTP-Zugriffs (`strapiFetchJson` mit Timeout und Fehlerform), Login,
+  `/api/users/me`, Settings lesen/schreiben,
   Query-Aufbau (Pagination/Populate/Fields/Filter), paginiertes Item-Fetching, Item-Create/Update,
   Item- und Wikidata-Normalisierung, Datenmodell-Prüfung
 - `strapiSearch.js` - bestandsweite Textsuche mit Strapi-Filtern (`$containsi`): durchsuchbare Felder,
@@ -352,6 +354,10 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
 - `strapiDataModel.js` - Felder der Collection hinter `itemsPath`: aus dem Content-Type-Schema oder,
   ohne Leserecht darauf, aus einem Beispiel-Item; Liste der Collection-Types (Ziele der Ableitungsregeln)
 - `strapiMappings.js` - Schreiben der Ableitungsregeln (`PUT <configPath>` mit `{ data: { mappings } }`)
+- `strapiCollectionConfig.js` - Collection-Layout: Settings-Datensatz roh lesen, ein Collection-Attribut
+  frisch lesen und schreiben, verknüpfte Items laden, lösen und löschen
+- `viewerSettingsLayout.js` - liest den Settings-Datensatz als v1 oder v2 (Collection-Layout) und führt
+  geänderte Settings bzw. Ersetzungen in ein Collection-Attribut zurück
 
 ### Assets (`src/assets/`)
 
@@ -1734,7 +1740,7 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
+Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
 ### Composables
 
@@ -1759,6 +1765,9 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens; Komponente populiert und ohne `id`/Medien gesendet (Beispiel `collectors`); Modelle beim Anlegen nachgeladen, wenn die Quelle ein Entwurf war; Anlegen auch ohne lesbares Schema |
 | `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile; unpassende Komponente blockiert das Speichern |
 | `composables/useOnlineSave.test.js` | Ohne angemeldete Online-Sitzung kein Speichern (`false`); nichts ausstehend → `true`; Items und Regeln speichern und als gespeichert markieren; nur Regeln; `false` bei fehlgeschlagenen Regeln; Teilfehler hält erstellte Items synchron |
+| `composables/linkedItems.test.js` | Gespeichertes Item ist Verknüpfungsziel, Entwurf nicht; Schlüssel aus Collection-Pfad und ID; konfigurierte Felder mit Defaults und normalisiert; Kopfzeile aus dem Label-Feld, sonst die ID; Sprach-Fallback de → en → beliebig |
+| `composables/onlineSaveConflicts.test.js` | Leere Werte gelten als gleich; Zahl und String-Form gleich, Objekt-Schlüsselreihenfolge egal; `false` bleibt von leer verschieden; Konflikt, wenn der Serverwert weder Basis noch gesendeter Wert ist; kein Konflikt ohne Basis oder Serverwert |
+| `composables/useSecondaryItems.test.js` | Ein Abschnitt je sekundärer Collection mit eigener Feldkonfiguration; Laden über die konfigurierte Relation; Bearbeitung als ausstehende Änderung, auch nach Neuladen; Zurücknehmen; nach dem Ableiten wird das neue Item geöffnet; Entwurf zeigt keine verknüpften Items; Konfiguration anwenden schreibt nur das eigene Attribut; Konfiguration neu laden (mit Rückfrage bei nicht angewendeten Änderungen); Lösen, Löschen, Ablehnen der Rückfrage, Fehler; eigenes Speichern |
 | `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; `loadStructuredFieldKeys` lädt bei Bedarf genau einmal und liefert die strukturierten Felder, ohne Modell eine leere Liste; Fehlerstatus mit Meldung |
 
 ### Fields und Services
@@ -1768,6 +1777,8 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
 | `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; mehr Treffer als die Obergrenze brechen nach der ersten Seite ab (mit `total`) bzw. sobald überschritten (ohne `total`); andere Fehler werden durchgereicht |
 | `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist; Collection-Types nur `api::`-Collection-Types nach Anzeigename, leere Liste ohne Leserecht; Komponenten-UID und `repeatable`; Komponenten-Schemas je UID, `{}` ohne Leserecht |
+| `services/strapiCollectionConfig.test.js` | Filter über die Relation zum primären Item (`documentId`, bei Strapi 4 `id`); Attribut frisch lesen, nur dieses senden, Antwort übernehmen; ohne Attribut Fehler und kein Schreiben |
+| `services/viewerSettingsLayout.test.js` | v1 ohne `primaryCollection` (auch Ersetzungen in `settings`, Fehler ohne `settings`); v2 reicht das primäre Attribut als Settings weiter, meldet fehlende Attribute; Zurückführen erhält Ersetzungen bzw. ungeänderte Schlüssel |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores
