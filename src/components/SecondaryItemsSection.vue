@@ -25,6 +25,11 @@ function itemTitle(section, item) {
   return describeLinkedItem(item, useUserConfigStore(section.scope).appliedItemLabelField.value)
 }
 
+// Unique per linked item, so labels point to the right input next to the primary item's fields.
+function fieldIdPrefix(item) {
+  return `linked-${linkedItemKey(item).replace(/[^a-zA-Z0-9_-]/g, '-')}`
+}
+
 function isOpen(section, item) {
   return section.openKeys.includes(linkedItemKey(item))
 }
@@ -85,6 +90,7 @@ function onAcceptCandidate(item, { targetField, candidateValue, targetConfigured
 
       <div v-if="isOpen(section, item)" class="secondary-item-body">
         <ItemFieldEditor :selected-raw-item="item" :config-scope="section.scope"
+          :field-id-prefix="fieldIdPrefix(item)"
           :is-editable-simple-value="isEditableSimpleValue"
           @field-change="(key, value, type) => onFieldChange(item, key, value, type)"
           @accept-candidate="(payload) => onAcceptCandidate(item, payload)" />
@@ -157,6 +163,12 @@ function onAcceptCandidate(item, { targetField, candidateValue, targetConfigured
   color: var(--ve-color-text-default);
   text-align: left;
   cursor: pointer;
+}
+
+.secondary-item-head:hover,
+.secondary-item-head:focus-visible {
+  background: var(--ve-color-border-soft);
+  color: var(--ve-color-text-default);
 }
 
 .secondary-item-chevron {
