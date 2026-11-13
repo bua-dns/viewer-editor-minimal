@@ -481,6 +481,14 @@ function findPendingUpdateItem(itemsPath, id) {
   return pendingUpdatesById.value[createEntryKey(itemsPath, id)]?.item || null
 }
 
+/** Drops the unsaved changes of one item (it was deleted or is no longer shown). */
+function discardPendingChangesForItem(item) {
+  const entryKey = resolveItemEntryKey(item)
+  if (!entryKey) return
+  removePendingUpdate(entryKey)
+  removePendingCreate(entryKey)
+}
+
 function hasPendingChangesForItem(item) {
   const entryKey = resolveItemEntryKey(item)
   if (!entryKey) return false
@@ -558,5 +566,6 @@ export function useOnlineUpdatesStore() {
     saveOnlineItem,
     hasPendingChangesForItem,
     findPendingUpdateItem,
+    discardPendingChangesForItem,
   }
 }

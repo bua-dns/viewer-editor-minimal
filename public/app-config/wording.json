@@ -1310,5 +1310,33 @@
   "configCollectionTabsAria": {
     "de": "Collections",
     "en": "Collections"
+  },
+  "linkedItemUnlink": {
+    "de": "Verknüpfung lösen",
+    "en": "Unlink"
+  },
+  "linkedItemUnlinkTitle": {
+    "de": "Löst die Verknüpfung zu diesem Eintrag; das verknüpfte Objekt bleibt erhalten",
+    "en": "Removes the link to this item; the linked item is kept"
+  },
+  "linkedItemUnlinkConfirm": {
+    "de": "Verknüpfung zwischen „{item}“ und diesem Eintrag lösen? „{item}“ selbst bleibt erhalten.",
+    "en": "Remove the link between \"{item}\" and this item? \"{item}\" itself is kept."
+  },
+  "linkedItemDelete": {
+    "de": "Löschen",
+    "en": "Delete"
+  },
+  "linkedItemDeleteTitle": {
+    "de": "Löscht das verknüpfte Objekt endgültig",
+    "en": "Deletes the linked item for good"
+  },
+  "linkedItemDeleteConfirm": {
+    "de": "„{item}“ endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "en": "Delete \"{item}\" for good? This cannot be undone."
+  },
+  "linkedItemDiscardEdits": {
+    "de": "Seine ungespeicherten Änderungen gehen verloren.",
+    "en": "Its unsaved changes will be discarded."
   }
 }

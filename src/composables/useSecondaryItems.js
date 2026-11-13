@@ -2,7 +2,11 @@
 // They are loaded per selection, edited with their collection's field configuration and saved as
 // regular pending updates (see useOnlineUpdatesStore), so the shared Save button includes them.
 import { ref, watch } from 'vue'
-import { fetchLinkedItemsFromStrapi } from '../services/strapiCollectionConfig'
+import {
+  deleteItemInStrapi,
+  fetchLinkedItemsFromStrapi,
+  unlinkItemInStrapi,
+} from '../services/strapiCollectionConfig'
 import { fetchRelationAttributeFromStrapi } from '../services/strapiDataModel'
 import {
   getWikidataAutosuggestFieldKeysFromSettings,
@@ -11,7 +15,7 @@ import {
 } from '../services/strapiApi'
 import { normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 import { mergeOnlineSettings } from '../services/viewerSettingsLayout'
-import { VIEWER_SETTING_KEYS } from '../stores/useAppConfigStore'
+import { VIEWER_SETTING_KEYS, useAppConfigStore } from '../stores/useAppConfigStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 import { useOnlineModeStore } from '../stores/useOnlineModeStore'
@@ -19,7 +23,13 @@ import { useOnlineSettingsStore } from '../stores/useOnlineSettingsStore'
 import { useOnlineUpdatesStore } from '../stores/useOnlineUpdatesStore'
 import { clearSecondaryUserConfigScopes, useUserConfigStore } from '../stores/useUserConfigStore'
 import { createRequestSequence } from './requestSequence'
-import { linkedItemKey, prepareLinkedItem, resolveLinkTarget, secondaryConfigScope } from './linkedItems'
+import {
+  describeLinkedItem,
+  linkedItemKey,
+  prepareLinkedItem,
+  resolveLinkTarget,
+  secondaryConfigScope,
+} from './linkedItems'
 
 function samePath(left, right) {
   const normalize = (path) => String(path || '').split('?')[0].replace(/\/+$/, '')
@@ -34,8 +44,10 @@ function cloneValue(value) {
  * @param {object} options
  * @param {import('vue').Ref<object|null>} options.selectedItem the selected primary item
  * @param {(item: object) => Promise<boolean>} options.saveItem saves one item's pending changes
+ * @param {(message: string) => boolean} [options.confirmAction] asks before unlinking or deleting
  */
-export function useSecondaryItems({ selectedItem, saveItem }) {
+export function useSecondaryItems({ selectedItem, saveItem, confirmAction = (message) => globalThis.confirm(message) }) {
+  const { t } = useAppConfigStore()
   const { appMode } = useOnlineModeStore()
   const { token, isAuthenticated } = useAuthStore()
   const { connectionProfile } = useConnectionProfileStore()
@@ -46,6 +58,8 @@ export function useSecondaryItems({ selectedItem, saveItem }) {
   const sections = ref([])
   // Key of the linked item whose own Save is running ('' = none).
   const savingKey = ref('')
+  // Key of the linked item being unlinked or deleted ('' = none).
+  const busyKey = ref('')
   const snapshotsByKey = new Map()
   const relationsById = new Map()
   const loads = createRequestSequence()
@@ -62,7 +76,9 @@ export function useSecondaryItems({ selectedItem, saveItem }) {
 
   function buildSection({ id, config, error }) {
     const scope = secondaryConfigScope(id)
-    const section = { id, scope, label: config?.label || null, settings: null, error, status: 'idle', items: [], openKeys: [] }
+    const section = {
+      id, scope, label: config?.label || null, settings: null, error, actionError: '', status: 'idle', items: [], openKeys: [],
+    }
     if (!config) return section
 
     const applied = useUserConfigStore(scope).applyImportedConfigPayload(config)
@@ -216,6 +232,61 @@ export function useSecondaryItems({ selectedItem, saveItem }) {
     }
   }
 
+  function removeLinkedItem(section, item) {
+    const key = linkedItemKey(item)
+    updatesStore.discardPendingChangesForItem(item)
+    snapshotsByKey.delete(key)
+    section.items = section.items.filter((entry) => linkedItemKey(entry) !== key)
+    section.openKeys = section.openKeys.filter((entry) => entry !== key)
+  }
+
+  function confirmItemAction(section, item, message) {
+    const title = describeLinkedItem(item, useUserConfigStore(section.scope).appliedItemLabelField.value)
+    const lostEdits = updatesStore.hasPendingChangesForItem(item)
+      ? `
+
+${t('linkedItemDiscardEdits', 'Its unsaved changes will be discarded.')}`
+      : ''
+    return confirmAction(`${message.replaceAll('{item}', title)}${lostEdits}`)
+  }
+
+  // Unlink or delete: asks first, then runs `request` and drops the item from the section.
+  async function runItemAction(section, item, message, request) {
+    if (!confirmItemAction(section, item, message)) return false
+    busyKey.value = linkedItemKey(item)
+    section.actionError = ''
+    try {
+      await request(item.__onlineMeta)
+      removeLinkedItem(section, item)
+      return true
+    } catch (error) {
+      section.actionError = String(error?.message || error)
+      return false
+    } finally {
+      busyKey.value = ''
+    }
+  }
+
+  /** Removes the link to the selected item; the linked item itself stays in its collection. */
+  function unlinkItem(section, item) {
+    const message = t('linkedItemUnlinkConfirm', 'Remove the link between "{item}" and this item? "{item}" itself is kept.')
+    return runItemAction(section, item, message, async (meta) => {
+      const linkedTo = resolveLinkTarget(selectedItem.value)
+      if (!linkedTo) throw new Error('The selected item is not saved yet.')
+      const relationAttribute = await resolveRelation(section)
+      if (!relationAttribute) throw new Error(`No relation from "${section.id}" to the primary collection found.`)
+      await unlinkItemInStrapi({ ...connection(), itemsPath: meta.itemsPath, id: meta.id, relationAttribute, linkedTo })
+    })
+  }
+
+  /** Deletes the linked item from its collection for good. */
+  function deleteItem(section, item) {
+    const message = t('linkedItemDeleteConfirm', 'Delete "{item}" for good? This cannot be undone.')
+    return runItemAction(section, item, message, (meta) =>
+      deleteItemInStrapi({ ...connection(), itemsPath: meta.itemsPath, id: meta.id }),
+    )
+  }
+
   function toggleOpen(section, key) {
     section.openKeys = section.openKeys.includes(key)
       ? section.openKeys.filter((entry) => entry !== key)
@@ -232,12 +303,15 @@ export function useSecondaryItems({ selectedItem, saveItem }) {
   return {
     sections,
     savingKey,
+    busyKey,
     initialize,
     clear,
     reloadAfterCreate,
     changeField,
     saveLinkedItem,
     applyCollectionConfig,
+    unlinkItem,
+    deleteItem,
     toggleOpen,
     setAllOpen,
   }

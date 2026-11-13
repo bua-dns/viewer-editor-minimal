@@ -1447,6 +1447,14 @@ Item gewählt (gespeichert, kein Entwurf)
 - Ungespeicherte Änderungen bleiben beim Wechsel des Items erhalten: lädt das Item später erneut, wird
   das bearbeitete Objekt des Pending-Eintrags gezeigt.
 - Nach `Item ableiten` wird der Abschnitt neu geladen und das neue Item geöffnet.
+- **Verknüpfung lösen** (`unlinkItem`): nach Rückfrage `PUT <itemsPath>/<documentId>` mit
+  `{ data: { <attr>: { disconnect: [{ documentId: <gewähltes Item> }] } } }`. Nur die Verknüpfung zum
+  gewählten Item fällt weg; das Objekt und seine anderen Verknüpfungen bleiben.
+- **Löschen** (`deleteItem`): nach Rückfrage `DELETE <itemsPath>/<documentId>`, endgültig (bei Draft &
+  Publish alle Fassungen). Braucht die Berechtigung `delete` auf der sekundären Collection.
+- Beide wirken sofort (wie `Item ableiten`), verwerfen ungespeicherte Änderungen des Objekts (die
+  Rückfrage sagt das) und nehmen es aus der Liste. Ein Fehler bleibt als Meldung im Abschnitt stehen,
+  das Objekt bleibt in der Liste.
 - Höchstens 100 verknüpfte Items je Collection und Item (`LINKED_ITEMS_PAGE_SIZE`).
 
 **Konfiguration:** Im Tab `Konfiguration` gibt es dann je Collection einen Unter-Tab. Die primäre zeigt
@@ -1455,8 +1463,8 @@ die Feldkonfiguration ohne Hierarchie und Bearbeitungsstand-Sortierung, mit dem 
 Collection. `Konfiguration anwenden` schreibt nur das Prop dieser Collection (Lesen, Zusammenführen,
 `PUT`) und gilt damit in jedem Deployment, das die Collection zeigt.
 
-**Nicht enthalten:** verknüpfte Items anlegen (außer per `Item ableiten`), verknüpfen, lösen oder
-löschen; Ersetzungen und Suche über sekundäre Items; offline gibt es kein Collection-Layout.
+**Nicht enthalten:** verknüpfte Items anlegen (außer per `Item ableiten`) oder vorhandene Items neu
+verknüpfen; Ersetzungen und Suche über sekundäre Items; offline gibt es kein Collection-Layout.
 
 **Umstellung einer Instanz:** JSON-Props je Collection in Strapi anlegen, `settings` (und
 `replacements`) von Hand in das Prop der Collection kopieren, `primaryCollection` und

@@ -38,9 +38,12 @@ function allOpen(section) {
   return section.items.length > 0 && section.openKeys.length === section.items.length
 }
 
+function isBusy() {
+  return Boolean(props.linked.savingKey || props.linked.busyKey) || saveStatus.value === 'saving'
+}
+
 function isSaveDisabled(item) {
-  const isBusy = Boolean(props.linked.savingKey) || saveStatus.value === 'saving'
-  return isBusy || !hasPendingChangesForItem(item)
+  return isBusy() || !hasPendingChangesForItem(item)
 }
 
 function onFieldChange(item, key, value, configuredType) {
@@ -65,6 +68,7 @@ function onAcceptCandidate(item, { targetField, candidateValue, targetConfigured
       </button>
     </header>
 
+    <p v-if="section.actionError" class="secondary-items-note secondary-items-error">{{ section.actionError }}</p>
     <p v-if="section.status === 'loading'" class="secondary-items-note">
       {{ t('secondaryItemsLoading', 'Loading linked items...') }}
     </p>
@@ -95,6 +99,16 @@ function onAcceptCandidate(item, { targetField, candidateValue, targetConfigured
           @field-change="(key, value, type) => onFieldChange(item, key, value, type)"
           @accept-candidate="(payload) => onAcceptCandidate(item, payload)" />
         <div v-if="canSave" class="secondary-item-actions">
+          <button type="button" class="secondary-item-remove" :disabled="isBusy()"
+            :title="t('linkedItemUnlinkTitle', 'Removes the link to this item; the linked item is kept')"
+            @click="linked.unlinkItem(section, item)">
+            {{ t('linkedItemUnlink', 'Unlink') }}
+          </button>
+          <button type="button" class="secondary-item-remove secondary-item-delete" :disabled="isBusy()"
+            :title="t('linkedItemDeleteTitle', 'Deletes the linked item for good')"
+            @click="linked.deleteItem(section, item)">
+            {{ t('linkedItemDelete', 'Delete') }}
+          </button>
           <button type="button" class="sidebar-derive-button"
             :disabled="isSaveDisabled(item)"
             :title="t('sidebarSaveItemTitle', 'Saves only the changes of this item')"
@@ -207,6 +221,32 @@ function onAcceptCandidate(item, { targetField, candidateValue, targetConfigured
 .secondary-item-actions {
   display: flex;
   justify-content: flex-end;
+  gap: var(--ve-space-2);
   margin-top: var(--ve-space-2);
+}
+
+.secondary-item-remove {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.88rem;
+  border: 1px solid var(--ve-color-border-default);
+  background: var(--ve-color-surface-panel);
+  color: var(--ve-color-text-default);
+}
+
+.secondary-item-delete {
+  border-color: var(--ve-color-danger);
+  color: var(--ve-color-danger);
+}
+
+.secondary-item-remove:hover:not(:disabled),
+.secondary-item-remove:focus-visible {
+  background: var(--ve-color-border-soft);
+  color: var(--ve-color-text-default);
+}
+
+.secondary-item-delete:hover:not(:disabled),
+.secondary-item-delete:focus-visible {
+  background: var(--ve-color-danger);
+  color: var(--ve-color-white);
 }
 </style>

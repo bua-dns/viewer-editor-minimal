@@ -69,3 +69,31 @@ export async function fetchLinkedItemsFromStrapi({ profile, token = '', itemsPat
   })
   return Array.isArray(payload?.data) ? payload.data : []
 }
+
+function buildItemPath(itemsPath, id) {
+  const path = String(itemsPath || '').split('?')[0].replace(/\/+$/, '')
+  return `${path}/${encodeURIComponent(String(id))}`
+}
+
+function toRelationTarget(linkedTo) {
+  return linkedTo.idKind === 'id' ? { id: linkedTo.id } : { documentId: linkedTo.id }
+}
+
+/**
+ * Removes only the link between item `id` and the item `linkedTo` from the relation
+ * `relationAttribute`; the item and its other links stay.
+ */
+export async function unlinkItemInStrapi({ profile, token = '', itemsPath, id, relationAttribute, linkedTo }) {
+  return strapiFetchJson({
+    profile,
+    token,
+    method: 'PUT',
+    path: buildItemPath(itemsPath, id),
+    body: { data: { [relationAttribute]: { disconnect: [toRelationTarget(linkedTo)] } } },
+  })
+}
+
+/** Deletes item `id` for good (with Draft & Publish: every version of the document). */
+export async function deleteItemInStrapi({ profile, token = '', itemsPath, id }) {
+  return strapiFetchJson({ profile, token, method: 'DELETE', path: buildItemPath(itemsPath, id) })
+}

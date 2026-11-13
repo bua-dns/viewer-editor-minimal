@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11 - Unlink or delete linked items
+
+- Each linked item has `Verknüpfung lösen` (removes only the link to the selected item; the item and its
+  other links stay) and `Löschen` (deletes it from its collection for good). Both ask first, run at once
+  and discard the item's unsaved changes. Deleting needs the `delete` permission on that collection.
+
 ## 2026-11 - Collection layout: linked items in the editor
 
 - One `viewer-setting` can now describe several collections, one JSON attribute each

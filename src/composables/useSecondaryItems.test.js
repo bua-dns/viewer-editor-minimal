@@ -38,17 +38,25 @@ async function flush() {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-async function setup() {
-  globalThis.fetch = vi.fn(async (url) => {
+async function setup({ confirmed = true } = {}) {
+  globalThis.fetch = vi.fn(async (url, init) => {
+    if (init?.method === 'DELETE') return { ok: true, status: 204, json: async () => { throw new Error('no body') } }
+    if (init?.method === 'PUT') return json({ data: {} })
     if (String(url).includes('/api/collection-items')) return json({ data: linkedRows })
     return json({ data: record })
   })
   await useOnlineSettingsStore().fetchOnlineSettings()
   const selectedItem = ref(null)
   const saveItem = vi.fn(async () => true)
-  const secondary = useSecondaryItems({ selectedItem, saveItem })
+  const confirmAction = vi.fn(() => confirmed)
+  const secondary = useSecondaryItems({ selectedItem, saveItem, confirmAction })
   secondary.initialize()
-  return { secondary, selectedItem, saveItem }
+  return { secondary, selectedItem, saveItem, confirmAction }
+}
+
+function lastRequest() {
+  const [url, init] = globalThis.fetch.mock.calls.at(-1)
+  return { url: decodeURIComponent(String(url)), method: init?.method, body: init?.body ? JSON.parse(init.body) : null }
 }
 
 describe('useSecondaryItems', () => {
@@ -163,6 +171,66 @@ describe('useSecondaryItems', () => {
     expect(Object.keys(sent.collection_items.fields)).toEqual(['label', 'remarks', 'status'])
     expect(sent.collection_items.relations).toEqual({ index_cards: 'index_cards' })
     expect(section.items[0].status).toBe('')
+  })
+
+  test('unlinking removes only the link to the selected item and drops the item from the list', async () => {
+    const { secondary, selectedItem, confirmAction } = await setup()
+    selectedItem.value = cardItem('card-1')
+    await flush()
+    const section = secondary.sections.value[0]
+
+    const done = await secondary.unlinkItem(section, section.items[0])
+
+    expect(done).toBe(true)
+    expect(confirmAction.mock.calls[0][0]).toContain('item_1')
+    expect(lastRequest()).toEqual({
+      url: 'https://cms.example.org/api/collection-items/ci-1',
+      method: 'PUT',
+      body: { data: { index_cards: { disconnect: [{ documentId: 'card-1' }] } } },
+    })
+    expect(section.items.map((item) => item.label)).toEqual(['item_2'])
+  })
+
+  test('deleting sends DELETE, discards unsaved edits and drops the item', async () => {
+    const { secondary, selectedItem, confirmAction } = await setup()
+    selectedItem.value = cardItem('card-1')
+    await flush()
+    const section = secondary.sections.value[0]
+    const item = section.items[1]
+    secondary.changeField(item, 'remarks', 'edited', 'text')
+
+    const done = await secondary.deleteItem(section, item)
+
+    expect(done).toBe(true)
+    expect(confirmAction.mock.calls[0][0]).toContain('unsaved changes')
+    expect(lastRequest()).toMatchObject({ url: 'https://cms.example.org/api/collection-items/ci-2', method: 'DELETE' })
+    expect(section.items.map((entry) => entry.label)).toEqual(['item_1'])
+    expect(useOnlineUpdatesStore().pendingUpdateCount.value).toBe(0)
+  })
+
+  test('nothing is sent when the confirmation is declined', async () => {
+    const { secondary, selectedItem } = await setup({ confirmed: false })
+    selectedItem.value = cardItem('card-1')
+    await flush()
+    const section = secondary.sections.value[0]
+    const callsBefore = globalThis.fetch.mock.calls.length
+
+    expect(await secondary.deleteItem(section, section.items[0])).toBe(false)
+    expect(globalThis.fetch.mock.calls.length).toBe(callsBefore)
+    expect(section.items).toHaveLength(2)
+  })
+
+  test('a failed request keeps the item and shows the error', async () => {
+    const { secondary, selectedItem } = await setup()
+    selectedItem.value = cardItem('card-1')
+    await flush()
+    const section = secondary.sections.value[0]
+    globalThis.fetch = vi.fn(async () => ({ ok: false, status: 403, json: async () => ({ error: { message: 'Forbidden' } }) }))
+
+    expect(await secondary.deleteItem(section, section.items[0])).toBe(false)
+    expect(section.items).toHaveLength(2)
+    expect(section.actionError).toBe('Forbidden')
+    expect(secondary.busyKey.value).toBe('')
   })
 
   test('the own Save of an item saves that item', async () => {
