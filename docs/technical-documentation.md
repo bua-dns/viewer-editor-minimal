@@ -1396,7 +1396,9 @@ Quell-Collection; der Viewer nimmt die Regel, deren `source` dem `itemsPath` der
     "fields": [
       { "target": "label", "from": "label", "prefix": "item_" },
       { "target": "name", "from": "ai_scientific_name" },
-      { "target": "status", "value": "draft" }
+      { "target": "status", "value": "draft" },
+      { "target": "collectors", "from": "collectors",
+        "structure": { "type": "component", "component": "metadata-forms.wikidata-reference", "repeatable": true } }
     ]
   }
 ]
@@ -1409,6 +1411,7 @@ Quell-Collection; der Viewer nimmt die Regel, deren `source` dem `itemsPath` der
 | `relationField` | Relationsattribut **der Ziel-Collection**, das auf die Quelle zeigt (bei many-to-many genügt eine Seite) |
 | `fields[]` mit `from` | kopiert den Wert des Quellfelds; `prefix` wird davor gesetzt. Leere Quellwerte (`null`, leerer bzw. reiner Leerzeichen-String) werden ausgelassen, `0` und `false` übernommen |
 | `fields[]` mit `from`, strukturiert | Komponente, JSON oder Blocks werden als Ganzes kopiert, nur in ein Feld gleicher Struktur (Komponente: gleiche UID und gleiches `repeatable`). Komponenten-Einträge verlieren ihre Datenbank-`id` und verschachtelte Medien/Relationen; verschachtelte Komponenten ebenso. JSON-Inhalte bleiben unverändert (auch `id`-Schlüssel darin). `prefix` gilt nur für Text und Zahlen |
+| `structure` (bei Kopien) | Struktur des Quellfelds (`type`: `component` mit `component` und `repeatable`, `json` oder `blocks`). Der Regel-Editor schreibt sie beim Speichern aus dem Schema-Datenmodell der Quelle; ohne Schema bleibt eine gespeicherte erhalten. Damit kann auch eine Rolle ohne Leserecht aufs Schema Komponenten populieren und bereinigen |
 | `fields[]` mit `value` | fester Wert (ein vorhandener Schlüssel `value` macht die Zeile zur Konstante, auch bei `""`) |
 
 Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDerivationRules`).
@@ -1416,7 +1419,8 @@ Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDeriva
 **Ablauf** (`useItemDerivation`):
 
 ```
-Klick ─▶ Datenmodell der Quelle + GET /api/content-type-builder/components (Komponenten-Schemas)
+Klick ─▶ nur für Kopien ohne `structure`: Datenmodell der Quelle (nur ein Schema-Modell zählt)
+      ─▶ nur wenn Komponenten kopiert werden: GET /api/content-type-builder/components
       ─▶ GET <source>/<documentId>?populate[n]=<kopierte Komponente>  (bei einem Entwurf übersprungen)
       ─▶ Vorschau = Serverwerte + lokale ungespeicherte Werte ─▶ Dialog
 OK    ─▶ ungespeicherte Änderungen? ─ ja ─▶ useOnlineSave (alles) ─ Fehler ─▶ Abbruch, nichts angelegt
@@ -1428,9 +1432,13 @@ OK    ─▶ ungespeicherte Änderungen? ─ ja ─▶ useOnlineSave (alles) ─
 
 - Ein gerade angelegter Entwurf wird beim Vorab-Speichern erstellt und danach über seine neue
   `documentId` verknüpft. Ohne `documentId` (Strapi v4) wird über `{ id }` verknüpft.
-- Komponenten werden nur gefüllt, wenn das Datenmodell der Quelle aus dem Schema kommt; ohne Schema werden
-  sie weder populiert noch bereinigt. Ohne lesbare Komponenten-Schemas fällt nur die `id` der Einträge weg.
-  Verschachtelte Komponenten werden nicht eigens populiert (nur eine Ebene).
+- Welche Kopie eine Komponente ist, sagt `structure` der Regel; bei älteren Regeln ohne `structure` das
+  Schema-Datenmodell der Quelle. Ein aus einem Beispiel-Item geratenes Modell zählt nicht (es hält
+  Komponenten für JSON). Hält das Item für eine Kopie ohne bekannte Struktur ein Objekt oder eine Liste,
+  bricht der Dialog mit `deriveRuleNeedsResave` ab, statt den Wert stillschweigend wegzulassen; die Regel
+  muss dann einmal mit Schema-Zugriff gespeichert werden (Regel-Editor zeigt sie als geändert).
+- Ohne lesbare Komponenten-Schemas fällt nur die `id` der Einträge weg, verschachtelte Medien/Relationen
+  bleiben. Verschachtelte Komponenten werden nicht eigens populiert (nur eine Ebene).
 - Die Vorschau zeigt Komponenten unbereinigt, mit lokalen Änderungen in Viewer-Form (bei
   Wikidata-Feldern ist `id` dort die QID); angelegt wird aus dem gespeicherten Strapi-Stand.
 - Die Bezeichnung im Ergebnis ist `label` der Antwort, sonst der erste abgeleitete Textwert.

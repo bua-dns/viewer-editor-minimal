@@ -15,7 +15,9 @@ import {
   buildDerivedItemPayload,
   describeCreatedItem,
   findRuleForSource,
+  findUnresolvedStructuredMappings,
   listPopulatedSourceFields,
+  needsSourceFieldModel,
   readLocalItemValues,
   readRowValues,
   resolveRuleLabel,
@@ -94,19 +96,37 @@ export function useItemDerivation({
     return sourceItem.__onlineMeta.itemsPath || sourcePath.value
   }
 
-  // The source collection's field model and the component schemas, so component values can be
-  // populated and cleaned; without them (schema not readable) values are copied as read.
+  // The source field model, only for older rules without stored structures. A model guessed from a
+  // sample item (schema not readable) cannot tell a component from JSON, so it is not used.
+  async function loadSchemaFieldModel() {
+    if (!needsSourceFieldModel(rule)) return []
+    const model = await services.fetchFieldModel({ ...session(), itemsPath: sourceItemsPath() })
+    return model?.source === 'schema' ? model.fields || [] : []
+  }
+
+  // What populating and cleaning component values needs. The component schemas only add dropping
+  // nested media/relations; without them the entries' `id` still goes.
   async function loadSourceModels() {
     if (!isSavedOnlineItem(sourceItem)) return NO_SOURCE_MODELS
     try {
-      const [fieldModel, componentSchemas] = await Promise.all([
-        services.fetchFieldModel({ ...session(), itemsPath: sourceItemsPath() }),
-        services.fetchComponentSchemas(session()),
-      ])
-      return { sourceFieldModel: fieldModel?.fields || [], componentSchemas: componentSchemas || {} }
+      const sourceFieldModel = await loadSchemaFieldModel()
+      const copiesComponents = listPopulatedSourceFields(rule, sourceFieldModel).length > 0
+      const componentSchemas = copiesComponents ? await services.fetchComponentSchemas(session()) : {}
+      return { sourceFieldModel, componentSchemas: componentSchemas || {} }
     } catch {
       return NO_SOURCE_MODELS
     }
+  }
+
+  // An older rule whose structured copies cannot be resolved would drop those values silently.
+  function assertStructuresKnown() {
+    const unresolved = findUnresolvedStructuredMappings(rule, readLocalItemValues(sourceItem), sourceModels.sourceFieldModel)
+    if (!unresolved.length) return
+    const message = t(
+      'deriveRuleNeedsResave',
+      'The rule does not know the structure of {fields}. Open it in the Konfiguration tab (with access to the Strapi data model) and save it again.',
+    )
+    throw new Error(message.replace('{fields}', unresolved.join(', ')))
   }
 
   async function readSavedSourceValues() {
@@ -136,6 +156,7 @@ export function useItemDerivation({
     try {
       sourceModels = await loadSourceModels()
       if (!isCurrent()) return
+      assertStructuresKnown()
       // Unsaved edits of the item are shown as they will be saved. Not cleaned: the viewer holds
       // some components in its own form (Wikidata entries: `id` is the QID), which cleaning would cut.
       const values = { ...(await readSavedSourceValues()), ...readLocalItemValues(sourceItem) }
@@ -162,6 +183,7 @@ export function useItemDerivation({
       await saveFirstIfNeeded()
       // A draft got its server identity only now, so its models were not loaded for the preview.
       if (sourceModels === NO_SOURCE_MODELS) sourceModels = await loadSourceModels()
+      assertStructuresKnown()
       const values = await readSavedSourceValues()
       const fields = buildDerivedItemPayload(rule, values, sourceItem.__onlineMeta, sourceModels)
       const response = await services.createItem({ ...session(), itemsPath: rule.target, fields })

@@ -10,6 +10,7 @@ import {
   findRuleForSource,
   normalizeCollectionPath,
   normalizeDerivationRules,
+  structureOfField,
   validateDerivationRule,
 } from './derivationRules'
 import { createRequestSequence } from './requestSequence'
@@ -37,12 +38,29 @@ function toRow(mapping = {}) {
     from: mapping.from || '',
     prefix: mapping.prefix || '',
     value: isConstant ? mapping.value : '',
+    // The stored structure, kept as long as no schema model of the source says otherwise.
+    structure: mapping.structure || null,
   }
 }
 
-function toMapping(row) {
+// The source field's structure from the schema model; without that model the stored one.
+function rowStructure(row, schemaFields) {
+  const field = schemaFields?.get(row.from)
+  return field ? structureOfField(field) : row.structure
+}
+
+function toMapping(row, schemaFields) {
   if (row.kind === 'constant') return { target: row.target, value: row.value }
-  return row.prefix ? { target: row.target, from: row.from, prefix: row.prefix } : { target: row.target, from: row.from }
+  const mapping = { target: row.target, from: row.from }
+  if (row.prefix) mapping.prefix = row.prefix
+  const structure = rowStructure(row, schemaFields)
+  if (structure) mapping.structure = structure
+  return mapping
+}
+
+function schemaFieldsOf(model) {
+  if (model?.source !== 'schema') return null
+  return new Map((model.fields || []).map((field) => [field.key, field]))
 }
 
 function createDraft(rule, sourcePath) {
@@ -63,15 +81,20 @@ function buildLabel(draft) {
   return label
 }
 
-/** The draft as a rule; rows without a target, or copies without a source field, are dropped. */
-export function draftToRule(draft) {
+/**
+ * The draft as a rule; rows without a target, or copies without a source field, are dropped.
+ * With the source's schema model (`{ source: 'schema', fields }`), each copy stores the source
+ * field's structure, so deriving needs no schema access later.
+ */
+export function draftToRule(draft, sourceFieldModel = null) {
+  const schemaFields = schemaFieldsOf(sourceFieldModel)
   const [rule] = normalizeDerivationRules([
     {
       source: draft.source,
       target: draft.target,
       label: buildLabel(draft),
       relationField: draft.relationField,
-      fields: draft.rows.map(toMapping),
+      fields: draft.rows.map((row) => toMapping(row, schemaFields)),
     },
   ])
   return rule
@@ -135,7 +158,7 @@ export function useDerivationRuleDraft({
     }
   }
 
-  const rule = computed(() => draftToRule(draft.value))
+  const rule = computed(() => draftToRule(draft.value, sourceFieldModel.value))
   const incompatibleTargets = computed(() =>
     findIncompatibleMappings(rule.value, sourceFieldModel.value?.fields || [], targetModel.value.fields),
   )

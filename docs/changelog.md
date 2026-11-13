@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11 - Derivation rules remember the structure of copied fields
+
+- Saving a derivation rule now stores the structure of each copied component, JSON or blocks field
+  (`structure` in `mappings`). Deriving items then works for editors whose Strapi role cannot read the
+  content-type schema; before, their derived items silently lacked the component fields.
+- Older rules: open them once in the `Konfiguration` tab with schema access and save them again (the
+  editor shows them as changed). Until then, deriving such a field stops with a hint instead of
+  dropping the value.
+
 ## 2026-11 - Admin CLI: sync field config between collections
 
 - `pnpm fields:sync` (menu in a terminal, or `check` / `sync` with arguments) compares one field of two

@@ -7,8 +7,11 @@ import {
   describeCreatedItem,
   findIncompatibleMappings,
   findRuleForSource,
+  findUnresolvedStructuredMappings,
   isMappableField,
   listPopulatedSourceFields,
+  needsSourceFieldModel,
+  structureOfField,
   normalizeDerivationRules,
   readLocalItemValues,
   readRowValues,
@@ -203,6 +206,50 @@ describe('structured fields', () => {
       label: 'x',
       extra: { id: 'keep' },
     })
+  })
+
+  test('a stored structure is kept when valid and dropped when unusable', () => {
+    const [normalized] = normalizeDerivationRules([
+      {
+        source: '/api/a',
+        fields: [
+          { target: 'collectors', from: 'collectors', structure: { type: 'component', component: 'shared.person', repeatable: true } },
+          { target: 'data', from: 'data', structure: { type: 'json', component: 'ignored' } },
+          { target: 'scan', from: 'scan', structure: { type: 'media' } },
+          { target: 'x', from: 'x', structure: { type: 'component' } },
+        ],
+      },
+    ])
+    expect(normalized.fields).toEqual([
+      { target: 'collectors', from: 'collectors', structure: { type: 'component', component: 'shared.person', repeatable: true } },
+      { target: 'data', from: 'data', structure: { type: 'json' } },
+      { target: 'scan', from: 'scan' },
+      { target: 'x', from: 'x' },
+    ])
+    expect(structureOfField(person)).toEqual({ type: 'component', component: 'shared.person', repeatable: true })
+    expect(structureOfField(plain)).toBeNull()
+  })
+
+  test('the stored structure is enough to populate and clean, without any field model', () => {
+    const storedRule = { fields: [{ target: 'collectors', from: 'collectors', structure: structureOfField(person) }] }
+    expect(listPopulatedSourceFields(storedRule)).toEqual(['collectors'])
+    expect(buildDerivedFields(storedRule, { collectors: [{ id: 4, label: 'A' }] })).toEqual({ collectors: [{ label: 'A' }] })
+    expect(needsSourceFieldModel(storedRule)).toBe(false)
+  })
+
+  test('reports copies of structured values whose structure nobody knows', () => {
+    const oldRule = {
+      fields: [
+        { target: 'collectors', from: 'collectors' },
+        { target: 'label', from: 'label' },
+        { target: 'data', from: 'data', structure: { type: 'json' } },
+        { target: 'status', value: { not: 'a copy' } },
+      ],
+    }
+    const values = { collectors: [{ id: 'Q1' }], label: 'x', data: { a: 1 } }
+    expect(findUnresolvedStructuredMappings(oldRule, values)).toEqual(['collectors'])
+    expect(findUnresolvedStructuredMappings(oldRule, values, [person])).toEqual([])
+    expect(needsSourceFieldModel(oldRule)).toBe(true)
   })
 
   test('buildDerivedFields cleans components, never prefixes objects, and lists what to populate', () => {
