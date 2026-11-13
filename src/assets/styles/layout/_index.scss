@@ -374,14 +374,12 @@
   margin-bottom: var(--ve-space-3);
 }
 
-.sidebar-checkbox-fields .field-grid {
-  grid-template-columns: 1fr;
-}
-
-.sidebar-checkbox-fields .field-row.field-width-33,
-.sidebar-checkbox-fields .field-row.field-width-50,
-.sidebar-checkbox-fields .field-row.field-width-100 {
-  grid-column: 1;
+// Checkbox fields under the scan: one field per line, whatever field width is configured.
+// The class sits on ItemFieldEditor's root, which is the .field-grid itself. A flex column
+// ignores the grid spans of the field widths; .scan-column outranks the scoped grid rule.
+.scan-column .sidebar-checkbox-fields.field-grid {
+  display: flex;
+  flex-direction: column;
 }
 
 .status-panel {
