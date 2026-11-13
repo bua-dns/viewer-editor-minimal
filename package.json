@@ -21,9 +21,15 @@
     "vue": "^3.5.45"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.5.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-vue": "^10.12.1",
+    "globals": "^17.14.0",
+    "jsdom": "^31.0.1",
     "sass": "^1.108.1",
     "vite": "^6.4.6",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.12"
   }
 }
