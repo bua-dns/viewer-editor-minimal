@@ -1376,7 +1376,7 @@ watch(
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
           <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
             :data-field-keys="availableFieldKeys" :remote-field-model="remoteFieldModel"
-            :no-data-hint="configurationNoDataHint" :derivation-source-path="derivation.editorSourcePath"
+            :no-data-hint="configurationNoDataHint" :derivation-source-path="derivation.editorSourcePath" :linked="secondaryItems"
             @apply="onApplyUserConfig"
             @reload-remote-field-model="reloadRemoteFieldModel" />
         </section>

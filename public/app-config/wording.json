@@ -1278,5 +1278,37 @@
   "sidebarSaveItemTitle": {
     "de": "Speichert nur die Änderungen dieses Items",
     "en": "Saves only the changes of this item"
+  },
+  "secondaryItemsCollapseAll": {
+    "de": "Alle schließen",
+    "en": "Collapse all"
+  },
+  "secondaryItemsExpandAll": {
+    "de": "Alle öffnen",
+    "en": "Expand all"
+  },
+  "secondaryItemsLoading": {
+    "de": "Verknüpfte Einträge werden geladen ...",
+    "en": "Loading linked items..."
+  },
+  "secondaryItemsNone": {
+    "de": "Keine verknüpften Einträge.",
+    "en": "No linked items."
+  },
+  "secondaryItemsSaveFirst": {
+    "de": "Verknüpfte Einträge erscheinen, sobald der Eintrag gespeichert ist.",
+    "en": "Linked items are shown once the item is saved."
+  },
+  "secondaryItemUnsaved": {
+    "de": "Ungespeicherte Änderungen",
+    "en": "Unsaved changes"
+  },
+  "secondaryConfigHint": {
+    "de": "Diese Konfiguration gehört zur Collection und gilt in jedem Deployment, das sie zeigt.",
+    "en": "This configuration belongs to the collection and applies in every deployment that shows it."
+  },
+  "configCollectionTabsAria": {
+    "de": "Collections",
+    "en": "Collections"
   }
 }

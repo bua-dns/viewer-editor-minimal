@@ -140,6 +140,31 @@ describe('useSecondaryItems', () => {
     expect(secondary.sections.value[0].status).toBe('idle')
   })
 
+  test('applying a secondary configuration writes only that collection attribute', async () => {
+    const { secondary, selectedItem } = await setup()
+    selectedItem.value = cardItem('card-1')
+    await flush()
+
+    const section = secondary.sections.value[0]
+    const store = useUserConfigStore(section.scope)
+    store.newFieldName.value = 'status'
+    store.addUserConfigField((_key, fallback) => fallback)
+
+    const savedConfig = { ...record.collection_items, fields: { ...record.collection_items.fields, status: {} } }
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ data: record }))
+      .mockResolvedValueOnce(json({ data: { collection_items: savedConfig } }))
+    const result = await secondary.applyCollectionConfig(section)
+
+    expect(result.ok).toBe(true)
+    const sent = JSON.parse(globalThis.fetch.mock.calls[1][1].body).data
+    expect(Object.keys(sent)).toEqual(['collection_items'])
+    expect(Object.keys(sent.collection_items.fields)).toEqual(['label', 'remarks', 'status'])
+    expect(sent.collection_items.relations).toEqual({ index_cards: 'index_cards' })
+    expect(section.items[0].status).toBe('')
+  })
+
   test('the own Save of an item saves that item', async () => {
     const { secondary, selectedItem, saveItem } = await setup()
     selectedItem.value = cardItem('card-1')

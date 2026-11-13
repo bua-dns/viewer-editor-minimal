@@ -10,6 +10,8 @@ import {
   resolveScanFieldFromSettings,
 } from '../services/strapiApi'
 import { normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
+import { mergeOnlineSettings } from '../services/viewerSettingsLayout'
+import { VIEWER_SETTING_KEYS } from '../stores/useAppConfigStore'
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 import { useOnlineModeStore } from '../stores/useOnlineModeStore'
@@ -190,6 +192,21 @@ export function useSecondaryItems({ selectedItem, saveItem }) {
     })
   }
 
+  /**
+   * "Konfiguration anwenden" on a secondary collection's tab: applies the edited configuration to
+   * the loaded items and writes it into the collection's own attribute.
+   */
+  async function applyCollectionConfig(section) {
+    const store = useUserConfigStore(section.scope)
+    store.applyUserConfigToRawItems(section.items)
+    const next = mergeOnlineSettings(section.settings, store.createUserConfigPayload(), {
+      viewerSettingKeys: VIEWER_SETTING_KEYS,
+    })
+    const result = await settingsStore.persistSecondaryCollectionSettings(section.id, next)
+    if (result.ok) section.settings = result.config
+    return result
+  }
+
   async function saveLinkedItem(item) {
     savingKey.value = linkedItemKey(item)
     try {
@@ -220,6 +237,7 @@ export function useSecondaryItems({ selectedItem, saveItem }) {
     reloadAfterCreate,
     changeField,
     saveLinkedItem,
+    applyCollectionConfig,
     toggleOpen,
     setAllOpen,
   }
