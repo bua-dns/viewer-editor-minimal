@@ -55,12 +55,15 @@ function isUserField(key) {
   return Boolean(key) && !SYSTEM_ATTRIBUTE_KEYS.has(key)
 }
 
-/** The fields of the content type whose plural name matches the last segment of `itemsPath`. */
-export function extractFieldModelFromContentTypes(payload, itemsPath) {
+function findContentType(payload, itemsPath) {
   const pluralName = lastPathSegment(itemsPath)
   const contentTypes = Array.isArray(payload?.data) ? payload.data : []
-  const match = contentTypes.find((entry) => entry?.schema?.pluralName === pluralName)
-  const attributes = match?.schema?.attributes
+  return contentTypes.find((entry) => entry?.schema?.pluralName === pluralName) || null
+}
+
+/** The fields of the content type whose plural name matches the last segment of `itemsPath`. */
+export function extractFieldModelFromContentTypes(payload, itemsPath) {
+  const attributes = findContentType(payload, itemsPath)?.schema?.attributes
   if (!isPlainObject(attributes)) return null
 
   return Object.entries(attributes)
@@ -142,4 +145,29 @@ export async function fetchCollectionFieldModelFromStrapi({ profile, token = '',
 
   const row = await fetchSampleRow({ profile, token, itemsPath })
   return { source: 'sample', fields: extractFieldModelFromSampleRow(row) }
+}
+
+/**
+ * The relation attribute of the collection behind `fromItemsPath` that points to the collection
+ * behind `toItemsPath`; '' when there is none (or several would need a choice: the first wins).
+ */
+export function extractRelationAttribute(payload, { fromItemsPath, toItemsPath }) {
+  const targetUid = findContentType(payload, toItemsPath)?.uid
+  const attributes = findContentType(payload, fromItemsPath)?.schema?.attributes
+  if (!targetUid || !isPlainObject(attributes)) return ''
+
+  const match = Object.entries(attributes).find(
+    ([, attribute]) => attribute?.type === 'relation' && attribute.target === targetUid,
+  )
+  return match ? match[0] : ''
+}
+
+/** Like extractRelationAttribute, read from the schema; '' when the role may not read it. */
+export async function fetchRelationAttributeFromStrapi({ profile, token = '', fromItemsPath, toItemsPath }) {
+  try {
+    const payload = await strapiFetchJson({ profile, token, path: CONTENT_TYPES_PATH })
+    return extractRelationAttribute(payload, { fromItemsPath, toItemsPath })
+  } catch {
+    return ''
+  }
 }

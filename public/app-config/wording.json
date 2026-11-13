@@ -1007,6 +1007,10 @@
     "de": "Werden mit der Datenquelle gespeichert: offline in der JSON-Datei, online in den Strapi-Settings. Werte, die die Datenquelle nicht setzt, kommen aus der Grundkonfiguration.",
     "en": "Stored with the data source: in the JSON file offline, in the Strapi settings online. Values the data source does not set come from the basic config."
   },
+  "viewerSettingsFromBasicConfig": {
+    "de": "Dieses Deployment nimmt die Viewer-Einstellungen nur aus seiner Grundkonfiguration.",
+    "en": "This deployment takes the viewer settings from its basic configuration only."
+  },
   "viewerSettingsNoDataSource": {
     "de": "Öffnen Sie eine Datenquelle (Datei laden oder online anmelden), um die Viewer-Einstellungen zu ändern.",
     "en": "Open a data source (load a file or log in online) to change the viewer settings."
@@ -1274,5 +1278,65 @@
   "sidebarSaveItemTitle": {
     "de": "Speichert nur die Änderungen dieses Items",
     "en": "Saves only the changes of this item"
+  },
+  "secondaryItemsCollapseAll": {
+    "de": "Alle schließen",
+    "en": "Collapse all"
+  },
+  "secondaryItemsExpandAll": {
+    "de": "Alle öffnen",
+    "en": "Expand all"
+  },
+  "secondaryItemsLoading": {
+    "de": "Verknüpfte Einträge werden geladen ...",
+    "en": "Loading linked items..."
+  },
+  "secondaryItemsNone": {
+    "de": "Keine verknüpften Einträge.",
+    "en": "No linked items."
+  },
+  "secondaryItemsSaveFirst": {
+    "de": "Verknüpfte Einträge erscheinen, sobald der Eintrag gespeichert ist.",
+    "en": "Linked items are shown once the item is saved."
+  },
+  "secondaryItemUnsaved": {
+    "de": "Ungespeicherte Änderungen",
+    "en": "Unsaved changes"
+  },
+  "secondaryConfigHint": {
+    "de": "Diese Konfiguration gehört zur Collection und gilt in jedem Deployment, das sie zeigt.",
+    "en": "This configuration belongs to the collection and applies in every deployment that shows it."
+  },
+  "configCollectionTabsAria": {
+    "de": "Collections",
+    "en": "Collections"
+  },
+  "linkedItemUnlink": {
+    "de": "Verknüpfung lösen",
+    "en": "Unlink"
+  },
+  "linkedItemUnlinkTitle": {
+    "de": "Löst die Verknüpfung zu diesem Eintrag; das verknüpfte Objekt bleibt erhalten",
+    "en": "Removes the link to this item; the linked item is kept"
+  },
+  "linkedItemUnlinkConfirm": {
+    "de": "Verknüpfung zwischen „{item}“ und diesem Eintrag lösen? „{item}“ selbst bleibt erhalten.",
+    "en": "Remove the link between \"{item}\" and this item? \"{item}\" itself is kept."
+  },
+  "linkedItemDelete": {
+    "de": "Löschen",
+    "en": "Delete"
+  },
+  "linkedItemDeleteTitle": {
+    "de": "Löscht das verknüpfte Objekt endgültig",
+    "en": "Deletes the linked item for good"
+  },
+  "linkedItemDeleteConfirm": {
+    "de": "„{item}“ endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    "en": "Delete \"{item}\" for good? This cannot be undone."
+  },
+  "linkedItemDiscardEdits": {
+    "de": "Seine ungespeicherten Änderungen gehen verloren.",
+    "en": "Its unsaved changes will be discarded."
   }
 }

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { useAppConfigStore } from './useAppConfigStore'
+import { normalizeBasicConfig, useAppConfigStore } from './useAppConfigStore'
 
 const shippedWording = JSON.parse(
   readFileSync(new URL('../../public/app-config/wording.json', import.meta.url), 'utf8'),
@@ -331,5 +331,52 @@ describe('useAppConfigStore basic config', () => {
 
     expect(globalThis.localStorage.getItem('viewerEditor.appConfig.v1')).toBe(null)
     expect(store.primaryColor.value).toBe('#123456')
+  })
+})
+
+describe('useAppConfigStore collection layout keys', () => {
+  afterEach(() => {
+    useAppConfigStore().applyBasicConfig({})
+  })
+
+  test('normalizes primary and secondary collections', () => {
+    const config = normalizeBasicConfig({
+      primaryCollection: ' index_cards ',
+      secondaryCollections: ['collection_items', 'index_cards', ' collection_items ', '', 7],
+    })
+    expect(config.primaryCollection).toBe('index_cards')
+    expect(config.secondaryCollections).toEqual(['collection_items', '7'])
+  })
+
+  test('defaults keep the single-collection layout', () => {
+    const config = normalizeBasicConfig({})
+    expect(config.primaryCollection).toBe('')
+    expect(config.secondaryCollections).toEqual([])
+    expect(config.appTitle).toBe(null)
+  })
+
+  test('the app title of the basic config wins over the data source wording', () => {
+    const store = useAppConfigStore()
+    store.applyBasicConfig({ appTitle: { de: 'Karteikarten', en: 'Index cards' } })
+    store.setOnlineWording({ appTitle: { de: 'Online Titel' } })
+    store.setLanguage('de')
+    expect(store.t('appTitle', '')).toBe('Karteikarten')
+    store.clearOnlineWording()
+  })
+
+  test('the export leaves unset collection keys out and keeps set ones', () => {
+    const store = useAppConfigStore()
+    expect(JSON.parse(store.exportBasicConfigAsJson({}))).not.toHaveProperty('primaryCollection')
+
+    const exported = JSON.parse(
+      store.exportBasicConfigAsJson({
+        primaryCollection: 'index_cards',
+        secondaryCollections: ['collection_items'],
+        appTitle: { de: 'Karteikarten' },
+      }),
+    )
+    expect(exported.primaryCollection).toBe('index_cards')
+    expect(exported.secondaryCollections).toEqual(['collection_items'])
+    expect(exported.appTitle).toEqual({ de: 'Karteikarten' })
   })
 })

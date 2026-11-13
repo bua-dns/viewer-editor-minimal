@@ -6,8 +6,12 @@ function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-export function useFieldMapping() {
-  const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore()
+/**
+ * Field config lookups of one configuration scope ('' = the primary collection). `fieldIdPrefix`
+ * makes the input ids unique when several item editors are shown at once.
+ */
+export function useFieldMapping(configScope = '', { fieldIdPrefix = 'field' } = {}) {
+  const { appliedUserConfigFields, appliedShowOnlyNonEmptyFields } = useUserConfigStore(configScope)
   const ALLOWED_FIELD_WIDTHS = new Set(['33%', '50%', '100%'])
 
   function getFieldConfig(key) {
@@ -78,7 +82,7 @@ export function useFieldMapping() {
     const hasCandidateAutosuggestPrefill = typeof candidateAutosuggestPrefill?.value === 'string'
 
     return createFieldEditorBinding({
-      fieldId: `field-${key}`,
+      fieldId: `${fieldIdPrefix}-${key}`,
       configuredType: fieldConfig?.type,
       value,
       placeholder: getFieldPlaceholder(key),

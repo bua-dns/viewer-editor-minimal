@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { useAppConfigStore } from './useAppConfigStore'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 import { useOnlineSettingsStore } from './useOnlineSettingsStore'
@@ -178,5 +179,118 @@ describe('useOnlineSettingsStore', () => {
     expect(result.ok).toBe(false)
     expect(settingsStore.settingsStatus.value).toBe('error')
     expect(settingsStore.lastSettingsError.value).toBe('Invalid key replacements')
+  })
+
+  describe('collection layout (v2)', () => {
+    const record = {
+      settings: { itemsPath: '/api/old' },
+      wording: { appTitle: { de: 'Shared' } },
+      index_cards: {
+        itemsPath: '/api/index-cards',
+        fields: { label: { type: 'normal' } },
+        primaryColor: '#ff0000',
+        replacements: { label: { a: 'b' } },
+      },
+      collection_items: { itemsPath: '/api/collection-items', fields: {} },
+    }
+
+    function respondWith(...bodies) {
+      globalThis.fetch = vi.fn()
+      bodies.forEach((body) => {
+        globalThis.fetch.mockResolvedValueOnce({ ok: true, json: async () => body })
+      })
+    }
+
+    beforeEach(() => {
+      useAuthStore().token.value = 'token-1'
+      useAppConfigStore().applyBasicConfig({
+        primaryCollection: 'index_cards',
+        secondaryCollections: ['collection_items'],
+      })
+    })
+
+    afterEach(() => {
+      useAppConfigStore().applyBasicConfig({})
+    })
+
+    test('loads the primary attribute as settings, without viewer settings and replacements', async () => {
+      respondWith({ data: record })
+      const store = useOnlineSettingsStore()
+      const result = await store.fetchOnlineSettings()
+
+      expect(result.ok).toBe(true)
+      expect(store.isCollectionLayout.value).toBe(true)
+      expect(store.settings.value).toEqual({ itemsPath: '/api/index-cards', fields: { label: { type: 'normal' } } })
+      expect(result.replacements).toEqual({ label: { a: 'b' } })
+      expect(store.secondaryCollections.value).toEqual([
+        { id: 'collection_items', config: record.collection_items, error: '' },
+      ])
+      expect(store.wording.value.appTitle.de).toBe('Shared')
+    })
+
+    test('fails clearly when the primary attribute is missing', async () => {
+      respondWith({ data: { settings: {} } })
+      const store = useOnlineSettingsStore()
+      const result = await store.fetchOnlineSettings()
+
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('"index_cards"')
+      expect(store.settings.value).toBe(null)
+    })
+
+    test('writes field config into the primary attribute and keeps its replacements', async () => {
+      respondWith({ data: record })
+      const store = useOnlineSettingsStore()
+      await store.fetchOnlineSettings()
+
+      respondWith({ data: record }, { data: { index_cards: { ...record.index_cards, fields: {} } } })
+      const result = await store.persistOnlineSettings({ itemsPath: '/api/index-cards', fields: {}, language: 'en' })
+
+      expect(result.ok).toBe(true)
+      const [, init] = globalThis.fetch.mock.calls[1]
+      expect(JSON.parse(init.body)).toEqual({
+        data: { index_cards: { itemsPath: '/api/index-cards', fields: {}, replacements: { label: { a: 'b' } } } },
+      })
+      expect(store.settings.value).toEqual({ itemsPath: '/api/index-cards', fields: {} })
+    })
+
+    test('writes replacements into the primary attribute', async () => {
+      respondWith({ data: record })
+      const store = useOnlineSettingsStore()
+      await store.fetchOnlineSettings()
+
+      respondWith({ data: record }, { data: { index_cards: { ...record.index_cards, replacements: { x: {} } } } })
+      const result = await store.persistOnlineReplacements({ x: {} })
+
+      expect(result).toMatchObject({ ok: true, replacements: { x: {} } })
+      const [, init] = globalThis.fetch.mock.calls[1]
+      expect(JSON.parse(init.body).data.index_cards.replacements).toEqual({ x: {} })
+      expect(JSON.parse(init.body).data.index_cards.fields).toEqual({ label: { type: 'normal' } })
+    })
+
+    test('resolves the settings of the collection an item belongs to', async () => {
+      respondWith({ data: record })
+      const store = useOnlineSettingsStore()
+      await store.fetchOnlineSettings()
+
+      expect(store.settingsForItemsPath('/api/collection-items/').itemsPath).toBe('/api/collection-items')
+      expect(store.settingsForItemsPath('/api/index-cards').fields).toEqual({ label: { type: 'normal' } })
+      expect(store.settingsForItemsPath('/api/unknown').itemsPath).toBe('/api/index-cards')
+    })
+
+    test('writes a secondary collection into its own attribute', async () => {
+      respondWith({ data: record })
+      const store = useOnlineSettingsStore()
+      await store.fetchOnlineSettings()
+
+      const saved = { itemsPath: '/api/collection-items', fields: { name: {} } }
+      respondWith({ data: record }, { data: { collection_items: saved } })
+      const result = await store.persistSecondaryCollectionSettings('collection_items', { fields: { name: {} } })
+
+      expect(result.ok).toBe(true)
+      const [, init] = globalThis.fetch.mock.calls[1]
+      expect(Object.keys(JSON.parse(init.body).data)).toEqual(['collection_items'])
+      expect(store.secondaryCollections.value[0].config).toEqual(saved)
+    })
   })
 })

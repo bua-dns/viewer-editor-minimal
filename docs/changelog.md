@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11 - Unlink or delete linked items
+
+- Each linked item has `Verknüpfung lösen` (removes only the link to the selected item; the item and its
+  other links stay) and `Löschen` (deletes it from its collection for good). Both ask first, run at once
+  and discard the item's unsaved changes. Deleting needs the `delete` permission on that collection.
+
+## 2026-11 - Collection layout: linked items in the editor
+
+- One `viewer-setting` can now describe several collections, one JSON attribute each
+  (`index_cards`, `collection_items`, …): field config, label field, relations and replacements. The
+  basic config of a deployment picks the roles: `primaryCollection` (the list) and
+  `secondaryCollections`. Two deployments can show the same collections the other way round and share
+  one configuration per collection.
+- Under the selected item, each secondary collection lists the linked items as collapsibles (closed by
+  default), edited with that collection's field config. Each has its own `Item speichern`; the shared
+  save includes them. `Item ableiten` opens the new item there.
+- The configuration tab has one sub-tab per collection; applying writes only that collection's
+  attribute, after reading it fresh.
+- In this layout the app title (`appTitle`) and the viewer settings come only from the basic config.
+- For deployments: nothing changes without `primaryCollection`. To switch, add one JSON attribute per
+  collection in Strapi, copy `settings` (and `replacements`) into the primary one by hand, and set
+  `primaryCollection` / `secondaryCollections` in `viewer-editor-app-config.v1.json`. Details: tech doc
+  §12.13.
+
 ## 2026-11 - Large replacement runs no longer freeze the browser
 
 - Fix: a replacements run over the whole collection copied the full list of pending updates for every

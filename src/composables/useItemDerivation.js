@@ -46,7 +46,8 @@ function toPreview(fields) {
  * @param {object} options `isEnabled()` (feature switched on, online, signed in), `canEditRules()`
  *   (settings writable), `onlineSettings` (ref; its `itemsPath` is the source collection),
  *   `selectedItem` (ref), `hasPendingChanges` (ref), `saveChanges()` (resolves to true when
- *   everything was saved), `language` (ref), `t(key, fallback)`; `session` and `services` are
+ *   everything was saved), `language` (ref), `t(key, fallback)`, `onCreated({ targetPath,
+ *   documentId })` (after the item was created); `session` and `services` are
  *   injected in tests.
  */
 export function useItemDerivation({
@@ -58,6 +59,7 @@ export function useItemDerivation({
   saveChanges,
   language,
   t,
+  onCreated = () => {},
   session = defaultSession,
   services = defaultServices,
 }) {
@@ -132,6 +134,7 @@ export function useItemDerivation({
       const response = await services.createItem({ ...session(), itemsPath: rule.target, fields })
       if (!isCurrent()) return
       update({ phase: 'done', created: describeCreatedItem(response, buildDerivedFields(rule, values)) })
+      onCreated({ targetPath: rule.target, documentId: response?.data?.documentId ?? response?.data?.id ?? '' })
     } catch (error) {
       if (isCurrent()) update({ phase: 'error', error: describeError(error) })
     }

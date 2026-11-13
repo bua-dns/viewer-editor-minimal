@@ -22,6 +22,9 @@ import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
 import OnlineAccessPanel from './components/OnlineAccessPanel.vue'
 import DeriveItemDialog from './components/DeriveItemDialog.vue'
+import SecondaryItemsSection from './components/SecondaryItemsSection.vue'
+import { useSecondaryItems } from './composables/useSecondaryItems'
+import { mergeOnlineSettings } from './services/viewerSettingsLayout'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 import { useConnectionProfileStore } from './stores/useConnectionProfileStore'
@@ -86,6 +89,7 @@ const { isOnlineSession, hasPendingOnlineChanges, confirmDiscardPendingOnlineCha
 const onlineItemsLoads = createRequestSequence()
 const {
   settings: onlineSettings,
+  isCollectionLayout,
   fetchOnlineSettings,
   persistOnlineSettings,
   clearOnlineSettings,
@@ -549,13 +553,16 @@ async function onSaveSelectedItem() {
   }
 }
 
+// Collection layout: items of the secondary collections linked to the selected item.
+const secondaryItems = reactive(useSecondaryItems({ selectedItem: selectedRawItem, saveItem: saveOnlineItemChanges }))
+
 // "Derive item": switched on in the basic config, online only, rule per source collection.
 const derivation = reactive(
   useItemDerivation({
     isEnabled: () => isDeriveItemsEnabled.value && appMode.value === 'online' && isAuthenticated.value,
     canEditRules: () => canWriteOnlineSettings.value,
     onlineSettings, selectedItem: selectedRawItem, hasPendingChanges: hasPendingOnlineChanges,
-    saveChanges: onSaveOnlineChanges, language, t,
+    saveChanges: onSaveOnlineChanges, language, t, onCreated: secondaryItems.reloadAfterCreate,
   }),
 )
 
@@ -583,19 +590,11 @@ function onSidebarSuspendEditingChange(event) {
   onSuspendEditingToggle({ uid, checked: event.target.checked })
 }
 
-// Keeps the keys the viewer does not edit (itemsPath, scanField, ...) and replaces the field
-// config and the viewer settings; a viewer setting without override is removed.
 function buildMergedOnlineSettings() {
-  const baseSettings =
-    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
-  const mergedSettings = {
-    ...baseSettings,
-    ...createUserConfigPayload(),
-  }
-  VIEWER_SETTING_KEYS.forEach((key) => {
-    delete mergedSettings[key]
+  return mergeOnlineSettings(onlineSettings.value, createUserConfigPayload(), {
+    viewerSettingKeys: VIEWER_SETTING_KEYS,
+    viewerOverrides: dataSourceViewerSettings.value,
   })
-  return { ...mergedSettings, ...dataSourceViewerSettings.value }
 }
 
 const canWriteOnlineSettings = computed(
@@ -616,8 +615,11 @@ async function onApplyUserConfig() {
   await persistOnlineSettings(buildMergedOnlineSettings())
 }
 
-// Viewer settings live with the data source, so they can only be edited while one is open.
+// Viewer settings live with the data source, so they can only be edited while one is open. In the
+// collection layout the data source is shared by several deployments: the basic config decides.
+const viewerSettingsFromBasicConfig = computed(() => appMode.value === 'online' && isCollectionLayout.value)
 const canEditViewerSettings = computed(() => {
+  if (viewerSettingsFromBasicConfig.value) return false
   if (appMode.value === 'online') {
     return canWriteOnlineSettings.value && Boolean(onlineSettings.value)
   }
@@ -1051,6 +1053,7 @@ function resetHierarchySelection() {
 
 function closeOnlineDataSource() {
   derivation.clearRules()
+  secondaryItems.clear()
   clearOnlineWording()
   clearDataSourceViewerSettings()
   clearOnlineSettings()
@@ -1093,6 +1096,7 @@ async function loadOnlineDataSource({ configOnly, isCurrent }) {
 
   setDataSourceViewerSettings(result.settings)
   applyUserConfigToRawItems(rawItems.value)
+  secondaryItems.initialize()
   if (configOnly) return
 
   const itemsResult = await fetchOnlineItems({ settings: result.settings })
@@ -1341,17 +1345,21 @@ watch(
 
                 <!-- Keyed per item: leaving an item unmounts its editors, so a pending Wikidata pick is
                   aborted instead of being written to the next item. -->
-                <ItemFieldEditor :key="selectedViewItem?._uid" :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
-                  :exclude-configured-types="hasScanField ? ['checkbox'] : []"
-                  :show-raw-data-dev-preview="dataInspectionMode"
-                  :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
-                  :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
-                  :copy-raw-data-label="t('copyRawDataLabel', 'Copy raw data')"
-                  :candidate-apply-to-label="t('candidateApplyToLabel', 'Uebernehmen in')"
-                  :candidate-choose-target-label="t('candidateChooseTargetLabel', 'Bitte Ziel-Feld in Konfiguration waehlen')"
-                  :candidate-autosuggest-prefills="candidateAutosuggestPrefills"
-                  :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
-                  @accept-candidate="onAcceptCandidate" />
+                <div class="sidebar-field-column">
+                  <ItemFieldEditor :key="selectedViewItem?._uid" :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
+                    :exclude-configured-types="hasScanField ? ['checkbox'] : []"
+                    :show-raw-data-dev-preview="dataInspectionMode"
+                    :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
+                    :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
+                    :copy-raw-data-label="t('copyRawDataLabel', 'Copy raw data')"
+                    :candidate-apply-to-label="t('candidateApplyToLabel', 'Uebernehmen in')"
+                    :candidate-choose-target-label="t('candidateChooseTargetLabel', 'Bitte Ziel-Feld in Konfiguration waehlen')"
+                    :candidate-autosuggest-prefills="candidateAutosuggestPrefills"
+                    :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
+                    @accept-candidate="onAcceptCandidate" />
+                  <SecondaryItemsSection v-if="secondaryItems.sections.length" :linked="secondaryItems"
+                    :is-editable-simple-value="isEditableSimpleValue" :can-save="canSaveSelectedItem" />
+                </div>
               </div>
             </div>
           </aside>
@@ -1368,7 +1376,7 @@ watch(
           class="configuration-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-configuration">
           <ConfigurationPanel :has-data="hasData" :allow-without-data="canConfigureWithoutData"
             :data-field-keys="availableFieldKeys" :remote-field-model="remoteFieldModel"
-            :no-data-hint="configurationNoDataHint" :derivation-source-path="derivation.editorSourcePath"
+            :no-data-hint="configurationNoDataHint" :derivation-source-path="derivation.editorSourcePath" :linked="secondaryItems"
             @apply="onApplyUserConfig"
             @reload-remote-field-model="reloadRemoteFieldModel" />
         </section>
@@ -1381,6 +1389,7 @@ watch(
         <section v-if="activeTab === 'database-connection'" id="panel-database-connection"
           class="database-connection-tab-panel tab-sheet-panel" role="tabpanel" aria-labelledby="tab-database-connection">
           <DatabaseConnectionPanel :can-edit-viewer-settings="canEditViewerSettings"
+            :viewer-settings-from-basic-config="viewerSettingsFromBasicConfig"
             :apply-viewer-settings="onApplyViewerSettings" />
         </section>
 

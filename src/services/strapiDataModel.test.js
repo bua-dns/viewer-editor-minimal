@@ -5,7 +5,42 @@ import {
   extractFieldModelFromSampleRow,
   fetchCollectionFieldModelFromStrapi,
   fetchCollectionTypesFromStrapi,
+  extractRelationAttribute,
 } from './strapiDataModel'
+
+describe('extractRelationAttribute', () => {
+  const payload = {
+    data: [
+      {
+        uid: 'api::index-card.index-card',
+        schema: { pluralName: 'index-cards', attributes: { label: { type: 'string' } } },
+      },
+      {
+        uid: 'api::collection-item.collection-item',
+        schema: {
+          pluralName: 'collection-items',
+          attributes: {
+            label: { type: 'string' },
+            persons: { type: 'relation', target: 'api::person.person' },
+            index_cards: { type: 'relation', target: 'api::index-card.index-card' },
+          },
+        },
+      },
+    ],
+  }
+
+  test('finds the attribute pointing to the other collection', () => {
+    expect(
+      extractRelationAttribute(payload, { fromItemsPath: '/api/collection-items', toItemsPath: '/api/index-cards' }),
+    ).toBe('index_cards')
+  })
+
+  test('returns empty when the collection has no relation to the other one', () => {
+    expect(
+      extractRelationAttribute(payload, { fromItemsPath: '/api/index-cards', toItemsPath: '/api/collection-items' }),
+    ).toBe('')
+  })
+})
 
 const profile = { baseUrl: 'https://cms.example.org/project', configPath: '/api/viewer-setting' }
 

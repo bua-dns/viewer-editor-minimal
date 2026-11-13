@@ -16,6 +16,10 @@ const props = defineProps({
   candidateChooseTargetLabel: { type: String, default: 'Select target in configuration' },
   isEditableSimpleValue: { type: Function, required: true },
   candidateAutosuggestPrefills: { type: Object, default: () => ({}) },
+  // Field configuration to render with: '' = the primary collection, else a secondary one.
+  configScope: { type: String, default: '' },
+  // Prefix of the input ids; must differ between editors shown at the same time.
+  fieldIdPrefix: { type: String, default: 'field' },
 })
 
 const emit = defineEmits(['field-change', 'accept-candidate'])
@@ -29,7 +33,7 @@ const {
   getFieldEditorBinding,
   getPrefillProposal,
   getDisplayedFieldKeys,
-} = useFieldMapping()
+} = useFieldMapping(props.configScope, { fieldIdPrefix: props.fieldIdPrefix })
 
 // Fields whose prefill proposal was discarded with the x button. The editor is keyed per item, so
 // this resets when another item is opened.
@@ -82,12 +86,8 @@ const fieldRows = computed(() =>
       candidateTargetField,
       candidateTargetType: candidateTargetConfig?.type || null,
       candidateTargetLabel: candidateTargetField ? getFieldLabel(candidateTargetField) : '',
-      editorBinding: getFieldEditorBinding(
-        key,
-        value,
-        props.selectedRawItem,
-        props.candidateAutosuggestPrefills,
-      ),
+      fieldId: `${props.fieldIdPrefix}-${key}`,
+      editorBinding: getFieldEditorBinding(key, value, props.selectedRawItem, props.candidateAutosuggestPrefills),
     }
   }).filter((row) => shouldIncludeConfiguredType(row.configuredType)),
 )
@@ -170,7 +170,7 @@ async function onCopyRawData() {
   <div class="field-grid">
     <template v-for="row in fieldRows" :key="row.key">
       <div class="field-row" :class="[`field-width-${row.fieldWidth.replace('%', '')}`, { 'is-readonly': row.isReadOnly }]">
-        <label :for="`field-${row.key}`" class="field-label">
+        <label :for="row.fieldId" class="field-label">
           <span>{{ row.label }}</span>
           <small v-if="row.isReadOnly" class="field-readonly-badge">read-only</small>
         </label>
