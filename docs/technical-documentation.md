@@ -62,7 +62,12 @@ Kernfunktionen:
 - Framework: Vue 3 (`script setup`, Composition API), ohne externe State-Bibliothek
   (Stores sind Module mit Modul-globalen `ref`s)
 - Build Tool: Vite 6
-- Tests: Vitest 2
+- Tests: Vitest 4; DOM-Tests mit `jsdom` und `@vue/test-utils` (nur je Datei per
+  `// @vitest-environment jsdom`, alle anderen Tests laufen in `node`)
+- Lint: ESLint 9 (Flat Config `eslint.config.js`) mit `eslint-plugin-vue` (`flat/recommended`,
+  Template-Formatierungsregeln aus)
+- CI: `.github/workflows/ci.yml` führt bei jedem Push und Pull Request `pnpm lint`, `pnpm test` und
+  `pnpm build` aus
 - Styling: Sass (SCSS)
 - Info-Tab-Rendering: `markdown-it` + `highlight.js`
 - Sprache: JavaScript (ESM)
@@ -82,6 +87,7 @@ pnpm dev        # Vite Dev-Server
 pnpm build      # Produktionsbuild
 pnpm preview    # Build lokal serven
 pnpm test       # vitest run
+pnpm lint       # eslint .
 pnpm settings:backup <project> | --all   # Strapi viewer-setting lokal sichern (siehe unten)
 pnpm items:dump <project> | --all        # alle Items der Collection lokal ablegen (siehe unten)
 pnpm fields:sync                         # Feldkonfiguration zwischen Collections prüfen/angleichen (Menü, siehe unten)
@@ -397,7 +403,9 @@ nie umgekehrt; `domain/` nutzt nur `fields/`.
 
 ### Tests
 
-Alle Tests liegen neben ihrem Modul (`*.test.js`); Inhalte siehe [Kapitel 16](#16-testabdeckung).
+Alle Tests liegen neben ihrem Modul (`*.test.js`); Inhalte siehe [Kapitel 16](#16-testabdeckung). Gemeinsame
+Test-Helfer liegen in `test/helpers/`: `storageMock.js` (`createLocalStorageMock`) und `domStubs.js`
+(`installDomStubs`: `ResizeObserver`, `confirm`, beide Storages; `chooseFile` für Datei-Inputs).
 
 ---
 
@@ -1779,7 +1787,25 @@ Testlauf:
 pnpm test        # entspricht: vitest run
 ```
 
-Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
+Einzelne Komponenten (`.vue`) haben noch keine eigenen Tests; das betrifft u. a. den Auswahlabbruch und
+`missingData` im Wikidata-Feld. `src/App.smoke.test.js` montiert die ganze App in `jsdom`
+(Charakterisierungstest aus `plan-composition-root` Phase 1.2): Jeder Test startet mit frischem
+Modulgraph (`vi.resetModules()`), weil die Stores modulglobalen Zustand halten; `fetch` ist ein
+Strapi-Stub, der jeden Request mitschreibt. Geprüft wird über Requests, gerenderten Text und
+Formularzustand, nicht über Layout-Klassen:
+
+| Szenario | Geprüftes Verhalten |
+| --- | --- |
+| Offline-Start | Kein Request, keine Items |
+| Hierarchie aus Datei | `config.hierarchyFields` mit zwei Feldern ergibt Level-1-Boxen mit Zahlen; Klick öffnet die erste Level-2-Gruppe |
+| Ungültige `config` | Fehlermeldung, die geladenen Items bleiben |
+| Letztes Item aussetzen | bleibt ausgesetzt (schlägt gegen den Stand vor `74202e9` fehl) |
+| Ausgesetztes Item wählen | wird wieder aufgenommen |
+| `beforeunload` | fragt nur bei ungespeicherten Änderungen |
+| Info-Tab | lädt nachträglich und rendert den Text |
+| Online-Start | Settings vor Items, Items erscheinen |
+| Online speichern | genau ein `PUT` mit nur dem geänderten Feld |
+| Abmelden mit Änderungen | fragt; Abbrechen behält Änderung und Sitzung, `beforeunload` warnt weiter |
 
 ### Composables und Domain-Logik
 
