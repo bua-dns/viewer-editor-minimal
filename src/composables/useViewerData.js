@@ -35,6 +35,51 @@ function isEditableSimpleValue(value) {
   )
 }
 
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key)
+}
+
+// An invalid embedded config rejects the whole file, so the import never half-succeeds.
+function checkEmbeddedConfig(value) {
+  if (!isPlainObject(value)) return 'JSON-Feld "config" muss ein Objekt sein.'
+  const validation = validateImportedConfigPayload(value)
+  return validation.ok ? '' : validation.error
+}
+
+// Optional parts next to `data` in an object payload, checked in this order. `check` returns an
+// error text, or '' when the value is fine.
+const OPTIONAL_PAYLOAD_PARTS = [
+  { key: 'config', check: checkEmbeddedConfig },
+  {
+    key: 'replacements',
+    check: (value) => (isPlainObject(value) ? '' : 'JSON-Feld "replacements" muss ein Objekt sein.'),
+  },
+  {
+    key: 'suspendedItems',
+    check: (value) => (Array.isArray(value) ? '' : 'JSON-Feld "suspendedItems" muss ein Array sein.'),
+  },
+]
+
+function checkDataArray(rawData, hasDataObject) {
+  if (!Array.isArray(rawData)) {
+    return hasDataObject ? 'JSON-Feld "data" muss ein Array sein.' : 'Top-Level muss ein JSON-Array sein.'
+  }
+  const invalidIndex = rawData.findIndex((item) => !isPlainObject(item))
+  return invalidIndex === -1 ? '' : `Element ${invalidIndex + 1} ist kein Objekt.`
+}
+
+/** The optional parts present in `parsed`, or the first error. */
+function readOptionalPayloadParts(parsed) {
+  const parts = {}
+  for (const { key, check } of OPTIONAL_PAYLOAD_PARTS) {
+    if (!hasOwn(parsed, key)) continue
+    const error = check(parsed[key])
+    if (error) return { error }
+    parts[key] = parsed[key]
+  }
+  return { parts }
+}
+
 function parseJsonPayload(text) {
   let parsed
   try {
@@ -43,57 +88,23 @@ function parseJsonPayload(text) {
     return { ok: false, error: 'JSON ist ungueltig (Parse-Fehler).' }
   }
 
-  const hasDataObject = isPlainObject(parsed) && Object.prototype.hasOwnProperty.call(parsed, 'data')
+  const hasDataObject = isPlainObject(parsed) && hasOwn(parsed, 'data')
   const rawData = hasDataObject ? parsed.data : parsed
+  const dataError = checkDataArray(rawData, hasDataObject)
+  if (dataError) return { ok: false, error: dataError }
 
-  if (!Array.isArray(rawData)) {
-    if (hasDataObject) {
-      return { ok: false, error: 'JSON-Feld "data" muss ein Array sein.' }
-    }
-    return { ok: false, error: 'Top-Level muss ein JSON-Array sein.' }
-  }
-
-  const invalidIndex = rawData.findIndex((item) => !isPlainObject(item))
-  if (invalidIndex !== -1) {
-    return { ok: false, error: `Element ${invalidIndex + 1} ist kein Objekt.` }
-  }
-
-  const hasConfigProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'config')
-  if (hasConfigProperty && !isPlainObject(parsed.config)) {
-    return { ok: false, error: 'JSON-Feld "config" muss ein Objekt sein.' }
-  }
-
-  // An invalid embedded config rejects the whole file, so the import never half-succeeds.
-  if (hasConfigProperty) {
-    const configValidation = validateImportedConfigPayload(parsed.config)
-    if (!configValidation.ok) return { ok: false, error: configValidation.error }
-  }
-
-  const configFromPayload = hasConfigProperty ? parsed.config : null
-
-  const hasReplacementsProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'replacements')
-  if (hasReplacementsProperty && !isPlainObject(parsed.replacements)) {
-    return { ok: false, error: 'JSON-Feld "replacements" muss ein Objekt sein.' }
-  }
-
-  const replacementsFromPayload = hasReplacementsProperty ? parsed.replacements : null
-
-  const hasSuspendedItemsProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'suspendedItems')
-  if (hasSuspendedItemsProperty && !Array.isArray(parsed.suspendedItems)) {
-    return { ok: false, error: 'JSON-Feld "suspendedItems" muss ein Array sein.' }
-  }
-
-  const suspendedItemsFromPayload = hasSuspendedItemsProperty ? parsed.suspendedItems : []
+  const { parts, error } = hasDataObject ? readOptionalPayloadParts(parsed) : { parts: {} }
+  if (error) return { ok: false, error }
 
   return {
     ok: true,
     data: rawData,
-    hasConfig: configFromPayload !== null,
-    config: configFromPayload,
-    hasReplacements: replacementsFromPayload !== null,
-    replacements: replacementsFromPayload,
-    hasSuspendedItems: hasSuspendedItemsProperty,
-    suspendedItems: suspendedItemsFromPayload,
+    hasConfig: hasOwn(parts, 'config'),
+    config: parts.config ?? null,
+    hasReplacements: hasOwn(parts, 'replacements'),
+    replacements: parts.replacements ?? null,
+    hasSuspendedItems: hasOwn(parts, 'suspendedItems'),
+    suspendedItems: parts.suspendedItems ?? [],
   }
 }
 
