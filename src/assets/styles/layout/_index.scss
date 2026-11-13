@@ -365,6 +365,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.sidebar-field-column {
+  min-width: 0;
+}
+
 .sidebar-checkbox-fields {
   margin-top: var(--ve-space-3);
   margin-bottom: var(--ve-space-3);

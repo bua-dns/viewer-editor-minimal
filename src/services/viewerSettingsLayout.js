@@ -91,3 +91,14 @@ export function mergeSettingsIntoCollectionConfig(current, settings, omitKeys = 
 export function mergeReplacementsIntoCollectionConfig(current, replacements) {
   return { ...(isPlainObject(current) ? current : {}), replacements }
 }
+
+/**
+ * The settings written by `Konfiguration anwenden`: the stored ones with the edited field config
+ * on top. `viewerSettingKeys` are dropped and `viewerOverrides` put back, so a viewer setting
+ * without override is removed. Keys the viewer does not edit (itemsPath, scanField, …) stay.
+ */
+export function mergeOnlineSettings(storedSettings, userConfigPayload, { viewerSettingKeys = [], viewerOverrides = {} } = {}) {
+  const merged = { ...(isPlainObject(storedSettings) ? storedSettings : {}), ...userConfigPayload }
+  viewerSettingKeys.forEach((key) => delete merged[key])
+  return { ...merged, ...viewerOverrides }
+}

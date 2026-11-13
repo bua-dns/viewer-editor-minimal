@@ -36,6 +36,7 @@ function setup({ enabled = true, pending = false, saveResult = true, item } = {}
     fetchRow: vi.fn(async () => serverRow),
     createItem: vi.fn(async ({ fields }) => ({ data: { documentId: 'new-1', ...fields } })),
   }
+  const onCreated = vi.fn()
   const derivation = useItemDerivation({
     isEnabled: () => state.enabled.value,
     canEditRules: () => state.canEdit.value,
@@ -47,8 +48,9 @@ function setup({ enabled = true, pending = false, saveResult = true, item } = {}
     t: (_key, fallback) => fallback,
     session: () => ({ profile: { baseUrl: 'https://x' }, token: 't' }),
     services,
+    onCreated,
   })
-  return { ...state, ...derivation, saveChanges, services }
+  return { ...state, ...derivation, saveChanges, services, onCreated }
 }
 
 describe('useItemDerivation', () => {
@@ -119,6 +121,7 @@ describe('useItemDerivation', () => {
       }),
     )
     expect(state.dialog.value).toMatchObject({ phase: 'done', created: { id: 'new-1', label: 'item_0_00571' } })
+    expect(state.onCreated).toHaveBeenCalledWith({ targetPath: '/api/collection-items', documentId: 'new-1' })
   })
 
   test('saves pending changes first and then reads the saved source item', async () => {

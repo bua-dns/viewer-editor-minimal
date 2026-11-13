@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import {
   LAYOUT_V1,
   LAYOUT_V2,
+  mergeOnlineSettings,
   mergeReplacementsIntoCollectionConfig,
   mergeSettingsIntoCollectionConfig,
   readViewerSettingsLayout,
@@ -84,5 +85,16 @@ describe('merging into a collection attribute', () => {
   test('new replacements keep everything else', () => {
     const next = mergeReplacementsIntoCollectionConfig(collectionItems, { name: { x: 'y' } })
     expect(next).toEqual({ ...collectionItems, replacements: { name: { x: 'y' } } })
+  })
+})
+
+describe('mergeOnlineSettings', () => {
+  test('keeps unedited keys, replaces field config and viewer settings', () => {
+    const merged = mergeOnlineSettings(
+      { itemsPath: '/api/x', fields: { old: {} }, language: 'en', primaryColor: '#000' },
+      { version: 1, fields: { new: {} } },
+      { viewerSettingKeys: ['language', 'primaryColor'], viewerOverrides: { primaryColor: '#fff' } },
+    )
+    expect(merged).toEqual({ itemsPath: '/api/x', version: 1, fields: { new: {} }, primaryColor: '#fff' })
   })
 })

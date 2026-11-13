@@ -22,6 +22,9 @@ import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
 import OnlineAccessPanel from './components/OnlineAccessPanel.vue'
 import DeriveItemDialog from './components/DeriveItemDialog.vue'
+import SecondaryItemsSection from './components/SecondaryItemsSection.vue'
+import { useSecondaryItems } from './composables/useSecondaryItems'
+import { mergeOnlineSettings } from './services/viewerSettingsLayout'
 import maximizeIcon from './assets/icons/maximize-2.svg'
 import minimizeIcon from './assets/icons/minimize-2.svg'
 import { useConnectionProfileStore } from './stores/useConnectionProfileStore'
@@ -550,13 +553,16 @@ async function onSaveSelectedItem() {
   }
 }
 
+// Collection layout: items of the secondary collections linked to the selected item.
+const secondaryItems = reactive(useSecondaryItems({ selectedItem: selectedRawItem, saveItem: saveOnlineItemChanges }))
+
 // "Derive item": switched on in the basic config, online only, rule per source collection.
 const derivation = reactive(
   useItemDerivation({
     isEnabled: () => isDeriveItemsEnabled.value && appMode.value === 'online' && isAuthenticated.value,
     canEditRules: () => canWriteOnlineSettings.value,
     onlineSettings, selectedItem: selectedRawItem, hasPendingChanges: hasPendingOnlineChanges,
-    saveChanges: onSaveOnlineChanges, language, t,
+    saveChanges: onSaveOnlineChanges, language, t, onCreated: secondaryItems.reloadAfterCreate,
   }),
 )
 
@@ -584,19 +590,11 @@ function onSidebarSuspendEditingChange(event) {
   onSuspendEditingToggle({ uid, checked: event.target.checked })
 }
 
-// Keeps the keys the viewer does not edit (itemsPath, scanField, ...) and replaces the field
-// config and the viewer settings; a viewer setting without override is removed.
 function buildMergedOnlineSettings() {
-  const baseSettings =
-    onlineSettings.value && typeof onlineSettings.value === 'object' ? onlineSettings.value : {}
-  const mergedSettings = {
-    ...baseSettings,
-    ...createUserConfigPayload(),
-  }
-  VIEWER_SETTING_KEYS.forEach((key) => {
-    delete mergedSettings[key]
+  return mergeOnlineSettings(onlineSettings.value, createUserConfigPayload(), {
+    viewerSettingKeys: VIEWER_SETTING_KEYS,
+    viewerOverrides: dataSourceViewerSettings.value,
   })
-  return { ...mergedSettings, ...dataSourceViewerSettings.value }
 }
 
 const canWriteOnlineSettings = computed(
@@ -1055,6 +1053,7 @@ function resetHierarchySelection() {
 
 function closeOnlineDataSource() {
   derivation.clearRules()
+  secondaryItems.clear()
   clearOnlineWording()
   clearDataSourceViewerSettings()
   clearOnlineSettings()
@@ -1097,6 +1096,7 @@ async function loadOnlineDataSource({ configOnly, isCurrent }) {
 
   setDataSourceViewerSettings(result.settings)
   applyUserConfigToRawItems(rawItems.value)
+  secondaryItems.initialize()
   if (configOnly) return
 
   const itemsResult = await fetchOnlineItems({ settings: result.settings })
@@ -1345,17 +1345,21 @@ watch(
 
                 <!-- Keyed per item: leaving an item unmounts its editors, so a pending Wikidata pick is
                   aborted instead of being written to the next item. -->
-                <ItemFieldEditor :key="selectedViewItem?._uid" :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
-                  :exclude-configured-types="hasScanField ? ['checkbox'] : []"
-                  :show-raw-data-dev-preview="dataInspectionMode"
-                  :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
-                  :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
-                  :copy-raw-data-label="t('copyRawDataLabel', 'Copy raw data')"
-                  :candidate-apply-to-label="t('candidateApplyToLabel', 'Uebernehmen in')"
-                  :candidate-choose-target-label="t('candidateChooseTargetLabel', 'Bitte Ziel-Feld in Konfiguration waehlen')"
-                  :candidate-autosuggest-prefills="candidateAutosuggestPrefills"
-                  :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
-                  @accept-candidate="onAcceptCandidate" />
+                <div class="sidebar-field-column">
+                  <ItemFieldEditor :key="selectedViewItem?._uid" :selected-raw-item="selectedRawItem" :selected-view-item="selectedViewItem"
+                    :exclude-configured-types="hasScanField ? ['checkbox'] : []"
+                    :show-raw-data-dev-preview="dataInspectionMode"
+                    :raw-data-toggle-label="t('rawDataToggleLabel', 'show raw data')"
+                    :raw-data-hide-label="t('rawDataHideLabel', 'hide raw data')"
+                    :copy-raw-data-label="t('copyRawDataLabel', 'Copy raw data')"
+                    :candidate-apply-to-label="t('candidateApplyToLabel', 'Uebernehmen in')"
+                    :candidate-choose-target-label="t('candidateChooseTargetLabel', 'Bitte Ziel-Feld in Konfiguration waehlen')"
+                    :candidate-autosuggest-prefills="candidateAutosuggestPrefills"
+                    :is-editable-simple-value="isEditableSimpleValue" @field-change="onFieldChange"
+                    @accept-candidate="onAcceptCandidate" />
+                  <SecondaryItemsSection v-if="secondaryItems.sections.length" :linked="secondaryItems"
+                    :is-editable-simple-value="isEditableSimpleValue" :can-save="canSaveSelectedItem" />
+                </div>
               </div>
             </div>
           </aside>
