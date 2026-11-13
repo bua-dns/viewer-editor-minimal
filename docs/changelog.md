@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11 - Admin CLI: sync field config between collections
+
+- `pnpm fields:sync` (menu in a terminal, or `check` / `sync` with arguments) compares one field of two
+  collections in a project: the Strapi structure (type, component, repeatable) and the viewer field
+  config. `sync` makes the target's config identical to the source's (`order` stays per collection;
+  `prefillWith` only if the target has that field). It refuses on a structure mismatch, backs up the
+  viewer-setting and asks before writing. The token is read from the project's `.env.local`.
+
+## 2026-11 - Derivation rules: copy component, JSON and blocks fields
+
+- In the derivation rule editor, component, JSON and blocks fields can now be mapped (they were greyed
+  out). They are copied whole, only into a field of the same structure (component: same component and
+  same single/repeatable setting); other pairs are greyed out, and a stored rule with a mismatch cannot
+  be saved. Needs the content-type schema; relation, media and dynamic zone fields stay locked.
+- `Item ableiten` populates the copied components and sends them without their database ids and
+  without nested media/relations. JSON content inside a component is kept as is.
+- On a secondary collection's configuration tab, `Datenmodell neu laden` now also reloads that
+  collection's configuration from Strapi, so changes saved elsewhere show without reloading the page.
+  Unapplied changes in the tab are only discarded after a question.
+
 ## 2026-11 - Editor layout under the scan
 
 - Under the scan, the hierarchy fields (`level_0`, `level_1`, …) come first, compact and two per row,

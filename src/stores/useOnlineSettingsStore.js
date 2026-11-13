@@ -168,6 +168,29 @@ async function persistSecondaryCollectionSettings(collectionId, nextSettings) {
   return { ok: true, config: result.config }
 }
 
+/**
+ * Reads one secondary collection's attribute fresh from Strapi, so a change saved elsewhere (another
+ * tab, an admin script) shows without reloading the page.
+ */
+async function fetchCollectionAttribute(connection, collectionId) {
+  const config = (await fetchViewerSettingsRecordFromStrapi(connection))[collectionId]
+  const isObject = Boolean(config) && typeof config === 'object' && !Array.isArray(config)
+  if (!isObject) throw new Error(`The viewer settings have no JSON attribute "${collectionId}".`)
+  return { config }
+}
+
+async function reloadSecondaryCollectionSettings(collectionId) {
+  const result = await runSettingsRequest('Could not reload the collection settings.', (connection) =>
+    fetchCollectionAttribute(connection, collectionId),
+  )
+  if (!result.ok) return result
+
+  secondaryCollections.value = secondaryCollections.value.map((entry) =>
+    entry.id === collectionId ? { ...entry, config: result.config, error: '' } : entry,
+  )
+  return { ok: true, config: result.config }
+}
+
 function normalizePath(path) {
   return String(path || '').split('#')[0].split('?')[0].replace(/\/+$/, '')
 }
@@ -201,6 +224,7 @@ export function useOnlineSettingsStore() {
     persistOnlineSettings,
     persistOnlineReplacements,
     persistSecondaryCollectionSettings,
+    reloadSecondaryCollectionSettings,
     settingsForItemsPath,
   }
 }

@@ -84,6 +84,7 @@ pnpm preview    # Build lokal serven
 pnpm test       # vitest run
 pnpm settings:backup <project> | --all   # Strapi viewer-setting lokal sichern (siehe unten)
 pnpm items:dump <project> | --all        # alle Items der Collection lokal ablegen (siehe unten)
+pnpm fields:sync                         # Feldkonfiguration zwischen Collections prüfen/angleichen (Menü, siehe unten)
 ```
 
 Die Skriptnamen sind identisch für `npm run ...`; ein `npm install` erzeugt allerdings ein
@@ -170,6 +171,63 @@ pnpm items:dump --all [--page-size 100]
 - **Auth:** wie oben, optional `VIEWER_SETTING_TOKEN`.
 - Code: `build-tools/itemsDump.js` (Logik), `build-tools/dumpItems.js` (CLI), gemeinsames Env-Setup beider
   CLIs in `build-tools/cliEnv.js`. Tests: `build-tools/itemsDump.test.js`.
+
+### Feldkonfiguration zwischen Collections angleichen (`pnpm fields:sync`)
+
+```bash
+pnpm fields:sync                                    # Menü (nur im Terminal)
+pnpm fields:sync check xylothek-index-cards --from index_cards --to collection_items --field collectors
+pnpm fields:sync sync  xylothek-index-cards --from index_cards --to collection_items --field collectors [--yes]
+```
+
+Gegenstück zum Kopieren von Komponenten beim Ableiten ([12.12](#1212-items-ableiten)): ein kopiertes Feld
+erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldkonfiguration hat.
+
+- **Collections** sind die Attribute des `viewer-setting` mit `itemsPath` und `fields` (v2-Layout, z. B.
+  `index_cards`, `collection_items`); das v1-Attribut `settings` wird nicht angeboten und nicht angefasst.
+  Felder werden über denselben Schlüssel in Quelle und Ziel verglichen.
+- **check** (nur lesend): Strapi-Schema des Felds in beiden Collections (`GET
+  /api/content-type-builder/content-types`, Content-Type über den Plural-Namen aus `itemsPath`): gleicher
+  Typ, bei Komponenten gleiche UID und gleiches `repeatable`. Dann die Viewer-Konfiguration: in beiden
+  konfiguriert? Unterschiede als Schlüsselpfade (`autosuggest.prioritize: — → {…}`). Exit `0` gleiche Struktur
+  und identisch, `1` Unterschiede bzw. Schema-Problem, `2` Fehler. Ohne Leserecht aufs Schema meldet der Check
+  `schema not readable` statt abzubrechen.
+- **Was „identisch" heißt:** alle Schlüssel außer `order` (Position im Formular der jeweiligen Collection).
+  `prefillWith` wird nur übernommen, wenn das genannte Feld im Ziel konfiguriert ist; sonst entfällt es mit
+  Hinweis. Check und Sync nutzen dieselbe Regel, nach einem Sync meldet der Check „identical".
+- **sync:** verweigert, wenn der Strapi-Check scheitert oder das Feld in der Quelle fehlt; bei identischer
+  Konfiguration passiert nichts. Sonst: Settings-Backup (`backupProject`, wie `settings:backup`) → Diff →
+  Rückfrage `[y/N]` (Default nein; `--yes` überspringt sie, ohne Terminal ohne `--yes` wird nichts geschrieben)
+  → `viewer-setting` frisch lesen → `PUT <configPath>` mit `{ data: { <Ziel-Attribut>: … } }` (nur dieses
+  Attribut, darin nur dieses Feld) → erneut lesen und prüfen. Ein neues Feld kommt ans Ende der `order`.
+- **Token:** `VIEWER_SETTING_TOKEN` aus `<project>/.env.local` bzw. `.env` im Config-Repo, sonst aus der
+  `.env.local` dieses Repos bzw. der Umgebung. Sync braucht Schreibrecht auf den `viewer-setting`.
+- **Menü** (auf stderr; Enter = Vorschlag, `b` zurück, `q` beenden, Ctrl+C bricht ab): Projekt → Quelle →
+  Ziel (ohne die Quelle) → Feld (Komponenten zuerst, darin die auch im Ziel konfigurierten) → Operation.
+  Jeder Lauf ist ein CLI-Aufruf, das Menü zeigt ihn an; danach geht es zurück zur Feldauswahl.
+
+  ```
+  Field:
+    1) collectors  (component, configured in target)  (default)
+    2) locations  (component, not in target)
+  Choice [1] (b back, q quit):
+  Operation for "collectors":
+    1) check  (read only)  (default)
+    2) sync   (writes the target config after a backup and a confirmation)
+  > pnpm fields:sync check xylothek-index-cards --from index_cards --to collection_items --field collectors
+  Field "collectors": index_cards → collection_items
+    Strapi:  same structure — source: component metadata-forms.wikidata-reference, repeatable; target: …
+    Viewer:  configured in source: yes; in target: yes
+    Config:  2 difference(s) (target vs. source):
+      autosuggest.alsoGetDataFrom: — → [{"propertyId":"P227","label":"GND"}]
+      autosuggest.prioritize: — → {"claimPresence":{…}}
+    Note:    prefillWith "ai_collector" is left out: the target has no field "ai_collector".
+  ```
+
+- Code: `build-tools/fieldConfigSync.js` (reine Logik: Collections, Schema-Vergleich, Diff, Zielkonfiguration),
+  `build-tools/fieldSyncStrapi.js` (Lesen, Backup, Schreiben), `build-tools/fieldSyncMenu.js` (Menü, alle I/O
+  injiziert), `build-tools/syncFieldConfig.js` (CLI). Tests: `fieldConfigSync.test.js`,
+  `fieldSyncStrapi.test.js` (Fake-Strapi), `fieldSyncMenu.test.js` (geskriptete Sitzungen, CLI-Argumente).
 
 ---
 
@@ -1290,7 +1348,8 @@ auf, sperrt den Button während des Laufs und rendert das Ergebnis als Statusmel
 ### 12.11 Datenmodell der Collection (Felder zum Hinzufügen)
 
 `fetchCollectionFieldModelFromStrapi({ profile, token, itemsPath })` in `services/strapiDataModel.js`
-liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedType, isStructured }] }`:
+liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedType, isStructured }] }`
+(Komponenten aus dem Schema zusätzlich mit `component` (UID) und `repeatable`):
 
 1. **Schema:** `GET /api/content-type-builder/content-types`, davon der Content-Type, dessen
    `schema.pluralName` dem letzten Segment von `itemsPath` entspricht (`/api/index-cards` →
@@ -1349,6 +1408,7 @@ Quell-Collection; der Viewer nimmt die Regel, deren `source` dem `itemsPath` der
 | `label` | Button- und Dialogtitel je Sprache; ohne Eintrag `Item ableiten` / `Derive item` |
 | `relationField` | Relationsattribut **der Ziel-Collection**, das auf die Quelle zeigt (bei many-to-many genügt eine Seite) |
 | `fields[]` mit `from` | kopiert den Wert des Quellfelds; `prefix` wird davor gesetzt. Leere Quellwerte (`null`, leerer bzw. reiner Leerzeichen-String) werden ausgelassen, `0` und `false` übernommen |
+| `fields[]` mit `from`, strukturiert | Komponente, JSON oder Blocks werden als Ganzes kopiert, nur in ein Feld gleicher Struktur (Komponente: gleiche UID und gleiches `repeatable`). Komponenten-Einträge verlieren ihre Datenbank-`id` und verschachtelte Medien/Relationen; verschachtelte Komponenten ebenso. JSON-Inhalte bleiben unverändert (auch `id`-Schlüssel darin). `prefix` gilt nur für Text und Zahlen |
 | `fields[]` mit `value` | fester Wert (ein vorhandener Schlüssel `value` macht die Zeile zur Konstante, auch bei `""`) |
 
 Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDerivationRules`).
@@ -1356,16 +1416,23 @@ Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDeriva
 **Ablauf** (`useItemDerivation`):
 
 ```
-Klick ─▶ GET <source>/<documentId>  (bei einem Entwurf übersprungen)
+Klick ─▶ Datenmodell der Quelle + GET /api/content-type-builder/components (Komponenten-Schemas)
+      ─▶ GET <source>/<documentId>?populate[n]=<kopierte Komponente>  (bei einem Entwurf übersprungen)
       ─▶ Vorschau = Serverwerte + lokale ungespeicherte Werte ─▶ Dialog
 OK    ─▶ ungespeicherte Änderungen? ─ ja ─▶ useOnlineSave (alles) ─ Fehler ─▶ Abbruch, nichts angelegt
-      ─▶ GET <source>/<documentId>  (gespeicherter Stand, auch Felder außerhalb der Feldkonfiguration)
+      ─▶ GET <source>/<documentId>?populate…  (gespeicherter Stand, auch Felder außerhalb der Feldkonfiguration)
+      ─▶ Komponenten bereinigen (cleanComponentValue)
       ─▶ POST <target> { data: { …Zielwerte, <relationField>: { connect: [{ documentId }] } } }
       ─▶ Dialog: "Item angelegt: <label> (ID <documentId>)"
 ```
 
 - Ein gerade angelegter Entwurf wird beim Vorab-Speichern erstellt und danach über seine neue
   `documentId` verknüpft. Ohne `documentId` (Strapi v4) wird über `{ id }` verknüpft.
+- Komponenten werden nur gefüllt, wenn das Datenmodell der Quelle aus dem Schema kommt; ohne Schema werden
+  sie weder populiert noch bereinigt. Ohne lesbare Komponenten-Schemas fällt nur die `id` der Einträge weg.
+  Verschachtelte Komponenten werden nicht eigens populiert (nur eine Ebene).
+- Die Vorschau zeigt Komponenten unbereinigt, mit lokalen Änderungen in Viewer-Form (bei
+  Wikidata-Feldern ist `id` dort die QID); angelegt wird aus dem gespeicherten Strapi-Stand.
 - Die Bezeichnung im Ergebnis ist `label` der Antwort, sonst der erste abgeleitete Textwert.
 - Ein zweites Ableiten desselben Items ist erlaubt und legt ein weiteres Ziel-Item an (kein Hinweis).
 - **Unklarer Ausgang** (Timeout, Abbruch, `outcomeUnknown`): der Dialog sagt, dass das Item vielleicht
@@ -1378,8 +1445,11 @@ schreibbaren Settings. Quelle ist fest die geladene Collection. Die Ziel-Collect
 Collection-Types des Schemas (`fetchCollectionTypesFromStrapi`, nur `api::`-Collection-Types ohne die
 Quelle; ohne Leserecht ein Textfeld). Die Dropdowns kommen aus den Datenmodellen
 ([12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)): Quelle aus `useRemoteFieldModel`, Ziel
-per `fetchCollectionFieldModelFromStrapi` auf `target`. Strukturierte Felder (Relation, Medien, Komponente,
-JSON) stehen in den Feld-Dropdowns, sind aber gesperrt. Das Relationsfeld bietet die `relation`-Attribute
+per `fetchCollectionFieldModelFromStrapi` auf `target`. Komponente, JSON und Blocks sind wählbar, wenn das
+jeweilige Modell aus dem Schema kommt (`isMappableField`); im Quell-Dropdown sind dann nur Felder gleicher
+Struktur frei (`areFieldsCompatible`), Präfix und fester Wert entfallen für solche Ziele. Eine gespeicherte
+Regel mit unpassendem Paar meldet `deriveRuleIncompatibleField` und lässt sich nicht speichern.
+Relation, Medien und Dynamic Zones bleiben gesperrt. Das Relationsfeld bietet die `relation`-Attribute
 des Ziels an (bei geratenem Modell die strukturierten Felder). Das Eingabefeld für einen festen Wert richtet
 sich nach dem Zieltyp (Checkbox, Zahl, Text). `Regel speichern` schreibt die ganze Liste
 (`PUT <configPath>` mit `{ data: { mappings } }`), ersetzt dabei nur die Regel der eigenen Quelle und
@@ -1461,7 +1531,11 @@ Item gewählt (gespeichert, kein Entwurf)
 das bisherige Panel samt Ableitungsregel-Editor; eine sekundäre (`SecondaryCollectionConfig.vue`) zeigt
 die Feldkonfiguration ohne Hierarchie und Bearbeitungsstand-Sortierung, mit dem Datenmodell ihrer
 Collection. `Konfiguration anwenden` schreibt nur das Prop dieser Collection (Lesen, Zusammenführen,
-`PUT`) und gilt damit in jedem Deployment, das die Collection zeigt.
+`PUT`) und gilt damit in jedem Deployment, das die Collection zeigt. `Datenmodell neu laden` lädt dort
+außer dem Datenmodell auch die Konfiguration der Collection frisch aus Strapi
+(`reloadCollectionConfig` → `reloadSecondaryCollectionSettings`), sodass eine anderswo gespeicherte
+Änderung ohne Seiten-Reload erscheint; nicht angewendete Änderungen im Tab werden nur nach Rückfrage
+verworfen. (Die primäre Collection lädt ihre Konfiguration weiterhin nur beim Laden der Settings.)
 
 **Nicht enthalten:** verknüpfte Items anlegen (außer per `Item ableiten`) oder vorhandene Items neu
 verknüpfen; Ersetzungen und Suche über sekundäre Items; offline gibt es kein Collection-Layout.
@@ -1673,9 +1747,9 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
 | `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
-| `composables/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
-| `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens |
-| `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile |
+| `composables/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; wählbare strukturierte Felder; Kompatibilität (Komponenten-UID, `repeatable`, Typ); unpassende Zeilen; Bereinigen von Komponenten (Einträge-`id`, Medien/Relationen, verschachtelt, JSON unverändert); kein Präfix für Objekte; zu populierende Felder; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
+| `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens; Komponente populiert und ohne `id`/Medien gesendet (Beispiel `collectors`); Modelle beim Anlegen nachgeladen, wenn die Quelle ein Entwurf war; Anlegen auch ohne lesbares Schema |
+| `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile; unpassende Komponente blockiert das Speichern |
 | `composables/useOnlineSave.test.js` | Ohne angemeldete Online-Sitzung kein Speichern (`false`); nichts ausstehend → `true`; Items und Regeln speichern und als gespeichert markieren; nur Regeln; `false` bei fehlgeschlagenen Regeln; Teilfehler hält erstellte Items synchron |
 | `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; `loadStructuredFieldKeys` lädt bei Bedarf genau einmal und liefert die strukturierten Felder, ohne Modell eine leere Liste; Fehlerstatus mit Meldung |
 
@@ -1685,7 +1759,7 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
 | `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; mehr Treffer als die Obergrenze brechen nach der ersten Seite ab (mit `total`) bzw. sobald überschritten (ohne `total`); andere Fehler werden durchgereicht |
-| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist; Collection-Types nur `api::`-Collection-Types nach Anzeigename, leere Liste ohne Leserecht |
+| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist; Collection-Types nur `api::`-Collection-Types nach Anzeigename, leere Liste ohne Leserecht; Komponenten-UID und `repeatable`; Komponenten-Schemas je UID, `{}` ohne Leserecht |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores

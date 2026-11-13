@@ -6,6 +6,7 @@
 import { strapiFetchJson } from './strapiApi'
 
 const CONTENT_TYPES_PATH = '/api/content-type-builder/content-types'
+const COMPONENTS_PATH = '/api/content-type-builder/components'
 
 // Managed by Strapi itself, never configured as viewer fields.
 const SYSTEM_ATTRIBUTE_KEYS = new Set([
@@ -51,6 +52,14 @@ function toFieldEntry(key, strapiType) {
   }
 }
 
+// A schema attribute as a field entry; components also keep their UID and `repeatable`, so two
+// component fields can be compared.
+function toSchemaFieldEntry(key, attribute) {
+  const entry = toFieldEntry(key, String(attribute?.type || ''))
+  if (entry.strapiType !== 'component') return entry
+  return { ...entry, component: String(attribute.component || ''), repeatable: attribute.repeatable === true }
+}
+
 function isUserField(key) {
   return Boolean(key) && !SYSTEM_ATTRIBUTE_KEYS.has(key)
 }
@@ -68,7 +77,28 @@ export function extractFieldModelFromContentTypes(payload, itemsPath) {
 
   return Object.entries(attributes)
     .filter(([key]) => isUserField(key))
-    .map(([key, attribute]) => toFieldEntry(key, String(attribute?.type || '')))
+    .map(([key, attribute]) => toSchemaFieldEntry(key, attribute))
+}
+
+/** The attributes of every component, by UID (`{ 'shared.person': { name: { type }, … } }`). */
+export function extractComponentSchemas(payload) {
+  const components = Array.isArray(payload?.data) ? payload.data : []
+  const schemas = {}
+  components.forEach((entry) => {
+    const attributes = entry?.schema?.attributes
+    if (entry?.uid && isPlainObject(attributes)) schemas[entry.uid] = attributes
+  })
+  return schemas
+}
+
+/** Like extractComponentSchemas, read from Strapi; `{}` when the role may not read the schema. */
+export async function fetchComponentSchemasFromStrapi({ profile, token = '' }) {
+  try {
+    const payload = await strapiFetchJson({ profile, token, path: COMPONENTS_PATH })
+    return extractComponentSchemas(payload)
+  } catch {
+    return {}
+  }
 }
 
 function inferStrapiTypeFromValue(value) {

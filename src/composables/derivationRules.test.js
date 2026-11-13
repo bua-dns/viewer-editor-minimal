@@ -1,9 +1,14 @@
 import { describe, expect, test } from 'vitest'
 import {
+  areFieldsCompatible,
   buildDerivedFields,
   buildDerivedItemPayload,
+  cleanComponentValue,
   describeCreatedItem,
+  findIncompatibleMappings,
   findRuleForSource,
+  isMappableField,
+  listPopulatedSourceFields,
   normalizeDerivationRules,
   readLocalItemValues,
   readRowValues,
@@ -127,6 +132,90 @@ describe('buildDerivedFields', () => {
       { label: '  ', flag: false, count: 0 },
     )
     expect(fields).toEqual({ flag: false, count: 0 })
+  })
+})
+
+describe('structured fields', () => {
+  const plain = { key: 'label', strapiType: 'string', isStructured: false }
+  const person = { key: 'collectors', strapiType: 'component', isStructured: true, component: 'shared.person', repeatable: true }
+  const json = { key: 'data', strapiType: 'json', isStructured: true }
+  const media = { key: 'scan', strapiType: 'media', isStructured: true }
+
+  test('only component, json and blocks become mappable, and only with the schema', () => {
+    expect(isMappableField(plain, 'sample')).toBe(true)
+    expect(isMappableField(person, 'schema')).toBe(true)
+    expect(isMappableField(json, 'schema')).toBe(true)
+    expect(isMappableField({ key: 'b', strapiType: 'blocks', isStructured: true }, 'schema')).toBe(true)
+    expect(isMappableField(media, 'schema')).toBe(false)
+    expect(isMappableField(person, 'sample')).toBe(false)
+  })
+
+  test('copies a structured field only into the same structure', () => {
+    expect(areFieldsCompatible(plain, { ...plain, key: 'name' })).toBe(true)
+    expect(areFieldsCompatible(person, { ...person })).toBe(true)
+    expect(areFieldsCompatible(person, { ...person, component: 'shared.place' })).toBe(false)
+    expect(areFieldsCompatible(person, { ...person, repeatable: false })).toBe(false)
+    expect(areFieldsCompatible(json, person)).toBe(false)
+    expect(areFieldsCompatible(plain, json)).toBe(false)
+    expect(areFieldsCompatible(json, { ...json, key: 'other' })).toBe(true)
+  })
+
+  test('reports structured targets fed by another structure or a fixed value', () => {
+    const rule = {
+      fields: [
+        { target: 'collectors', from: 'data' },
+        { target: 'data', value: '{}' },
+        { target: 'label', from: 'label' },
+        { target: 'unknown', from: 'missing' },
+      ],
+    }
+    expect(findIncompatibleMappings(rule, [plain, json], [plain, person, json])).toEqual(['collectors', 'data'])
+  })
+
+  test('cleans a component: entry ids and media/relations go, nested components too, JSON stays', () => {
+    const schemas = {
+      'shared.person': {
+        label: { type: 'string' },
+        portrait: { type: 'media' },
+        places: { type: 'relation' },
+        life: { type: 'component', component: 'shared.dates' },
+        additional_data: { type: 'json' },
+      },
+      'shared.dates': { born: { type: 'string' } },
+    }
+    const value = [
+      {
+        id: 10,
+        label: 'Sintenis',
+        portrait: { id: 3 },
+        places: [{ id: 4 }],
+        life: { id: 7, born: '1847' },
+        additional_data: { statementData: { id: 'Q54919' } },
+      },
+    ]
+    expect(cleanComponentValue(value, 'shared.person', schemas)).toEqual([
+      { label: 'Sintenis', life: { born: '1847' }, additional_data: { statementData: { id: 'Q54919' } } },
+    ])
+  })
+
+  test('without the component schemas only the entry id goes', () => {
+    expect(cleanComponentValue({ id: 1, label: 'x', extra: { id: 'keep' } }, 'shared.person')).toEqual({
+      label: 'x',
+      extra: { id: 'keep' },
+    })
+  })
+
+  test('buildDerivedFields cleans components, never prefixes objects, and lists what to populate', () => {
+    const structuredRule = {
+      fields: [
+        { target: 'collectors', from: 'collectors', prefix: 'item_' },
+        { target: 'data', from: 'data' },
+      ],
+    }
+    const values = { collectors: [{ id: 1, label: 'A' }], data: { id: 'Q1' } }
+    const fields = buildDerivedFields(structuredRule, values, { sourceFieldModel: [person, json] })
+    expect(fields).toEqual({ collectors: [{ label: 'A' }], data: { id: 'Q1' } })
+    expect(listPopulatedSourceFields(structuredRule, [person, json])).toEqual(['collectors'])
   })
 })
 

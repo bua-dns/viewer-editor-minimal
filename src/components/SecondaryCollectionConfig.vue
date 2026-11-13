@@ -43,6 +43,15 @@ async function onApply() {
   const result = await props.linked.applyCollectionConfig(props.section)
   if (!result.ok) applyError.value = result.error
 }
+
+// Reloads both: the Strapi data model (fields to add) and the collection's viewer configuration,
+// which may have been changed outside this tab.
+async function onReload() {
+  applyError.value = ''
+  reload()
+  const result = await props.linked.reloadCollectionConfig(props.section)
+  if (!result.ok && !result.cancelled) applyError.value = result.error
+}
 </script>
 
 <template>
@@ -54,7 +63,7 @@ async function onApply() {
     <UserConfigPanel :key="section.scope" :config-scope="section.scope" :show-list-options="false"
       :has-data="section.items.length > 0" :allow-without-data="true" :force-open="true"
       :data-field-keys="dataFieldKeys" :remote-field-model="fieldModel"
-      @apply="onApply" @reload-remote-field-model="reload" />
+      @apply="onApply" @reload-remote-field-model="onReload" />
   </div>
 </template>
 

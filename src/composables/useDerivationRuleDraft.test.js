@@ -30,14 +30,15 @@ async function settle() {
   await nextTick()
 }
 
-function setup(sourcePath = '/api/index-cards') {
+function setup(sourcePath = '/api/index-cards', { sourceFieldModel = null, model = targetModel } = {}) {
   const updateMappings = vi.fn(async ({ mappings }) => mappings)
   const services = {
     fetchCollectionTypes: vi.fn(async () => [{ path: '/api/collection-items', name: 'Collection item' }]),
-    fetchFieldModel: vi.fn(async () => targetModel),
+    fetchFieldModel: vi.fn(async () => model),
   }
   const draftState = useDerivationRuleDraft({
     sourcePath: ref(sourcePath),
+    sourceFieldModel: ref(sourceFieldModel),
     session: () => ({ profile: { baseUrl: 'https://x' }, token: 't' }),
     services,
     saveRule: (rule) => useDerivationRulesStore().saveDerivationRule(rule, { updateMappings }),
@@ -70,6 +71,32 @@ describe('useDerivationRuleDraft', () => {
     )
     expect(state.isDirty.value).toBe(false)
     expect(state.errors.value).toEqual([])
+  })
+
+  test('blocks saving a component target fed by a different component', async () => {
+    const collectors = { strapiType: 'component', isStructured: true, component: 'shared.person', repeatable: true }
+    const state = setup('/api/index-cards', {
+      sourceFieldModel: {
+        source: 'schema',
+        fields: [
+          { key: 'label', strapiType: 'string', isStructured: false },
+          { key: 'collectors', ...collectors },
+          { key: 'places', ...collectors, component: 'shared.place' },
+        ],
+      },
+      model: { source: 'schema', fields: [...targetModel.fields, { key: 'collectors', ...collectors }] },
+    })
+    await settle()
+    state.addRow()
+    const row = state.draft.value.rows.at(-1)
+    row.target = 'collectors'
+    row.from = 'places'
+    expect(state.errors.value.map((error) => error.key)).toEqual(['deriveRuleIncompatibleField'])
+    expect(state.canSave.value).toBe(false)
+
+    row.from = 'collectors'
+    expect(state.errors.value).toEqual([])
+    expect(state.canSave.value).toBe(true)
   })
 
   test('offers only relation attributes of the target as relation field', async () => {
