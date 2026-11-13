@@ -91,43 +91,46 @@ function normalizeFieldWidth(value) {
   return '100%'
 }
 
-function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
-  const type = source.type || 'normal'
-  const readOnly = type !== 'wikidata-autosuggest' ? Boolean(source.readOnly) : undefined
-  const autosuggest =
-    type === 'wikidata-autosuggest' && isPlainObject(source.autosuggest)
-      ? cloneValue(source.autosuggest)
-      : type === 'wikidata-autosuggest'
-      ? createMinimalAutosuggestConfig()
-      : undefined
-  const candidate =
-    type === 'candidate' && isPlainObject(source.candidate)
-      ? cloneValue(source.candidate)
-      : type === 'candidate'
-        ? createMinimalCandidateConfig()
-        : undefined
+// prefillWith now sits on the field itself; resolvePrefillWith still reads the old autosuggest.prefillWith,
+// so it is dropped from the autosuggest block here.
+function normalizeAutosuggestConfig(raw) {
+  const autosuggest = isPlainObject(raw) ? cloneValue(raw) : createMinimalAutosuggestConfig()
+  delete autosuggest.prefillWith
+  return autosuggest
+}
 
-  // prefillWith now sits on the field itself; resolvePrefillWith still reads the old autosuggest.prefillWith.
-  const prefillWith = supportsPrefill(type) ? resolvePrefillWith(source) : ''
-  if (isPlainObject(autosuggest)) delete autosuggest.prefillWith
+function normalizeCandidateConfig(raw) {
+  const candidate = isPlainObject(raw) ? cloneValue(raw) : createMinimalCandidateConfig()
+  candidate.targetField = String(candidate.targetField || '').trim()
+  candidate.inputType = normalizeCandidateInputType(candidate.inputType)
+  return candidate
+}
 
-  if (isPlainObject(candidate)) {
-    candidate.targetField = String(candidate.targetField || '').trim()
-    candidate.inputType = normalizeCandidateInputType(candidate.inputType)
-  }
-
+// Settings every field type has.
+function normalizeCommonFieldSettings(source, fallbackOrder) {
   return {
-    type,
     fieldWidth: normalizeFieldWidth(source.fieldWidth),
     label: source.label || '',
     order: Number.isFinite(source.order) ? source.order : fallbackOrder,
     placeholder: source.placeholder || '',
     hint: typeof source.hint === 'string' ? source.hint : '',
     hidden: source.hidden === true,
-    ...(type !== 'wikidata-autosuggest' ? { readOnly } : {}),
+  }
+}
+
+// The key order of the result is part of the snapshot comparison (serializeUserConfigFields).
+function normalizeUserConfigField(source = {}, fallbackOrder = 0) {
+  const type = source.type || 'normal'
+  const isWikidata = type === 'wikidata-autosuggest'
+  const prefillWith = supportsPrefill(type) ? resolvePrefillWith(source) : ''
+
+  return {
+    type,
+    ...normalizeCommonFieldSettings(source, fallbackOrder),
+    ...(isWikidata ? {} : { readOnly: Boolean(source.readOnly) }),
     ...(prefillWith ? { prefillWith } : {}),
-    ...(autosuggest ? { autosuggest } : {}),
-    ...(candidate ? { candidate } : {}),
+    ...(isWikidata ? { autosuggest: normalizeAutosuggestConfig(source.autosuggest) } : {}),
+    ...(type === 'candidate' ? { candidate: normalizeCandidateConfig(source.candidate) } : {}),
   }
 }
 
