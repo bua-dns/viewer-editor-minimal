@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11 - Fewer ways to lose work
+
+- `Bearbeitung aussetzen` on the last item of the list (or of a category) now sticks; before, the item
+  was resumed again at once because it stayed selected.
+- Closing or reloading the page now also asks when only online changes are pending that belong to items
+  not shown (for example after a collection-wide replacement run).
+- After a save where some items failed, the items that were saved keep their saved values as the new
+  starting point; a later `Reset` no longer brings back their old values.
+
 ## 2026-11 - User manual
 
 - New `docs/how-to-use-this-tool.md` (German): working offline and online, saving and conflicts,

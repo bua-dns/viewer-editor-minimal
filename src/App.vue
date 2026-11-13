@@ -945,12 +945,12 @@ watch(
   },
 )
 
+// Selecting a suspended item resumes it. Only a new selection counts: watching the suspend list too
+// would resume the item right after suspending it whenever it stays selected (the last item of the
+// list or of a category, where there is no next item to move to).
 watch(
-  [
-    () => selectedViewItem.value?._uid || null,
-    () => suspendedItemIndices.value.join('|'),
-  ],
-  ([nextSelectedUid]) => {
+  () => selectedViewItem.value?._uid || null,
+  (nextSelectedUid) => {
     candidateAutosuggestPrefills.value = {}
     if (!nextSelectedUid) return
     const nextSelectedIndex = selectedViewItem.value?._index
