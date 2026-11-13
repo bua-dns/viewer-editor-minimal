@@ -26,7 +26,7 @@ Diese Anwendung hilft beim Sichten und Bearbeiten von Item-Daten (JSON/CSV), ink
 ## 3) Felder konfigurieren und Ersetzungen pflegen
 
 - Im Tab **Konfiguration** fügen Sie Felder hinzu, entfernen sie, sortieren um und passen Labels/Platzhalter an.
-- Unterstützte Typen: `normal`, `text`, `integer`, `checkbox`, `wikidata-autosuggest`.
+- Unterstützte Typen: `normal`, `text`, `integer`, `checkbox`, `candidate`, `wikidata-autosuggest`.
 - Mit **Konfiguration anwenden** wird die Struktur auf alle geladenen Daten angewendet.
 - Im Tab **Ersetzungen** definieren Sie Ersetzungsregeln global oder feldspezifisch.
 
@@ -34,7 +34,7 @@ Diese Anwendung hilft beim Sichten und Bearbeiten von Item-Daten (JSON/CSV), ink
 
 ## 4) Optional: Datenbank verbinden (Online)
 
-- Im Tab **Datenbankverbindung** pflegen und testen Sie Ihr Strapi-Verbindungsprofil.
+- Im Tab **Einstellungen** pflegen und testen Sie Ihr Strapi-Verbindungsprofil.
 - Im **Online**-Modus melden Sie sich an und laden Settings/Items aus Strapi.
 - Lokaler Upload/Download ist im Online-Modus ausgeblendet.
 - Mit **Änderungen speichern** senden Sie Bearbeitungen (inklusive neuer Entwürfe) an Strapi.
