@@ -287,8 +287,6 @@ Vue-Composables und Abläufe, die über Stores Zustand lesen oder ändern.
 - `useModalKeyboard.js` - gemeinsames Escape-Handling für Modals
 - `useModalFocus.js` - Fokus in Modals: erstes Element fokussieren, Tab im Dialog halten, Fokus zurückgeben
 - `useReplacementsApply.js` - Orchestrierung eines Ersetzungslaufs (lokal bzw. über die ganze Collection)
-- `useWikidataSearch.js` - Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen, Lokalisierung
-- `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 - `usePendingOnlineChangesGuard.js` - Online-Sitzung, ungespeicherte Online-Änderungen und die Rückfrage vor dem Verwerfen
 - `useCollectionSearch.js` - Suchbereich in der Hierarchie (Kategorie oder gesamter Bestand), Zustand der
   Trefferansicht, navigierbare Items (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie))
@@ -311,6 +309,8 @@ Vue-Composables und Abläufe, die über Stores Zustand lesen oder ändern.
 Reine Logik ohne Vue, Stores und Netzwerk. Stores, Services und Composables importieren von hier,
 nie umgekehrt; `domain/` nutzt nur `fields/`.
 
+- `collectionPath.js` - `normalizeCollectionPath` / `sameCollectionPath`: Collection-Pfade ohne Query,
+  Fragment und abschließende `/` vergleichen (Settings, Ableitungsregeln, sekundäre Collections)
 - `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
 - `csvFormat.js` - CSV lesen (`parseCsvRecords`, quote-aware über Zeilenumbrüche) und schreiben
   (`toCsvCell`); genutzt von Import, Export und Start-from-Scratch (siehe [9.3](#93-csv-import))
@@ -319,6 +319,7 @@ nie umgekehrt; `domain/` nutzt nur `fields/`.
 - `hierarchyConfig.js` - reine Hierarchie-Helfer: Feldlisten normalisieren, Hierarchie-Felder aus Settings auflösen, Level-1-/Level-2-Optionen aus Items zählen
 - `linkedItems.js` - reine Helfer für verknüpfte Items einer sekundären Collection: Konfigurations-Scope,
   Verknüpfungsziel, Schlüssel, Felder mit Defaults, Kopfzeile, Sprach-Fallback
+- `objects.js` - `isPlainObject`, auch von `build-tools/` genutzt
 - `onlineSaveConflicts.js` - Konfliktprüfung beim Speichern: welche Felder auf dem Server seit dem
   Laden geändert wurden (leere Werte gleich, Zahl = String-Form, Objektschlüssel-Reihenfolge egal)
 - `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
@@ -371,6 +372,9 @@ nie umgekehrt; `domain/` nutzt nur `fields/`.
   frisch lesen und schreiben, verknüpfte Items laden, lösen und löschen
 - `viewerSettingsLayout.js` - liest den Settings-Datensatz als v1 oder v2 (Collection-Layout) und führt
   geänderte Settings bzw. Ersetzungen in ein Collection-Attribut zurück
+- `wikidataApi.js` - `createWikidataClient()`: Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen,
+  Lokalisierung, jeder Request mit Timeout
+- `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 
 ### Assets (`src/assets/`)
 
@@ -463,7 +467,7 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 
 - **Laden:** `main.js` ruft `loadBasicConfig()` auf und mountet die App erst danach. Grundkonfiguration
   und `wording.json` werden parallel über `resolvePublicConfigUrls(..., 'app-config')` und
-  `fetchFirstAvailableConfigText` (`src/composables/publicConfigUrls.js`) geladen: ein Dateiname wird
+  `fetchFirstAvailableConfigText` (`src/services/publicConfigUrls.js`) geladen: ein Dateiname wird
   unter den Präfixen `location.pathname`, `import.meta.env.BASE_URL` und `/` gesucht.
 - **Fehlerfall:** fehlt eine Datei oder ist sie ungültig, gelten die fest eingebauten Defaults der
   Normalizer bzw. die Inline-Fallbacks der `t()`-Aufrufe. Die App startet immer; der Grund steht in
@@ -1767,10 +1771,12 @@ Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. 
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
-| `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
+| `services/wikidataApi.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
 | `domain/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne sichtbare Read-only-Felder und Reservierte, ausgeblendete auch read-only enthalten); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
 | `domain/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `domain/collectionPath.test.js` | Query, Fragment, abschließende `/` und Leerraum werden ignoriert; Nicht-Strings ergeben `''`; verschiedene Collections bleiben verschieden |
+| `domain/objects.test.js` | `isPlainObject` akzeptiert Objekte, lehnt `null`, Arrays und Primitive ab |
 | `domain/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
 | `composables/useCollectionSearch.test.js` | Suchbereich: lokal in einer Kategorie, bestandsweit ohne Auswahl, Schalter überschreibt; ohne Hierarchie keine Trefferansicht; Panel-Zustand (Suchfeld online ohne Items aktiv); offline: nur Kategorie-Treffer navigierbar, Trefferansicht live, Zurück leert Anfrage und schließt das Item, Schalter aus behält die Anfrage; online: Suche erst bei Submit, nicht in einer Kategorie ohne Schalter, Fehler/Abbruch behalten die Kategorieansicht, entfernte Felder, leere Anfrage kehrt zurück, abgebrochene Rückkehr bleibt in den Treffern, Schalter aus lädt die Kategorie neu |
 | `domain/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |

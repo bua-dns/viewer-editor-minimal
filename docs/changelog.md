@@ -7,6 +7,11 @@
   Stores and services now import pure logic from there instead of from `composables/`. The duplicated
   `hasNonEmptyOnlineFieldValue` in `strapiApi.js` was dropped for `domain/valueChecks.js`. No change in
   behaviour.
+- Internal: the two modules that make network calls moved on to `src/services/`: `publicConfigUrls.js`
+  and the Wikidata client (`useWikidataSearch.js` → `wikidataApi.js`, `createWikidataClient()`).
+- Internal: one `isPlainObject` (`domain/objects.js`, 21 copies removed, also used by `build-tools/`) and
+  one collection-path rule (`domain/collectionPath.js`). Paths with a `#fragment` or surrounding spaces
+  now compare equal everywhere; before, the secondary-collection check did not ignore the fragment.
 
 ## 2026-11 - Import errors visible, sturdier storage and admin scripts
 

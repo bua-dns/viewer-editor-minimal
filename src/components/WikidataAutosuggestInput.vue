@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useWikidataSearch } from '../composables/useWikidataSearch'
+import { createWikidataClient } from '../services/wikidataApi'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { isPlainObject } from '../domain/objects'
 
@@ -502,7 +502,7 @@ async function completeEntity(entity) {
 
 defineExpose({ completeEntity })
 
-const { search, fetchStatementDataForEntity, fetchEntityLocalizedTexts } = useWikidataSearch()
+const { search, fetchStatementDataForEntity, fetchEntityLocalizedTexts } = createWikidataClient()
 
 function scheduleSearch(normalized) {
   abortActiveSearch()

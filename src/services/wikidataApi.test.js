@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { useWikidataSearch } from './useWikidataSearch'
+import { createWikidataClient } from './wikidataApi'
 
 function createJsonResponse(payload) {
   return {
@@ -8,7 +8,7 @@ function createJsonResponse(payload) {
   }
 }
 
-describe('useWikidataSearch', () => {
+describe('createWikidataClient', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
@@ -44,7 +44,7 @@ describe('useWikidataSearch', () => {
       }),
     )
 
-    const { search } = useWikidataSearch()
+    const { search } = createWikidataClient()
     const results = await search('berlin', {
       searchLanguages: ['de', 'en'],
       resultLanguage: 'en',
@@ -103,7 +103,7 @@ describe('useWikidataSearch', () => {
     )
 
     const controller = new AbortController()
-    const { search } = useWikidataSearch()
+    const { search } = createWikidataClient()
 
     const request = search('berlin', {
       searchLanguages: ['de', 'en'],
@@ -154,7 +154,7 @@ describe('useWikidataSearch', () => {
       }),
     )
 
-    const { search } = useWikidataSearch()
+    const { search } = createWikidataClient()
     const results = await search('douglas', {
       searchLanguages: ['en'],
       prioritize: {
@@ -208,7 +208,7 @@ describe('useWikidataSearch', () => {
       }),
     )
 
-    const { fetchStatementDataForEntity } = useWikidataSearch()
+    const { fetchStatementDataForEntity } = createWikidataClient()
     const statements = await fetchStatementDataForEntity('Q42', 'P31')
 
     expect(statements).toEqual([
@@ -258,7 +258,7 @@ describe('useWikidataSearch', () => {
       }),
     )
 
-    const { fetchEntityLocalizedTexts } = useWikidataSearch()
+    const { fetchEntityLocalizedTexts } = createWikidataClient()
     const localizedTexts = await fetchEntityLocalizedTexts('Q42', { languages: ['de', 'en'] })
 
     expect(localizedTexts).toEqual({
