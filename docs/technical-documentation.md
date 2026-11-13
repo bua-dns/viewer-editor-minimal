@@ -344,6 +344,11 @@ Die Schlüssel sind nach Rolle gruppiert:
 | Ersetzungen | `replacements` | Datenquelle (siehe [Kapitel 11](#11-ersetzungen-replacements)) |
 | Funktionsschalter | `deriveItems` | nur Grundkonfiguration (siehe [12.12](#1212-items-ableiten)) |
 | Ableitungsregeln | `mappings` | nur online, eigenes Prop `viewer-setting.mappings` (siehe [12.12](#1212-items-ableiten)) |
+| Collection-Layout | `primaryCollection`, `secondaryCollections`, `appTitle` | nur Grundkonfiguration (siehe [12.13](#1213-collection-layout-und-verknüpfte-items)) |
+
+Im **Collection-Layout** (Grundkonfiguration mit `primaryCollection`) teilen sich mehrere Deployments
+einen `viewer-setting`. Dort liegen Feldkonfiguration, Anbindung und Ersetzungen je Collection in einem
+eigenen JSON-Prop; die Viewer-Einstellungen kommen dann nur aus der Grundkonfiguration.
 
 Konfiguration wird nicht im Browser gespeichert. Einzige Ausnahme ist ein vom Nutzer eingegebenes
 Verbindungsprofil (siehe [Kapitel 5](#5-browser-persistenz)).
@@ -375,6 +380,9 @@ Der Dateiname ist fest: `viewer-editor-app-config.v1.json` (`BASIC_CONFIG_FILE` 
 | `primaryColor` | CSS-Farbe (`#0066CC`) | wird als `--color-primary` gesetzt (siehe [Kapitel 15](#15-styling-und-responsiveness)) |
 | `dataInspectionMode` | `true` \| `false` (`false`) | blendet im Sidebar-Editor `show/hide raw data` und `Copy raw data` ein |
 | `deriveItems` | `true` \| `false` (`false`) | schaltet `Item ableiten` ein (nur online; nur ein literales `true` gilt), siehe [12.12](#1212-items-ableiten) |
+| `primaryCollection` | Name eines JSON-Props von `viewer-setting` (`''`) | schaltet das Collection-Layout ein: diese Collection ist die Liste; ohne Wert gilt `viewer-setting.settings` wie bisher, siehe [12.13](#1213-collection-layout-und-verknüpfte-items) |
+| `secondaryCollections` | Liste von Prop-Namen (`[]`) | Collections, deren verknüpfte Items unter dem gewählten Item erscheinen (nur mit `primaryCollection`) |
+| `appTitle` | Sprachmap oder `null` | App-Titel des Deployments; schlägt `wording.appTitle` der Datenquelle |
 
 - **Laden:** `main.js` ruft `loadBasicConfig()` auf und mountet die App erst danach. Grundkonfiguration
   und `wording.json` werden parallel über `resolvePublicConfigUrls(..., 'app-config')` und
@@ -915,6 +923,9 @@ Orchestriert wird der Lauf in `src/composables/useReplacementsApply.js`:
 - Geschrieben werden sie zusammen mit den Item-Änderungen über `Änderungen speichern`
   (`persistOnlineReplacements` → `updateViewerReplacementsInStrapi`). Der Save-Button ist im
   Online-Modus deshalb auch dann aktiv, wenn **nur** Regeln geändert wurden.
+- Im Collection-Layout ([12.13](#1213-collection-layout-und-verknüpfte-items)) liegen die Regeln im
+  Prop der primären Collection (`<collection>.replacements`), weil beide Collections gleichnamige
+  Felder haben können. Geschrieben wird nur dieses Prop, nach erneutem Lesen.
 - Fehlt das Prop in der Strapi-Instanz, schlägt das Speichern mit einer expliziten Meldung fehl
   (Anzeige über `settingsStatus`/`lastSettingsError` im `OnlineAccessPanel.vue`).
 - Die Regeln sind zentral: Wer sie speichert, ändert sie für alle Nutzer dieser Strapi-Instanz.
@@ -1167,6 +1178,11 @@ Verbindungsprofil ausgelöst, folgt auf die lokale Anwendung ein **Schreibzugrif
 4. Bei Fehler bleibt der lokale Stand erhalten, `settingsStatus` wird `error` und `lastSettingsError`
    trägt die Meldung.
 
+Im Collection-Layout schreibt `Konfiguration anwenden` statt `settings` das Prop der primären Collection:
+`GET <configPath>`, Prop zusammenführen (gespeicherte `replacements` und `relations` bleiben, die
+Viewer-Einstellungen fallen weg), `PUT <configPath>` mit `{ data: { <collection>: … } }`. Andere Props
+werden nicht gesendet; so überschreiben sich zwei Deployments nicht gegenseitig.
+
 Konsequenz für die Bedienung: `Konfiguration anwenden` ist im Online-Modus **kein rein lokaler
 Vorgang**, sondern verändert die zentral gespeicherte Viewer-Konfiguration für alle Nutzer dieser
 Strapi-Instanz.
@@ -1368,6 +1384,84 @@ des Ziels an (bei geratenem Modell die strukturierten Felder). Das Eingabefeld f
 sich nach dem Zieltyp (Checkbox, Zahl, Text). `Regel speichern` schreibt die ganze Liste
 (`PUT <configPath>` mit `{ data: { mappings } }`), ersetzt dabei nur die Regel der eigenen Quelle und
 übernimmt die Antwort; fehlt das Prop in Strapi, nennt die Meldung `mappings`.
+
+### 12.13 Collection-Layout und verknüpfte Items
+
+Mehrere Deployments teilen sich einen `viewer-setting`; jede Collection wird **einmal** konfiguriert,
+das Deployment legt nur die Rollen fest. Beispiel Xylothek, beide auf `/api/viewer-setting`:
+
+| Deployment | `primaryCollection` | `secondaryCollections` |
+| --- | --- | --- |
+| Karteikarten | `index_cards` | `["collection_items"]` |
+| Sammlungsobjekte | `collection_items` | `["index_cards"]` |
+
+**Strapi:** je Collection ein JSON-Prop am Viewer-Settings-Typ, der Prop-Name ist die Collection-ID:
+
+```json
+"collection_items": {
+  "itemsPath": "/api/collection-items",
+  "label": { "de": "Sammlungsobjekte", "en": "Collection items" },
+  "itemLabelField": "label",
+  "fields": { "label": { "type": "normal", "order": 0 } },
+  "relations": { "index_cards": "index_cards" },
+  "replacements": {}
+}
+```
+
+| Schlüssel | Bedeutung |
+| --- | --- |
+| `itemsPath`, `scanField`, `createKeyField`, `hierarchyFields`, … | wie in `settings` (v1); Hierarchie und `markAsEditedBasis` wirken nur, wenn die Collection primär ist |
+| `label` | Name der Collection: Abschnittstitel unter dem Item, Unter-Tab der Konfiguration |
+| `itemLabelField` | in der Liste das Label; als sekundäre Collection der Titel der Klappbox |
+| `relations` | optional: `{ "<andere Collection-ID>": "<Relationsattribut dieser Collection>" }`; ohne Eintrag sucht der Viewer im Schema das Relationsattribut, dessen `target` die andere Collection ist (Content-Type-Builder-Leserecht nötig) |
+| `replacements` | Ersetzungsregeln dieser Collection (nur als primäre Collection angewendet) |
+
+**Lesen** (`services/viewerSettingsLayout.js`): Ohne `primaryCollection` wird `settings` gelesen wie
+bisher (v1). Mit `primaryCollection` wird das Prop der primären Collection ohne `replacements` und ohne
+Viewer-Einstellungen als `settings` weitergereicht; der Rest der App sieht keinen Unterschied. Fehlt das
+Prop, schlägt das Laden mit dem Prop-Namen in der Meldung fehl; ein fehlendes sekundäres Prop zeigt nur
+im Abschnitt einen Fehler. `useOnlineSettingsStore` hält dazu `isCollectionLayout`,
+`primaryCollectionId` und `secondaryCollections` (`[{ id, config, error }]`).
+
+**Viewer-Einstellungen und Titel** kommen im Collection-Layout nur aus der Grundkonfiguration; der
+Bereich `Viewer-Einstellungen` im Tab `Einstellungen` ist gesperrt und sagt das. `appTitle` der
+Grundkonfiguration schlägt `wording.appTitle`; alle anderen Wording-Handles kommen weiter aus dem
+gemeinsamen `wording`.
+
+**Verknüpfte Items** (`composables/useSecondaryItems.js`, `components/SecondaryItemsSection.vue`):
+
+```
+Item gewählt (gespeichert, kein Entwurf)
+  -> je sekundärer Collection: Relationsattribut (relations bzw. Schema, je Collection gecacht)
+  -> GET <itemsPath>?filters[<attr>][documentId][$eq]=<documentId>&pagination[pageSize]=100
+  -> normalizeStrapiItem + Defaults der Feldkonfiguration -> Klappboxen (alle zu)
+```
+
+- Je sekundärer Collection ein eigener Konfigurationszustand: `useUserConfigStore('secondary:<id>')`;
+  `useFieldMapping(scope)` und `ItemFieldEditor` (`configScope`, `fieldIdPrefix`) rendern damit.
+- Änderungen sind reguläre Pending-Updates (`itemsPath::id`), zählen im Unsaved-Counter und werden vom
+  gemeinsamen Speichern mitgeschrieben. Jede Klappbox hat zusätzlich `Item speichern` für nur dieses
+  Item. Beim Speichern nimmt `buildSaveContext` Feldkonfiguration, Scan-, Wikidata- und
+  Create-Key-Felder der Collection des Eintrags (`settingsForItemsPath`), mit derselben Konfliktprüfung
+  wie in [12.8](#128-update-flow-bestehende-items).
+- Ungespeicherte Änderungen bleiben beim Wechsel des Items erhalten: lädt das Item später erneut, wird
+  das bearbeitete Objekt des Pending-Eintrags gezeigt.
+- Nach `Item ableiten` wird der Abschnitt neu geladen und das neue Item geöffnet.
+- Höchstens 100 verknüpfte Items je Collection und Item (`LINKED_ITEMS_PAGE_SIZE`).
+
+**Konfiguration:** Im Tab `Konfiguration` gibt es dann je Collection einen Unter-Tab. Die primäre zeigt
+das bisherige Panel samt Ableitungsregel-Editor; eine sekundäre (`SecondaryCollectionConfig.vue`) zeigt
+die Feldkonfiguration ohne Hierarchie und Bearbeitungsstand-Sortierung, mit dem Datenmodell ihrer
+Collection. `Konfiguration anwenden` schreibt nur das Prop dieser Collection (Lesen, Zusammenführen,
+`PUT`) und gilt damit in jedem Deployment, das die Collection zeigt.
+
+**Nicht enthalten:** verknüpfte Items anlegen (außer per `Item ableiten`), verknüpfen, lösen oder
+löschen; Ersetzungen und Suche über sekundäre Items; offline gibt es kein Collection-Layout.
+
+**Umstellung einer Instanz:** JSON-Props je Collection in Strapi anlegen, `settings` (und
+`replacements`) von Hand in das Prop der Collection kopieren, `primaryCollection` und
+`secondaryCollections` in die Grundkonfiguration der Deployments eintragen. `settings` bleibt für
+Deployments ohne `primaryCollection` lesbar.
 
 ---
 
