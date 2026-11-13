@@ -33,12 +33,12 @@ export function useOnlineSave({ rawItems, importFileName, markAsSaved, syncSnaps
     return Boolean(result?.ok)
   }
 
-  // After a partly failed save, the items created so far keep their new server state.
-  function syncCreatedItemSnapshots(createdItems) {
-    if (!Array.isArray(createdItems)) return
-    createdItems.forEach((createdItem) => {
-      const createdIndex = rawItems.value.indexOf(createdItem)
-      if (createdIndex !== -1) syncSnapshotItemAtIndex(createdIndex)
+  // After a partly failed save, the items created or updated so far keep their new server state as
+  // their baseline; a later Reset does not bring back values the server no longer has.
+  function syncSavedItemSnapshots(savedItems) {
+    savedItems.forEach((savedItem) => {
+      const savedIndex = rawItems.value.indexOf(savedItem)
+      if (savedIndex !== -1) syncSnapshotItemAtIndex(savedIndex)
     })
   }
 
@@ -54,7 +54,7 @@ export function useOnlineSave({ rawItems, importFileName, markAsSaved, syncSnaps
       markAsSaved(importFileName.value)
       return rulesSaved
     }
-    syncCreatedItemSnapshots(result.createdItems)
+    syncSavedItemSnapshots([...(result.createdItems || []), ...(result.updatedItems || [])])
     return false
   }
 

@@ -113,4 +113,15 @@ describe('useOnlineSave', () => {
     expect(viewerData.markAsSaved).not.toHaveBeenCalled()
     expect(viewerData.syncSnapshotItemAtIndex).toHaveBeenCalledWith(1)
   })
+
+  test('a partly failed save re-baselines the updated items that were saved (plan 0.3)', async () => {
+    pending({ updates: true })
+    const { saveOnlineChanges, viewerData } = setup()
+    const updatedItem = viewerData.rawItems.value[0]
+    state.saveOnlineUpdates.mockResolvedValue({ ok: false, createdItems: [], updatedItems: [updatedItem] })
+
+    await expect(saveOnlineChanges()).resolves.toBe(false)
+    expect(viewerData.syncSnapshotItemAtIndex).toHaveBeenCalledTimes(1)
+    expect(viewerData.syncSnapshotItemAtIndex).toHaveBeenCalledWith(0)
+  })
 })

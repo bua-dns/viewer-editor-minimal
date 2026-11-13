@@ -332,7 +332,8 @@ async function saveUpdateEntry(context, entryKey, entry) {
   } else {
     setPendingUpdate(entryKey, liveEntry)
   }
-  return null
+  // Reported back so a partly failed save can re-baseline the items that did reach the server.
+  return entry.item && typeof entry.item === 'object' ? entry.item : null
 }
 
 function assignCreatedIdentity(entry, createdRow, stableIdentifier) {
@@ -443,11 +444,12 @@ async function saveEntries(entries, saveEntry, fallbackError) {
   return results
 }
 
-function finishSave({ savedCount, failed, createdItems }) {
+// `createdItems` / `updatedItems`: the item objects whose create or update reached the server.
+function finishSave({ savedCount, failed, createdItems, updatedItems }) {
   if (!failed.length) {
     saveStatus.value = 'success'
     lastSaveError.value = ''
-    return { ok: true, savedCount, failedCount: 0, createdItems }
+    return { ok: true, savedCount, failedCount: 0, createdItems, updatedItems }
   }
 
   saveStatus.value = 'error'
@@ -458,6 +460,7 @@ function finishSave({ savedCount, failed, createdItems }) {
     failedCount: failed.length,
     failed,
     createdItems,
+    updatedItems,
     error: lastSaveError.value,
   }
 }
@@ -541,6 +544,7 @@ async function saveEntryLists({ profile, token, createEntries, updateEntries }) 
     savedCount: creates.savedCount + updates.savedCount,
     failed: [...creates.failed, ...updates.failed],
     createdItems: creates.savedItems,
+    updatedItems: updates.savedItems,
   })
 }
 

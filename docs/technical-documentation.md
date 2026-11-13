@@ -1311,7 +1311,10 @@ Strapi-Instanz.
   Feld bleibt pending (mit dem gesendeten Wert als Baseline). Für Entwürfe gilt dasselbe: Änderungen
   während des `POST` werden zu einem regulären Update des neu angelegten Items.
 - Bei Vollerfolg synchronisiert `markAsSaved(...)` die Baseline; bei Teilfehlern bleibt ein
-  konsistenter, retry-fähiger Pending-Stand erhalten.
+  konsistenter, retry-fähiger Pending-Stand erhalten. Die Items, deren Create oder Update durchging,
+  meldet der Save als `createdItems` / `updatedItems`; `useOnlineSave` übernimmt für sie per
+  `syncSnapshotItemAtIndex` den gespeicherten Stand als Snapshot, damit ein späteres `Reset` keine Werte
+  zurückholt, die der Server nicht mehr hat.
 - Im selben Speichervorgang werden geänderte **Ersetzungsregeln** nach Strapi geschrieben
   (siehe [11.4](#114-persistenz-der-regeln)). Der Save-Button ist deshalb auch dann aktiv, wenn nur
   Regeln geändert wurden und kein Item-Delta ansteht.
