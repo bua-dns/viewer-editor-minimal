@@ -273,7 +273,9 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
 - `DeriveItemDialog.vue` - Bestätigungsdialog für `Item ableiten`: Vorschau der Werte, Hinweis aufs
   Vorab-Speichern, Ergebnis bzw. Fehler (siehe [12.12](#1212-items-ableiten))
 - `DerivationRuleEditor.vue` - Editor der Ableitungsregel im Tab `Konfiguration` (unter der Feldkonfiguration)
-- `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen
+- `InfoPanel.vue` - rendert den Info-Tab aus den sprachspezifischen Markdown-Quellen; `App.vue` lädt ihn
+  erst beim ersten Öffnen des Tabs (`defineAsyncComponent`), damit `markdown-it` und `highlight.js` nicht im
+  Haupt-Chunk liegen
 - `footer/Identity.vue` - Footer-Identity mit Credit und Link zu den Berlin University Collections
 
 ### Composables (`src/composables/`)

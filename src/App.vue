@@ -1,6 +1,6 @@
 <script setup>
 //src\App.vue
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useDataImportExport } from './composables/useDataImportExport'
 import { useReplacementsApply } from './composables/useReplacementsApply'
@@ -16,7 +16,6 @@ import ItemFieldEditor from './components/ItemFieldEditor.vue'
 import LightboxModal from './components/LightboxModal.vue'
 import ListPanel from './components/ListPanel.vue'
 import Identity from './components/footer/Identity.vue'
-import InfoPanel from './components/InfoPanel.vue'
 import ConfigurationPanel from './components/ConfigurationPanel.vue'
 import ReplacementsPanel from './components/ReplacementsPanel.vue'
 import DatabaseConnectionPanel from './components/DatabaseConnectionPanel.vue'
@@ -48,7 +47,11 @@ import {
   resolveHierarchyFieldsFromSettings,
 } from './domain/hierarchyConfig'
 
-const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
+// Loaded when the Info tab is first opened: its Markdown renderer and highlighter would otherwise
+// make up more than a quarter of the main chunk.
+const InfoPanel = defineAsyncComponent(() => import('./components/InfoPanel.vue'))
+
+const tabs =['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
 const appShellRef = ref(null)
 const topbarRef = ref(null)
