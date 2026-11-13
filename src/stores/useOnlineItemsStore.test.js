@@ -2,21 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 import { useAuthStore } from './useAuthStore'
 import { useOnlineItemsStore } from './useOnlineItemsStore'
-
-function createLocalStorageMock() {
-  const store = new Map()
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null
-    },
-    setItem(key, value) {
-      store.set(key, String(value))
-    },
-    removeItem(key) {
-      store.delete(key)
-    },
-  }
-}
+import { createLocalStorageMock } from '../../test/helpers/storageMock.js'
 
 describe('useOnlineItemsStore', () => {
   beforeEach(() => {

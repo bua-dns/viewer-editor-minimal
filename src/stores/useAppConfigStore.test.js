@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { normalizeBasicConfig, useAppConfigStore } from './useAppConfigStore'
+import { createLocalStorageMock } from '../../test/helpers/storageMock.js'
 
 const shippedWording = JSON.parse(
   readFileSync(new URL('../../public/app-config/wording.json', import.meta.url), 'utf8'),
@@ -85,24 +86,6 @@ describe('useAppConfigStore wording merge', () => {
     expect(store.t('appTitle', 'Fallback title')).toBe('Fallback title')
   })
 })
-
-function createLocalStorageMock() {
-  const store = new Map()
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null
-    },
-    setItem(key, value) {
-      store.set(key, String(value))
-    },
-    removeItem(key) {
-      store.delete(key)
-    },
-    clear() {
-      store.clear()
-    },
-  }
-}
 
 describe('useAppConfigStore basic config', () => {
   const originalFetch = globalThis.fetch

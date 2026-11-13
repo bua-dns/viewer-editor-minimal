@@ -2,24 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 import { strapiFetchJson } from '../services/strapiApi'
-
-function createLocalStorageMock() {
-  const store = new Map()
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null
-    },
-    setItem(key, value) {
-      store.set(key, String(value))
-    },
-    removeItem(key) {
-      store.delete(key)
-    },
-    clear() {
-      store.clear()
-    },
-  }
-}
+import { createLocalStorageMock } from '../../test/helpers/storageMock.js'
 
 describe('useAuthStore', () => {
   beforeEach(() => {

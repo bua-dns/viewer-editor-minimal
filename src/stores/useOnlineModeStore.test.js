@@ -3,21 +3,7 @@ import { nextTick } from 'vue'
 import { useAppConfigStore } from './useAppConfigStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 import { useOnlineModeStore } from './useOnlineModeStore'
-
-function createLocalStorageMock() {
-  const store = new Map()
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null
-    },
-    setItem(key, value) {
-      store.set(key, String(value))
-    },
-    removeItem(key) {
-      store.delete(key)
-    },
-  }
-}
+import { createLocalStorageMock } from '../../test/helpers/storageMock.js'
 
 const sampleProfile = {
   version: 1,
