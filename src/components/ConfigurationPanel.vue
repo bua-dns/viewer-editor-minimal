@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useOnlineSettingsStore } from '../stores/useOnlineSettingsStore'
-import { pickLanguageText } from '../composables/linkedItems'
+import { pickLanguageText } from '../domain/linkedItems'
 import UserConfigPanel from './UserConfigPanel.vue'
 import DerivationRuleEditor from './DerivationRuleEditor.vue'
 import SecondaryCollectionConfig from './SecondaryCollectionConfig.vue'

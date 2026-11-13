@@ -109,5 +109,6 @@
 - Nur online und nur, wenn die Grundkonfiguration `"deriveItems": true` enthält.
 - Die Regeln liegen in einem eigenen JSON-Prop `mappings` der Viewer-Settings in Strapi (nicht im `settings`-Objekt): eine Liste mit höchstens einer Regel je Quell-Collection, Aufbau siehe [technische Dokumentation, 12.12](technical-documentation.md#1212-items-ableiten).
 - Die Ziel-Collection braucht ein Relationsfeld zur Quell-Collection (`relationField`); beim Anlegen wird es auf das Quell-Item gesetzt.
-- Übertragen werden nur einfache Werte: Kopie eines Quellfelds (optional mit `prefix`) oder ein fester Wert (`value`). Leere Quellwerte werden ausgelassen.
+- Übertragen wird je Zeile die Kopie eines Quellfelds (Text und Zahlen optional mit `prefix`) oder ein fester Wert (`value`); leere Quellwerte werden ausgelassen.
+- Komponenten-, JSON- und Blocks-Felder werden als Ganzes kopiert, nur in ein Zielfeld gleicher Struktur (Komponente: dieselbe Komponente, beide wiederholbar oder beide nicht). Bilder und Verknüpfungen innerhalb einer Komponente werden nicht mitkopiert. Details: [technische Dokumentation, 12.12](technical-documentation.md#1212-items-ableiten).
 - Bearbeitet werden die Regeln im Tab `Konfiguration` unter `Items ableiten`; `Regel speichern` schreibt sie sofort für alle Nutzer dieser Strapi-Instanz.

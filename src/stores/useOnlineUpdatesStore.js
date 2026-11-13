@@ -14,8 +14,8 @@ import {
   resolveStableIdentifierFromRow,
   updateCollectionItemInStrapi,
 } from '../services/strapiApi'
-import { computeReplacementChangesForItem } from '../composables/replacementRules'
-import { findConflictingFields } from '../composables/onlineSaveConflicts'
+import { computeReplacementChangesForItem } from '../domain/replacementRules'
+import { findConflictingFields } from '../domain/onlineSaveConflicts'
 import { useOnlineSettingsStore } from './useOnlineSettingsStore'
 
 const ONLINE_META_KEY = '__onlineMeta'

@@ -1,5 +1,5 @@
 import { nextTick } from 'vue'
-import { parseCsvRecords } from './csvFormat'
+import { parseCsvRecords } from '../domain/csvFormat'
 
 export function useDataImportExport({
   dataMode,

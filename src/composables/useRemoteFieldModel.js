@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue'
 import { resolveItemsPathFromSettings } from '../services/strapiApi'
 import { fetchCollectionFieldModelFromStrapi } from '../services/strapiDataModel'
-import { createRequestSequence } from './requestSequence'
+import { createRequestSequence } from '../domain/requestSequence'
 
 const EMPTY_MODEL = { source: '', fields: [] }
 

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
-import { ALL_FIELDS_REPLACEMENT_KEY, collectReplaceableFieldKeys } from '../composables/replacementRules'
+import { ALL_FIELDS_REPLACEMENT_KEY, collectReplaceableFieldKeys } from '../domain/replacementRules'
 
 const emit = defineEmits(['apply-replacements'])
 

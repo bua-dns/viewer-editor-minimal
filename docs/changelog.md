@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11 - Pure logic in `src/domain/`
+
+- Internal: the 11 modules without Vue, stores or network calls (validation, hierarchy, replacement and
+  derivation rules, CSV, search rules, conflict check, …) moved from `src/composables/` to `src/domain/`.
+  Stores and services now import pure logic from there instead of from `composables/`. The duplicated
+  `hasNonEmptyOnlineFieldValue` in `strapiApi.js` was dropped for `domain/valueChecks.js`. No change in
+  behaviour.
+
+## 2026-11 - Import errors visible, sturdier storage and admin scripts
+
+- Import errors (broken JSON/CSV, a file that doesn't match the selected mode, sample data that can't be
+  loaded) are now shown in the status area under the list; before, the import just failed silently.
+- A browser that blocks site storage no longer stops the app's startup; the JSON/CSV mode is then not
+  remembered.
+- `package.json` declares Node ≥ 20.12. The admin scripts give up after 30 s instead of hanging when Strapi
+  doesn't answer; a timed-out write in `fields:sync` says that it may have happened.
+
+## 2026-11 - Derivation rules remember the structure of copied fields
+
+- Saving a derivation rule now stores the structure of each copied component, JSON or blocks field
+  (`structure` in `mappings`). Deriving items then works for editors whose Strapi role cannot read the
+  content-type schema; before, their derived items silently lacked the component fields.
+- Older rules: open them once in the `Konfiguration` tab with schema access and save them again (the
+  editor shows them as changed). Until then, deriving such a field stops with a hint instead of
+  dropping the value.
+
 ## 2026-11 - Admin CLI: sync field config between collections
 
 - `pnpm fields:sync` (menu in a terminal, or `check` / `sync` with arguments) compares one field of two

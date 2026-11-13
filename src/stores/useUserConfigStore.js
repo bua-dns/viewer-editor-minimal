@@ -1,6 +1,6 @@
 //src\stores\useUserConfigStore.js
 import { computed, ref } from 'vue'
-import { validateImportedConfigPayload } from '../composables/userConfigValidation'
+import { validateImportedConfigPayload } from '../domain/userConfigValidation'
 import {
   createDefaultValueForFieldType,
   normalizeValueForConfiguredType,

@@ -1,4 +1,4 @@
-import { hasReplacementRules } from './replacementRules'
+import { hasReplacementRules } from '../domain/replacementRules'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
 
 const ONLINE_META_KEY = '__onlineMeta'

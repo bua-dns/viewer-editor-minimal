@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useViewerData } from './composables/useViewerData'
 import { useDataImportExport } from './composables/useDataImportExport'
 import { useReplacementsApply } from './composables/useReplacementsApply'
-import { collectReplaceableFieldKeys } from './composables/replacementRules'
+import { collectReplaceableFieldKeys } from './domain/replacementRules'
 import { useSelectionNavigation } from './composables/useSelectionNavigation'
 import { VIEWER_SETTING_KEYS, useAppConfigStore } from './stores/useAppConfigStore'
 import { useUserConfigStore } from './stores/useUserConfigStore'
@@ -35,7 +35,7 @@ import { useOnlineItemsStore } from './stores/useOnlineItemsStore'
 import { useOnlineUpdatesStore } from './stores/useOnlineUpdatesStore'
 import { resolveItemsPathFromSettings } from './services/strapiApi'
 import { usePendingOnlineChangesGuard } from './composables/usePendingOnlineChangesGuard'
-import { createRequestSequence } from './composables/requestSequence'
+import { createRequestSequence } from './domain/requestSequence'
 import { useCollectionSearch } from './composables/useCollectionSearch'
 import { useRemoteFieldModel } from './composables/useRemoteFieldModel'
 import { useItemDerivation } from './composables/useItemDerivation'
@@ -46,7 +46,7 @@ import {
   normalizeHierarchyFieldList,
   normalizeHierarchyValue,
   resolveHierarchyFieldsFromSettings,
-} from './composables/hierarchyConfig'
+} from './domain/hierarchyConfig'
 
 const tabs = ['edit', 'configuration', 'replacements', 'database-connection', 'info']
 const activeTab = ref('edit')
@@ -1375,6 +1375,9 @@ watch(
             <div>
               <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
               <p v-else>{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
+              <!-- Import, CSV/JSON parsing and sample-data errors (review F2). -->
+              <p v-if="modeErrorMessage" class="status-error" role="alert">{{ modeErrorMessage }}</p>
+              <p v-if="errorMessage" class="status-error" role="alert">{{ errorMessage }}</p>
             </div>
           </section>
         </section>

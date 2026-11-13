@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { validateConnectionProfile } from '../composables/connectionProfile'
+import { validateConnectionProfile } from '../domain/connectionProfile'
 import { fetchFirstAvailableConfigText, resolvePublicConfigUrls } from '../composables/publicConfigUrls'
 
 // Basic config: the one file a deployment ships next to the build. Without it the

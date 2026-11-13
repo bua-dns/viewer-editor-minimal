@@ -52,11 +52,14 @@ export function readConnectionProfile(projectDir) {
   return { baseUrl, configPath }
 }
 
+// Every request of the admin CLIs gives up after this, so a hanging Strapi doesn't hang the script.
+export const REQUEST_TIMEOUT_MS = 30_000
+
 export async function fetchViewerSetting(url, { fetchImpl = fetch, token = '' } = {}) {
   const headers = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const response = await fetchImpl(url, { headers })
+  const response = await fetchImpl(url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
   if (!response.ok) throw new Error(`GET ${url} failed: HTTP ${response.status}.`)
 
   const body = await response.json()

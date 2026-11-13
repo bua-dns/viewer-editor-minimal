@@ -89,7 +89,7 @@ async function fetchOnlineSettings() {
     return {
       ...read,
       wording: record.wording && typeof record.wording === 'object' ? record.wording : {},
-      // Derivation rules: own JSON prop, raw here (see composables/derivationRules.js).
+      // Derivation rules: own JSON prop, raw here (see domain/derivationRules.js).
       mappings: record.mappings ?? null,
     }
   })

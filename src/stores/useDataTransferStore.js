@@ -8,8 +8,34 @@ const modeErrorMessage = ref('')
 
 const uploadAccept = computed(() => (dataMode.value === 'csv' ? '.csv,text/csv' : '.json,application/json'))
 
+// A browser that blocks site storage throws on access; the data mode then just isn't remembered
+// (review F3). Same pattern as the localStorage access in the other stores.
+function getSessionStorageSafe() {
+  try {
+    return globalThis.sessionStorage || null
+  } catch {
+    return null
+  }
+}
+
+function readStoredDataMode() {
+  try {
+    return getSessionStorageSafe()?.getItem(DATA_MODE_SESSION_KEY) ?? null
+  } catch {
+    return null
+  }
+}
+
+function storeDataMode(mode) {
+  try {
+    getSessionStorageSafe()?.setItem(DATA_MODE_SESSION_KEY, mode)
+  } catch {
+    // Not remembered for this session; the mode still applies.
+  }
+}
+
 function loadDataModeFromSession() {
-  const stored = sessionStorage.getItem(DATA_MODE_SESSION_KEY)
+  const stored = readStoredDataMode()
   if (stored === 'json' || stored === 'csv') {
     dataMode.value = stored
   }
@@ -20,7 +46,7 @@ function setDataMode(nextMode) {
   if (nextMode === dataMode.value) return false
   dataMode.value = nextMode
   modeErrorMessage.value = ''
-  sessionStorage.setItem(DATA_MODE_SESSION_KEY, nextMode)
+  storeDataMode(nextMode)
   return true
 }
 

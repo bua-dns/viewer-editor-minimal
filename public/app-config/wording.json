@@ -1271,6 +1271,10 @@
     "de": "Nicht angewendete Änderungen verwerfen und die Konfiguration aus Strapi laden?",
     "en": "Discard the unapplied changes and load the configuration from Strapi?"
   },
+  "deriveRuleNeedsResave": {
+    "de": "Die Regel kennt die Struktur von {fields} nicht. Bitte im Tab Konfiguration (mit Zugriff auf das Strapi-Datenmodell) öffnen und erneut speichern.",
+    "en": "The rule does not know the structure of {fields}. Open it in the Konfiguration tab (with access to the Strapi data model) and save it again."
+  },
   "deriveRuleIncompatibleField": {
     "de": "Ein Komponenten-, JSON- oder Blocks-Feld kann nur aus einem Feld gleicher Struktur befüllt werden.",
     "en": "A component, JSON or blocks field can only be filled from a field of the same structure."

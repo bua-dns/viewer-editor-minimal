@@ -22,14 +22,14 @@ import { useOnlineModeStore } from '../stores/useOnlineModeStore'
 import { useOnlineSettingsStore } from '../stores/useOnlineSettingsStore'
 import { useOnlineUpdatesStore } from '../stores/useOnlineUpdatesStore'
 import { clearSecondaryUserConfigScopes, useUserConfigStore } from '../stores/useUserConfigStore'
-import { createRequestSequence } from './requestSequence'
+import { createRequestSequence } from '../domain/requestSequence'
 import {
   describeLinkedItem,
   linkedItemKey,
   prepareLinkedItem,
   resolveLinkTarget,
   secondaryConfigScope,
-} from './linkedItems'
+} from '../domain/linkedItems'
 
 function samePath(left, right) {
   const normalize = (path) => String(path || '').split('?')[0].replace(/\/+$/, '')

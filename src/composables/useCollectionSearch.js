@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
-import { isSearchQueryActive, normalizeSearchQuery } from './searchQuery'
-import { isItemInHierarchyLevel1 } from './hierarchyConfig'
+import { isSearchQueryActive, normalizeSearchQuery } from '../domain/searchQuery'
+import { isItemInHierarchyLevel1 } from '../domain/hierarchyConfig'
 
 /**
  * Search scope in the hierarchy view. Inside a selected level-1 category the search is local to it;

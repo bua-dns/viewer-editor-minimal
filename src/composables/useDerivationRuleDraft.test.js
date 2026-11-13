@@ -73,6 +73,45 @@ describe('useDerivationRuleDraft', () => {
     expect(state.errors.value).toEqual([])
   })
 
+  test('stores the source structure with each copy when the source model comes from the schema', async () => {
+    const collectors = { strapiType: 'component', isStructured: true, component: 'shared.person', repeatable: true }
+    const sourceFieldModel = {
+      source: 'schema',
+      fields: [{ key: 'label', strapiType: 'string', isStructured: false }, { key: 'collectors', ...collectors }],
+    }
+    const state = setup('/api/index-cards', {
+      sourceFieldModel,
+      model: { source: 'schema', fields: [...targetModel.fields, { key: 'collectors', ...collectors }] },
+    })
+    await settle()
+    expect(state.isDirty.value).toBe(false)
+    state.addRow()
+    Object.assign(state.draft.value.rows.at(-1), { target: 'collectors', from: 'collectors' })
+
+    await state.save()
+    const saved = state.updateMappings.mock.calls[0][0].mappings[0].fields
+    expect(saved.find((field) => field.target === 'collectors').structure).toEqual({
+      type: 'component',
+      component: 'shared.person',
+      repeatable: true,
+    })
+    expect(saved.find((field) => field.target === 'label')).not.toHaveProperty('structure')
+  })
+
+  test('keeps a stored structure when the source model is only guessed', async () => {
+    const structure = { type: 'json' }
+    useDerivationRulesStore().initializeDerivationRules([
+      { ...storedRule, fields: [...storedRule.fields, { target: 'data', from: 'data', structure }] },
+    ])
+    const state = setup('/api/index-cards', { sourceFieldModel: { source: 'sample', fields: [] } })
+    await settle()
+    expect(state.isDirty.value).toBe(false)
+    state.draft.value.labelDe = 'Neu'
+    await state.save()
+    const saved = state.updateMappings.mock.calls[0][0].mappings[0].fields
+    expect(saved.find((field) => field.target === 'data').structure).toEqual(structure)
+  })
+
   test('blocks saving a component target fed by a different component', async () => {
     const collectors = { strapiType: 'component', isStructured: true, component: 'shared.person', repeatable: true }
     const state = setup('/api/index-cards', {

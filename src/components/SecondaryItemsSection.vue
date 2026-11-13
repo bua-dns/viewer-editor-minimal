@@ -4,7 +4,7 @@
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useOnlineUpdatesStore } from '../stores/useOnlineUpdatesStore'
 import { useUserConfigStore } from '../stores/useUserConfigStore'
-import { describeLinkedItem, linkedItemKey, pickLanguageText } from '../composables/linkedItems'
+import { describeLinkedItem, linkedItemKey, pickLanguageText } from '../domain/linkedItems'
 import ItemFieldEditor from './ItemFieldEditor.vue'
 
 const props = defineProps({

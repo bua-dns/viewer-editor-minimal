@@ -244,14 +244,50 @@ describe('useItemDerivation', () => {
       expect(fields.collectors[0]).not.toHaveProperty('id')
     })
 
-    test('still creates the item when the schemas cannot be read, copying as read', async () => {
-      const state = setup({ row: collectorsRow, sourceModel: componentModel })
-      state.services.fetchFieldModel.mockRejectedValue(new Error('403'))
+    test('a rule with the stored structure works for a role that cannot read the schema', async () => {
+      const structure = { type: 'component', component: 'shared.wikidata-entity', repeatable: true }
+      useDerivationRulesStore().initializeDerivationRules([
+        { ...mappings[0], fields: [{ target: 'collectors', from: 'collectors', structure }] },
+      ])
+      const state = setup({ row: collectorsRow, sourceModel: { source: 'sample', fields: [] } })
+      state.services.fetchComponentSchemas.mockResolvedValue({})
       await state.openDerivation()
       await state.confirmDerivation()
 
-      expect(state.services.fetchRow).toHaveBeenLastCalledWith(expect.objectContaining({ populateFields: [] }))
-      expect(state.services.createItem).toHaveBeenCalledTimes(1)
+      expect(state.services.fetchFieldModel).not.toHaveBeenCalled()
+      expect(state.services.fetchRow).toHaveBeenLastCalledWith(expect.objectContaining({ populateFields: ['collectors'] }))
+      const { fields } = state.services.createItem.mock.calls[0][0]
+      expect(fields.collectors[0]).not.toHaveProperty('id')
+      expect(fields.collectors[0].wikidata_id).toBe('Q2688176')
+    })
+
+    test('an older rule without structure and without schema access stops with a hint instead of dropping data', async () => {
+      const item = {
+        label: '0_00571',
+        collectors: [{ id: 'Q2688176', label: 'Sintenis' }],
+        __onlineMeta: { id: 'card-1', idKind: 'documentId', itemsPath: '/api/index-cards' },
+      }
+      const state = setup({ item, row: serverRow, sourceModel: { source: 'sample', fields: [{ key: 'collectors', strapiType: 'json', isStructured: true }] } })
+      await state.openDerivation()
+
+      expect(state.dialog.value.phase).toBe('error')
+      expect(state.dialog.value.error).toMatch(/does not know the structure of collectors.*save it again/)
+      expect(state.services.createItem).not.toHaveBeenCalled()
+    })
+
+    test('without readable component schemas the entry ids still go, nested media stays', async () => {
+      const structure = { type: 'component', component: 'shared.wikidata-entity', repeatable: true }
+      useDerivationRulesStore().initializeDerivationRules([
+        { ...mappings[0], fields: [{ target: 'collectors', from: 'collectors', structure }] },
+      ])
+      const state = setup({ row: collectorsRow, sourceModel: componentModel })
+      state.services.fetchComponentSchemas.mockRejectedValue(new Error('403'))
+      await state.openDerivation()
+      await state.confirmDerivation()
+
+      const { fields } = state.services.createItem.mock.calls[0][0]
+      expect(fields.collectors[0]).not.toHaveProperty('id')
+      expect(fields.collectors[0].portrait).toEqual({ id: 3, url: '/uploads/p.jpg' })
     })
   })
 

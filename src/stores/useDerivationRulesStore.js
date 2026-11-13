@@ -1,7 +1,7 @@
 // The derivation rules of the open online data source (`viewer-setting.mappings`), and saving one
 // rule back. Loaded with the online settings, cleared when the data source closes.
 import { ref } from 'vue'
-import { normalizeDerivationRules, upsertRuleForSource } from '../composables/derivationRules'
+import { normalizeDerivationRules, upsertRuleForSource } from '../domain/derivationRules'
 import { updateViewerMappingsInStrapi } from '../services/strapiMappings'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'

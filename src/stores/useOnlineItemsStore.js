@@ -8,7 +8,7 @@ import {
   resolveScanFieldFromSettings,
 } from '../services/strapiApi'
 import { resolveSearchableFieldKeys, searchCollectionItemsInStrapi } from '../services/strapiSearch'
-import { tokenizeSearchQuery } from '../composables/searchQuery'
+import { tokenizeSearchQuery } from '../domain/searchQuery'
 import { useAuthStore } from './useAuthStore'
 import { useConnectionProfileStore } from './useConnectionProfileStore'
 

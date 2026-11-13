@@ -8,13 +8,16 @@
 //     fields: [
 //       { target: 'label', from: 'label', prefix: 'item_' },   // copy, optionally with a prefix
 //       { target: 'status', value: 'draft' },                  // constant
-//       { target: 'collectors', from: 'collectors' },          // component, json or blocks: 1:1
+//       { target: 'collectors', from: 'collectors',            // component, json or blocks: 1:1
+//         structure: { type: 'component', component: 'shared.person', repeatable: true } },
 //     ],
 //   }
 //
 // Structured fields are copied whole and only between fields of the same kind (component: same
 // component UID and `repeatable`). Component entries lose their database `id` and nested
-// media/relations, so Strapi creates new component rows for the new item.
+// media/relations, so Strapi creates new component rows for the new item. The rule editor stores
+// the source field's `structure` with the mapping (it has the schema then), so deriving works for
+// users whose role cannot read the content-type schema.
 //
 // Pure functions only; loading, saving and the click flow live elsewhere.
 
@@ -51,8 +54,26 @@ function normalizeFieldMapping(raw) {
 
   const from = trimmedString(raw.from)
   if (!from) return null
+  const mapping = { target, from }
   const prefix = typeof raw.prefix === 'string' ? raw.prefix : ''
-  return prefix ? { target, from, prefix } : { target, from }
+  if (prefix) mapping.prefix = prefix
+  const structure = normalizeStructure(raw.structure)
+  if (structure) mapping.structure = structure
+  return mapping
+}
+
+/** `{ type, component?, repeatable? }` of a structured copy, or null when absent or unusable. */
+export function normalizeStructure(raw) {
+  if (!isPlainObject(raw) || !COPYABLE_STRUCTURED_TYPES.has(raw.type)) return null
+  if (raw.type !== 'component') return { type: raw.type }
+  const component = trimmedString(raw.component)
+  return component ? { type: 'component', component, repeatable: raw.repeatable === true } : null
+}
+
+/** The structure to store with a mapping from `sourceField` of a data model; null for plain fields. */
+export function structureOfField(sourceField) {
+  if (!sourceField?.isStructured) return null
+  return normalizeStructure({ type: sourceField.strapiType, component: sourceField.component, repeatable: sourceField.repeatable })
 }
 
 function normalizeRuleLabel(value) {
@@ -212,9 +233,14 @@ export function cleanComponentValue(value, uid, componentSchemas = {}) {
   return cleanComponentEntry(value, uid, componentSchemas)
 }
 
-function copySourceValue(value, sourceField, componentSchemas) {
-  if (sourceField?.strapiType !== 'component') return value
-  return cleanComponentValue(value, sourceField.component, componentSchemas)
+// The stored structure first; a schema field model of the source fills in for older rules.
+function resolveStructure(mapping, sourceFields) {
+  return mapping.structure || structureOfField(sourceFields.get(mapping.from))
+}
+
+function copySourceValue(value, structure, componentSchemas) {
+  if (structure?.type !== 'component') return value
+  return cleanComponentValue(value, structure.component, componentSchemas)
 }
 
 function applyPrefix(value, prefix) {
@@ -226,14 +252,15 @@ function deriveFieldValue(mapping, sourceValues, context) {
   if (isConstantMapping(mapping)) return mapping.value
   const value = sourceValues[mapping.from]
   if (!hasValue(value)) return undefined
-  const copied = copySourceValue(value, context.sourceFields.get(mapping.from), context.componentSchemas)
+  const copied = copySourceValue(value, resolveStructure(mapping, context.sourceFields), context.componentSchemas)
   return applyPrefix(copied, mapping.prefix)
 }
 
 /**
- * The target item's field values; a copied field whose source is empty is left out.
- * `sourceFieldModel` (`[{ key, strapiType, component }]`) and `componentSchemas` let component
- * values be cleaned for the create request; without them values are copied as they are.
+ * The target item's field values; a copied field whose source is empty is left out. Component
+ * values are cleaned for the create request when the mapping's `structure` (or, for older rules,
+ * `sourceFieldModel`, a schema model `[{ key, strapiType, component }]`) says it is a component;
+ * `componentSchemas` adds dropping nested media/relations.
  */
 export function buildDerivedFields(rule, sourceValues = {}, { sourceFieldModel = [], componentSchemas = {} } = {}) {
   const context = { sourceFields: new Map(sourceFieldModel.map((field) => [field.key, field])), componentSchemas }
@@ -245,13 +272,38 @@ export function buildDerivedFields(rule, sourceValues = {}, { sourceFieldModel =
   return fields
 }
 
+function copyMappings(rule) {
+  return (rule?.fields || []).filter((mapping) => !isConstantMapping(mapping))
+}
+
 /** Source fields of the rule's copies that Strapi returns only when populated (components). */
 export function listPopulatedSourceFields(rule, sourceFieldModel = []) {
-  const componentKeys = new Set(
-    sourceFieldModel.filter((field) => field.strapiType === 'component').map((field) => field.key),
-  )
-  const sources = (rule?.fields || []).map((mapping) => mapping.from).filter((key) => componentKeys.has(key))
+  const sourceFields = new Map(sourceFieldModel.map((field) => [field.key, field]))
+  const sources = copyMappings(rule)
+    .filter((mapping) => resolveStructure(mapping, sourceFields)?.type === 'component')
+    .map((mapping) => mapping.from)
   return [...new Set(sources)]
+}
+
+/** Whether a rule copies structured fields whose structure is not stored with the mapping. */
+export function needsSourceFieldModel(rule) {
+  return copyMappings(rule).some((mapping) => !mapping.structure)
+}
+
+/**
+ * Copies whose source holds a structured value (object or list) although neither the mapping nor
+ * a schema model says what it is: such a value can be neither populated nor cleaned, so deriving
+ * would drop it or fail in Strapi. `sourceValues` are the item's values as the viewer holds them.
+ */
+export function findUnresolvedStructuredMappings(rule, sourceValues = {}, sourceFieldModel = []) {
+  const sourceFields = new Map(sourceFieldModel.map((field) => [field.key, field]))
+  return copyMappings(rule)
+    .filter((mapping) => !resolveStructure(mapping, sourceFields))
+    .filter((mapping) => {
+      const value = sourceValues[mapping.from]
+      return Array.isArray(value) || isPlainObject(value)
+    })
+    .map((mapping) => mapping.from)
 }
 
 /** The relation value that links the new item to its source (Strapi `connect`). */

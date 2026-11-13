@@ -1,4 +1,5 @@
-import { joinBaseUrlAndPath } from '../composables/connectionProfile'
+import { joinBaseUrlAndPath } from '../domain/connectionProfile'
+import { hasNonEmptyValue } from '../domain/valueChecks'
 
 const ONLINE_META_KEY = '__onlineMeta'
 
@@ -150,7 +151,7 @@ export async function fetchViewerSettingsFromStrapi({ profile, token = '' }) {
 
   const wording = isPlainObject(payload?.data?.wording) ? payload.data.wording : {}
   const replacements = resolveReplacementsFromConfigPayload(payload)
-  // Derivation rules: own JSON prop, raw here (see composables/derivationRules.js).
+  // Derivation rules: own JSON prop, raw here (see domain/derivationRules.js).
   const mappings = payload?.data?.mappings ?? null
 
   return {
@@ -864,20 +865,12 @@ export async function fetchCollectionItemFromStrapi({ profile, itemsPath, token 
   return payload.data
 }
 
-export function hasNonEmptyOnlineFieldValue(value) {
-  if (value == null) return false
-  if (typeof value === 'string') return value.trim().length > 0
-  if (Array.isArray(value)) return value.length > 0
-  if (typeof value === 'object') return Object.keys(value).length > 0
-  return true
-}
-
 export function pickNonEmptyOnlineFields(fields = {}) {
   if (!isPlainObject(fields)) return {}
   const picked = {}
   Object.entries(fields).forEach(([key, value]) => {
     if (key === ONLINE_META_KEY) return
-    if (!hasNonEmptyOnlineFieldValue(value)) return
+    if (!hasNonEmptyValue(value)) return
     picked[key] = value
   })
   return picked

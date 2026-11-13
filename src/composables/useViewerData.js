@@ -1,11 +1,11 @@
 import { computed, ref, unref } from 'vue'
 import { useReplacementsStore } from '../stores/useReplacementsStore'
-import { computeReplacementChanges, countChangedFields } from './replacementRules'
+import { computeReplacementChanges, countChangedFields } from '../domain/replacementRules'
 import { createDefaultValueForFieldType, normalizeUpdatedFieldValue } from '../fields/fieldRegistry'
 import { markItemAsCreated } from './createdItems'
-import { tokenizeSearchQuery } from './searchQuery'
-import { hasNonEmptyValue } from './valueChecks'
-import { parseCsvRecords, splitCsvLine, toCsvCell } from './csvFormat'
+import { tokenizeSearchQuery } from '../domain/searchQuery'
+import { hasNonEmptyValue } from '../domain/valueChecks'
+import { parseCsvRecords, splitCsvLine, toCsvCell } from '../domain/csvFormat'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
