@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11 - Admin CLI: sync field config between collections
+
+- `pnpm fields:sync` (menu in a terminal, or `check` / `sync` with arguments) compares one field of two
+  collections in a project: the Strapi structure (type, component, repeatable) and the viewer field
+  config. `sync` makes the target's config identical to the source's (`order` stays per collection;
+  `prefillWith` only if the target has that field). It refuses on a structure mismatch, backs up the
+  viewer-setting and asks before writing. The token is read from the project's `.env.local`.
+
 ## 2026-11 - Derivation rules: copy component, JSON and blocks fields
 
 - In the derivation rule editor, component, JSON and blocks fields can now be mapped (they were greyed

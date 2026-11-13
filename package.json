@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "settings:backup": "node build-tools/backupSettings.js",
-    "items:dump": "node build-tools/dumpItems.js"
+    "items:dump": "node build-tools/dumpItems.js",
+    "fields:sync": "node build-tools/syncFieldConfig.js"
   },
   "dependencies": {
     "highlight.js": "^11.12.0",

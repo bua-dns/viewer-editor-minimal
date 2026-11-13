@@ -84,6 +84,7 @@ pnpm preview    # Build lokal serven
 pnpm test       # vitest run
 pnpm settings:backup <project> | --all   # Strapi viewer-setting lokal sichern (siehe unten)
 pnpm items:dump <project> | --all        # alle Items der Collection lokal ablegen (siehe unten)
+pnpm fields:sync                         # Feldkonfiguration zwischen Collections prüfen/angleichen (Menü, siehe unten)
 ```
 
 Die Skriptnamen sind identisch für `npm run ...`; ein `npm install` erzeugt allerdings ein
@@ -170,6 +171,63 @@ pnpm items:dump --all [--page-size 100]
 - **Auth:** wie oben, optional `VIEWER_SETTING_TOKEN`.
 - Code: `build-tools/itemsDump.js` (Logik), `build-tools/dumpItems.js` (CLI), gemeinsames Env-Setup beider
   CLIs in `build-tools/cliEnv.js`. Tests: `build-tools/itemsDump.test.js`.
+
+### Feldkonfiguration zwischen Collections angleichen (`pnpm fields:sync`)
+
+```bash
+pnpm fields:sync                                    # Menü (nur im Terminal)
+pnpm fields:sync check xylothek-index-cards --from index_cards --to collection_items --field collectors
+pnpm fields:sync sync  xylothek-index-cards --from index_cards --to collection_items --field collectors [--yes]
+```
+
+Gegenstück zum Kopieren von Komponenten beim Ableiten ([12.12](#1212-items-ableiten)): ein kopiertes Feld
+erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldkonfiguration hat.
+
+- **Collections** sind die Attribute des `viewer-setting` mit `itemsPath` und `fields` (v2-Layout, z. B.
+  `index_cards`, `collection_items`); das v1-Attribut `settings` wird nicht angeboten und nicht angefasst.
+  Felder werden über denselben Schlüssel in Quelle und Ziel verglichen.
+- **check** (nur lesend): Strapi-Schema des Felds in beiden Collections (`GET
+  /api/content-type-builder/content-types`, Content-Type über den Plural-Namen aus `itemsPath`): gleicher
+  Typ, bei Komponenten gleiche UID und gleiches `repeatable`. Dann die Viewer-Konfiguration: in beiden
+  konfiguriert? Unterschiede als Schlüsselpfade (`autosuggest.prioritize: — → {…}`). Exit `0` gleiche Struktur
+  und identisch, `1` Unterschiede bzw. Schema-Problem, `2` Fehler. Ohne Leserecht aufs Schema meldet der Check
+  `schema not readable` statt abzubrechen.
+- **Was „identisch" heißt:** alle Schlüssel außer `order` (Position im Formular der jeweiligen Collection).
+  `prefillWith` wird nur übernommen, wenn das genannte Feld im Ziel konfiguriert ist; sonst entfällt es mit
+  Hinweis. Check und Sync nutzen dieselbe Regel, nach einem Sync meldet der Check „identical".
+- **sync:** verweigert, wenn der Strapi-Check scheitert oder das Feld in der Quelle fehlt; bei identischer
+  Konfiguration passiert nichts. Sonst: Settings-Backup (`backupProject`, wie `settings:backup`) → Diff →
+  Rückfrage `[y/N]` (Default nein; `--yes` überspringt sie, ohne Terminal ohne `--yes` wird nichts geschrieben)
+  → `viewer-setting` frisch lesen → `PUT <configPath>` mit `{ data: { <Ziel-Attribut>: … } }` (nur dieses
+  Attribut, darin nur dieses Feld) → erneut lesen und prüfen. Ein neues Feld kommt ans Ende der `order`.
+- **Token:** `VIEWER_SETTING_TOKEN` aus `<project>/.env.local` bzw. `.env` im Config-Repo, sonst aus der
+  `.env.local` dieses Repos bzw. der Umgebung. Sync braucht Schreibrecht auf den `viewer-setting`.
+- **Menü** (auf stderr; Enter = Vorschlag, `b` zurück, `q` beenden, Ctrl+C bricht ab): Projekt → Quelle →
+  Ziel (ohne die Quelle) → Feld (Komponenten zuerst, darin die auch im Ziel konfigurierten) → Operation.
+  Jeder Lauf ist ein CLI-Aufruf, das Menü zeigt ihn an; danach geht es zurück zur Feldauswahl.
+
+  ```
+  Field:
+    1) collectors  (component, configured in target)  (default)
+    2) locations  (component, not in target)
+  Choice [1] (b back, q quit):
+  Operation for "collectors":
+    1) check  (read only)  (default)
+    2) sync   (writes the target config after a backup and a confirmation)
+  > pnpm fields:sync check xylothek-index-cards --from index_cards --to collection_items --field collectors
+  Field "collectors": index_cards → collection_items
+    Strapi:  same structure — source: component metadata-forms.wikidata-reference, repeatable; target: …
+    Viewer:  configured in source: yes; in target: yes
+    Config:  2 difference(s) (target vs. source):
+      autosuggest.alsoGetDataFrom: — → [{"propertyId":"P227","label":"GND"}]
+      autosuggest.prioritize: — → {"claimPresence":{…}}
+    Note:    prefillWith "ai_collector" is left out: the target has no field "ai_collector".
+  ```
+
+- Code: `build-tools/fieldConfigSync.js` (reine Logik: Collections, Schema-Vergleich, Diff, Zielkonfiguration),
+  `build-tools/fieldSyncStrapi.js` (Lesen, Backup, Schreiben), `build-tools/fieldSyncMenu.js` (Menü, alle I/O
+  injiziert), `build-tools/syncFieldConfig.js` (CLI). Tests: `fieldConfigSync.test.js`,
+  `fieldSyncStrapi.test.js` (Fake-Strapi), `fieldSyncMenu.test.js` (geskriptete Sitzungen, CLI-Argumente).
 
 ---
 
