@@ -169,7 +169,10 @@ async function onCopyRawData() {
 <template>
   <div class="field-grid">
     <template v-for="row in fieldRows" :key="row.key">
-      <div class="field-row" :class="[`field-width-${row.fieldWidth.replace('%', '')}`, { 'is-readonly': row.isReadOnly }]">
+      <div class="field-row" :class="[`field-width-${row.fieldWidth.replace('%', '')}`, {
+        'is-readonly': row.isReadOnly,
+        'is-checkbox': row.editorBinding.resolvedType === 'checkbox',
+      }]">
         <label :for="row.fieldId" class="field-label">
           <span>{{ row.label }}</span>
           <small v-if="row.isReadOnly" class="field-readonly-badge">read-only</small>
@@ -256,6 +259,28 @@ async function onCopyRawData() {
 
 .field-row.field-width-100 {
   grid-column: 1 / -1;
+}
+
+// Checkbox fields: the box in front of its label on one line, a hint below the label.
+.field-row.is-checkbox {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.5rem;
+}
+
+.field-row.is-checkbox > :not(.field-label, .field-hint) {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.field-row.is-checkbox > .field-label {
+  grid-row: 1;
+  grid-column: 2;
+  cursor: pointer;
+}
+
+.field-row.is-checkbox > .field-hint {
+  grid-column: 2;
 }
 
 .field-label {
