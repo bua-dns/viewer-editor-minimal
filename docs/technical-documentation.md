@@ -1680,7 +1680,9 @@ Zusatzfunktionen:
 
 - Lightbox für das `scan`-Bild mit Fullscreen-Umschaltung; Fallback-UI bei Bildladefehlern
   (Liste, Sidebar, Lightbox).
-- `beforeunload`-Warnung bei `isDirty` oder nicht angewendeten User-Config-Änderungen.
+- `beforeunload`-Warnung bei `isDirty`, geänderten Ersetzungsregeln, nicht angewendeten User-Config-Änderungen
+  und ungespeicherten Online-Änderungen (`hasPendingOnlineChanges`, auch für nicht geladene Items nach einem
+  bestandsweiten Ersetzungslauf).
 - `Escape` schließt Start-From-Scratch-Modal und Lightbox; bei offener Sidebar hebt `Escape` die
   aktuelle Auswahl auf.
 - Upload/Download-Buttons behalten feste Breiten je Aktionstyp, damit beim Moduswechsel kein

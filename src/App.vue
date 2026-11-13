@@ -815,8 +815,13 @@ function onSidebarClose() {
   clearSelection()
 }
 
+// Asks before closing or reloading the page while anything would be lost: offline edits, unapplied
+// configuration, and pending online changes (also those of items not loaded, e.g. from a
+// collection-wide replacement run).
 function beforeUnloadListener(event) {
-  if (!hasPendingChanges.value && !hasUnappliedUserConfigChanges.value) return
+  const wouldLoseWork =
+    hasPendingChanges.value || hasUnappliedUserConfigChanges.value || hasPendingOnlineChanges.value
+  if (!wouldLoseWork) return
   event.preventDefault()
   event.returnValue = ''
 }
