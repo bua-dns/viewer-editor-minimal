@@ -3,7 +3,7 @@
 // Runs in Node only; the CLI is build-tools/dumpItems.js.
 import fs from 'node:fs'
 import path from 'node:path'
-import { fetchViewerSetting, readConnectionProfile, resolveSettingsUrl } from './settingsBackup.js'
+import { fetchViewerSetting, readConnectionProfile, REQUEST_TIMEOUT_MS, resolveSettingsUrl } from './settingsBackup.js'
 
 export const DUMP_DIR_NAME = 'item-dumps'
 export const ITEMS_FILE = 'items.json'
@@ -32,7 +32,7 @@ export function buildPageUrl(baseUrl, itemsPath, { page, pageSize }) {
 async function getJson(url, { fetchImpl, token }) {
   const headers = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
-  const response = await fetchImpl(url, { headers })
+  const response = await fetchImpl(url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
   if (!response.ok) throw new Error(`GET ${url} failed: HTTP ${response.status}.`)
   return response.json()
 }

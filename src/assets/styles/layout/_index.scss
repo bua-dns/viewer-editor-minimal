@@ -408,6 +408,11 @@
 
 .status-panel {
   grid-area: status;
+
+  .status-error {
+    color: var(--ve-color-danger);
+    font-weight: 600;
+  }
 }
 
 .app-footer {

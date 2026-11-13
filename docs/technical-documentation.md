@@ -71,7 +71,9 @@ Kernfunktionen:
 ### Paketmanager und Skripte
 
 Im Repository liegt ausschließlich `pnpm-lock.yaml` (kein `package-lock.json`), d. h. der Lockfile-Stand
-wird mit **pnpm** gepflegt. Ein `packageManager`-Feld in `package.json` existiert nicht.
+wird mit **pnpm** gepflegt. Ein `packageManager`-Feld in `package.json` existiert nicht. `engines` verlangt
+Node ≥ 20.12 (die Admin-Skripte nutzen `process.loadEnvFile` und `util.parseEnv`). Alle Requests der
+Admin-Skripte brechen nach 30 s ab (`REQUEST_TIMEOUT_MS` in `build-tools/settingsBackup.js`).
 
 ```bash
 pnpm install
@@ -835,7 +837,8 @@ Die Data-Transfer-Funktion ist modularisiert:
 ### 9.1 Datenmodus im Header
 
 - In der Topbar kann zwischen `JSON` und `CSV` umgeschaltet werden; der Modus wird in `sessionStorage`
-  gehalten (siehe [Kapitel 5](#5-browser-persistenz)).
+  gehalten (siehe [Kapitel 5](#5-browser-persistenz)); blockiert der Browser den Speicher, gilt der Modus
+  nur für die laufende Ansicht.
 - Upload-Button-Label und `accept`-Filter passen sich dem Modus an; ein Dateityp-Mismatch wird mit
   Fehlermeldung blockiert.
 - Solange keine Daten geladen sind, ist zusätzlich ein Button für passende Beispieldaten sichtbar
@@ -863,7 +866,8 @@ Die Data-Transfer-Funktion ist modularisiert:
 5. `useDataImportExport` setzt die Feldkonfiguration zurück, validiert eine eingebettete `config` strikt
    und wendet sie an, inklusive der Viewer-Einstellungen (siehe [4.3](#43-konfiguration-der-datenquelle)).
    Bei ungültiger `config` erscheint eine Fehlermeldung; die Daten bleiben ohne Feldkonfiguration geladen.
-6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten.
+6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten. `errorMessage` und die
+   Mismatch-Meldung (`modeErrorMessage`) erscheinen im Statusbereich unter der Liste (`role="alert"`).
 
 **Kopierstrategie:** Daten werden via `cloneData` (`JSON.parse(JSON.stringify(...))`) tief kopiert.
 Vorteil: einfacher, stabiler Snapshot für Reset/Export. Einschränkung: nicht geeignet für

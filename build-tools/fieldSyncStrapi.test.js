@@ -29,7 +29,7 @@ function fakeStrapi({ schemaStatus = 200 } = {}) {
   const record = settingData()
   const calls = []
   const impl = async (url, options = {}) => {
-    calls.push({ url, method: options.method || 'GET', headers: options.headers, body: options.body })
+    calls.push({ url, method: options.method || 'GET', headers: options.headers, body: options.body, signal: options.signal })
     if (url.endsWith('/content-types')) return { ok: schemaStatus < 400, status: schemaStatus, json: async () => contentTypes }
     if (options.method === 'PUT') Object.assign(record, JSON.parse(options.body).data)
     return { ok: true, status: 200, json: async () => ({ data: structuredClone(record) }) }
@@ -120,6 +120,19 @@ describe('sync', () => {
       order: 6,
       autosuggest: { limit: 50, minChars: 3 },
     })
+  })
+
+  test('every request has a timeout; a timed-out write says it may have happened', async () => {
+    const strapi = fakeStrapi()
+    const impl = async (url, options = {}) => {
+      if (options.method === 'PUT') throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+      return strapi.impl(url, options)
+    }
+    await expect(syncProjectField(syncOptions(strapi, { fetchImpl: impl }))).rejects.toThrow(
+      /PUT .* timed out; the change may have been written\. Run "check"/,
+    )
+    expect(strapi.calls.length).toBeGreaterThan(0)
+    expect(strapi.calls.every((call) => call.signal instanceof AbortSignal)).toBe(true)
   })
 
   test('writes nothing when the user says no', async () => {

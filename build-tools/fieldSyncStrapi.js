@@ -12,7 +12,7 @@ import {
   listCollections,
   syncBlocker,
 } from './fieldConfigSync.js'
-import { backupProject, readConnectionProfile, resolveSettingsUrl, TOKEN_ENV_KEY } from './settingsBackup.js'
+import { backupProject, readConnectionProfile, REQUEST_TIMEOUT_MS, resolveSettingsUrl, TOKEN_ENV_KEY } from './settingsBackup.js'
 
 const CONTENT_TYPES_PATH = '/api/content-type-builder/content-types'
 
@@ -31,11 +31,21 @@ export function resolveProjectToken(projectsDir, name, env = process.env) {
   return projectEnv[TOKEN_ENV_KEY] || env[TOKEN_ENV_KEY] || ''
 }
 
+async function send(url, { fetchImpl, method, headers, body }) {
+  try {
+    return await fetchImpl(url, { method, headers, body, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+  } catch (error) {
+    // A write that times out may still have reached Strapi.
+    if (error?.name !== 'TimeoutError' || method === 'GET') throw error
+    throw new Error(`${method} ${url} timed out; the change may have been written. Run "check" to see the current state.`)
+  }
+}
+
 async function requestJson(url, { fetchImpl, token, method = 'GET', body }) {
   const headers = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
   if (body) headers['Content-Type'] = 'application/json'
-  const response = await fetchImpl(url, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  const response = await send(url, { fetchImpl, method, headers, body: body ? JSON.stringify(body) : undefined })
   if (!response.ok) throw new Error(`${method} ${url} failed: HTTP ${response.status}.`)
   return response.json()
 }

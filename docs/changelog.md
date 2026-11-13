@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11 - Import errors visible, sturdier storage and admin scripts
+
+- Import errors (broken JSON/CSV, a file that doesn't match the selected mode, sample data that can't be
+  loaded) are now shown in the status area under the list; before, the import just failed silently.
+- A browser that blocks site storage no longer stops the app's startup; the JSON/CSV mode is then not
+  remembered.
+- `package.json` declares Node ≥ 20.12. The admin scripts give up after 30 s instead of hanging when Strapi
+  doesn't answer; a timed-out write in `fields:sync` says that it may have happened.
+
 ## 2026-11 - Derivation rules remember the structure of copied fields
 
 - Saving a derivation rule now stores the structure of each copied component, JSON or blocks field

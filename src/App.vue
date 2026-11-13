@@ -1375,6 +1375,9 @@ watch(
             <div>
               <p v-if="importFileName">{{ t('statusFilePrefix', 'Datei') }}: {{ importFileName }}</p>
               <p v-else>{{ t('noFileLoaded', 'Noch keine Datei geladen') }}</p>
+              <!-- Import, CSV/JSON parsing and sample-data errors (review F2). -->
+              <p v-if="modeErrorMessage" class="status-error" role="alert">{{ modeErrorMessage }}</p>
+              <p v-if="errorMessage" class="status-error" role="alert">{{ errorMessage }}</p>
             </div>
           </section>
         </section>
