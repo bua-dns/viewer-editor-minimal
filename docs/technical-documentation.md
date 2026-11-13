@@ -2,7 +2,8 @@
 
 > Bei Abweichungen zwischen diesem Dokument und dem Code gilt der Code.
 > Dieses Dokument ist die maßgebliche Implementierungs-/Architekturreferenz;
-> `README.md` ist die kurze Einstiegs- und Setup-Beschreibung.
+> `README.md` ist die kurze Einstiegs- und Setup-Beschreibung; die Bedienung aus Nutzersicht steht in der
+> [Bedienungsanleitung](how-to-use-this-tool.md).
 
 ## Inhalt
 

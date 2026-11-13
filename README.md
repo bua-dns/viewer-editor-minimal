@@ -6,6 +6,14 @@ Kleine Vue-3-Webapp zum Laden, Durchsuchen, Bearbeiten und Exportieren von JSON-
 > Die maßgebliche Implementierungs- und Architekturreferenz ist
 > [`docs/technical-documentation.md`](docs/technical-documentation.md).
 
+## Dokumentation
+
+- [Bedienungsanleitung](docs/how-to-use-this-tool.md) - für alle, die mit dem Tool arbeiten: offline und online
+  bearbeiten, speichern, Konflikte, Ersetzungen, Items ableiten, Fehlermeldungen
+- [Technische Dokumentation](docs/technical-documentation.md) - Aufbau, Abläufe, Konfiguration (für Entwickler)
+- [Konventionen](docs/conventions.md) - Datenformate, Feldnamen, Aufbau der Konfiguration
+- [Changelog](docs/changelog.md)
+
 ## Features
 
 - Lokales Bearbeiten von JSON- und CSV-Daten inkl. Validierung, Reset und Export

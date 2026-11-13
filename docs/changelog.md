@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-11 - User manual
+
+- New `docs/how-to-use-this-tool.md` (German): working offline and online, saving and conflicts,
+  categories, configuration, replacements, deriving items, and a table of error messages with what to
+  do. Linked from the README; the usage bullets of `conventions.md` moved there.
+
 ## 2026-11 - One rule for reading the hierarchy fields
 
 - Online settings and imported config files now read the hierarchy fields by the same rule (before, there
