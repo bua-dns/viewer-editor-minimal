@@ -18,7 +18,9 @@ const mappings = [
 
 const serverRow = { documentId: 'card-1', label: '0_00571', ai_scientific_name: 'Pandanus hornei' }
 
-function setup({ enabled = true, pending = false, saveResult = true, item } = {}) {
+const plainSourceModel = { source: 'schema', fields: [{ key: 'label', strapiType: 'string', isStructured: false }] }
+
+function setup({ enabled = true, pending = false, saveResult = true, item, row = serverRow, sourceModel = plainSourceModel, componentSchemas = {} } = {}) {
   const state = {
     enabled: ref(enabled),
     onlineSettings: ref({ itemsPath: '/api/index-cards' }),
@@ -33,8 +35,10 @@ function setup({ enabled = true, pending = false, saveResult = true, item } = {}
     return saveResult
   })
   const services = {
-    fetchRow: vi.fn(async () => serverRow),
+    fetchRow: vi.fn(async () => row),
     createItem: vi.fn(async ({ fields }) => ({ data: { documentId: 'new-1', ...fields } })),
+    fetchFieldModel: vi.fn(async () => sourceModel),
+    fetchComponentSchemas: vi.fn(async () => componentSchemas),
   }
   const onCreated = vi.fn()
   const derivation = useItemDerivation({
@@ -170,6 +174,85 @@ describe('useItemDerivation', () => {
 
     expect(state.dialog.value.phase).toBe('error')
     expect(state.dialog.value.error).toMatch(/may have been created/)
+  })
+
+  describe('component fields', () => {
+    const collectorsField = {
+      key: 'collectors',
+      strapiType: 'component',
+      isStructured: true,
+      component: 'shared.wikidata-entity',
+      repeatable: true,
+    }
+    const componentModel = { source: 'schema', fields: [...plainSourceModel.fields, collectorsField] }
+    const componentSchemas = {
+      'shared.wikidata-entity': {
+        wikidata_id: { type: 'string' },
+        label: { type: 'string' },
+        additional_data: { type: 'json' },
+        portrait: { type: 'media' },
+      },
+    }
+    const collectorsRow = {
+      ...serverRow,
+      collectors: [
+        {
+          id: 10,
+          wikidata_id: 'Q2688176',
+          label: 'Paul Ernst Emil Sintenis',
+          portrait: { id: 3, url: '/uploads/p.jpg' },
+          additional_data: { statementData: { P227: [{ id: 'Q2688176$4BD73389', rank: 'normal' }] } },
+        },
+      ],
+    }
+
+    beforeEach(() => {
+      useDerivationRulesStore().initializeDerivationRules([
+        { ...mappings[0], fields: [...mappings[0].fields, { target: 'collectors', from: 'collectors' }] },
+      ])
+    })
+
+    test('populates the copied component and sends it without database ids and media', async () => {
+      const state = setup({ row: collectorsRow, sourceModel: componentModel, componentSchemas })
+      await state.openDerivation()
+      await state.confirmDerivation()
+
+      expect(state.services.fetchRow).toHaveBeenLastCalledWith(expect.objectContaining({ populateFields: ['collectors'] }))
+      const { fields } = state.services.createItem.mock.calls[0][0]
+      expect(fields.collectors).toEqual([
+        {
+          wikidata_id: 'Q2688176',
+          label: 'Paul Ernst Emil Sintenis',
+          additional_data: { statementData: { P227: [{ id: 'Q2688176$4BD73389', rank: 'normal' }] } },
+        },
+      ])
+    })
+
+    test('loads the models at create time when the source was a draft during the preview', async () => {
+      const draft = { label: 'new card', __onlineMeta: { isDraft: true, draftId: 'd1', itemsPath: '/api/index-cards' } }
+      const state = setup({ pending: true, item: draft, row: collectorsRow, sourceModel: componentModel, componentSchemas })
+      state.saveChanges.mockImplementation(async () => {
+        draft.__onlineMeta = { id: 'card-9', idKind: 'documentId', itemsPath: '/api/index-cards' }
+        state.hasPendingChanges.value = false
+        return true
+      })
+      await state.openDerivation()
+      expect(state.services.fetchFieldModel).not.toHaveBeenCalled()
+
+      await state.confirmDerivation()
+      const { fields } = state.services.createItem.mock.calls[0][0]
+      expect(fields.collectors[0]).not.toHaveProperty('id')
+    })
+
+    test('still creates the item when the schemas cannot be read, copying as read', async () => {
+      const state = setup({ row: collectorsRow, sourceModel: componentModel })
+      state.services.fetchFieldModel.mockRejectedValue(new Error('403'))
+      await state.openDerivation()
+      await state.confirmDerivation()
+
+      expect(state.services.fetchRow).toHaveBeenLastCalledWith(expect.objectContaining({ populateFields: [] }))
+      expect(state.services.createItem).toHaveBeenCalledTimes(1)
+    })
   })
 
   test('cannot be closed while the item is being created', async () => {

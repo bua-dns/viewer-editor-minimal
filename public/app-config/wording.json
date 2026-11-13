@@ -1267,6 +1267,10 @@
     "de": "Jede Zeile braucht ein Zielfeld, eine Kopie zusätzlich ein Quellfeld.",
     "en": "Every row needs a target field, and a copy needs a source field."
   },
+  "deriveRuleIncompatibleField": {
+    "de": "Ein Komponenten-, JSON- oder Blocks-Feld kann nur aus einem Feld gleicher Struktur befüllt werden.",
+    "en": "A component, JSON or blocks field can only be filled from a field of the same structure."
+  },
   "prefillAcceptLabel": {
     "de": "Vorschlag übernehmen",
     "en": "Accept suggestion"

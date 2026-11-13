@@ -1290,7 +1290,8 @@ auf, sperrt den Button während des Laufs und rendert das Ergebnis als Statusmel
 ### 12.11 Datenmodell der Collection (Felder zum Hinzufügen)
 
 `fetchCollectionFieldModelFromStrapi({ profile, token, itemsPath })` in `services/strapiDataModel.js`
-liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedType, isStructured }] }`:
+liefert `{ source: 'schema' | 'sample', fields: [{ key, strapiType, suggestedType, isStructured }] }`
+(Komponenten aus dem Schema zusätzlich mit `component` (UID) und `repeatable`):
 
 1. **Schema:** `GET /api/content-type-builder/content-types`, davon der Content-Type, dessen
    `schema.pluralName` dem letzten Segment von `itemsPath` entspricht (`/api/index-cards` →
@@ -1349,6 +1350,7 @@ Quell-Collection; der Viewer nimmt die Regel, deren `source` dem `itemsPath` der
 | `label` | Button- und Dialogtitel je Sprache; ohne Eintrag `Item ableiten` / `Derive item` |
 | `relationField` | Relationsattribut **der Ziel-Collection**, das auf die Quelle zeigt (bei many-to-many genügt eine Seite) |
 | `fields[]` mit `from` | kopiert den Wert des Quellfelds; `prefix` wird davor gesetzt. Leere Quellwerte (`null`, leerer bzw. reiner Leerzeichen-String) werden ausgelassen, `0` und `false` übernommen |
+| `fields[]` mit `from`, strukturiert | Komponente, JSON oder Blocks werden als Ganzes kopiert, nur in ein Feld gleicher Struktur (Komponente: gleiche UID und gleiches `repeatable`). Komponenten-Einträge verlieren ihre Datenbank-`id` und verschachtelte Medien/Relationen; verschachtelte Komponenten ebenso. JSON-Inhalte bleiben unverändert (auch `id`-Schlüssel darin). `prefix` gilt nur für Text und Zahlen |
 | `fields[]` mit `value` | fester Wert (ein vorhandener Schlüssel `value` macht die Zeile zur Konstante, auch bei `""`) |
 
 Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDerivationRules`).
@@ -1356,16 +1358,23 @@ Unvollständige Regeln bzw. Zeilen werden beim Laden verworfen (`normalizeDeriva
 **Ablauf** (`useItemDerivation`):
 
 ```
-Klick ─▶ GET <source>/<documentId>  (bei einem Entwurf übersprungen)
+Klick ─▶ Datenmodell der Quelle + GET /api/content-type-builder/components (Komponenten-Schemas)
+      ─▶ GET <source>/<documentId>?populate[n]=<kopierte Komponente>  (bei einem Entwurf übersprungen)
       ─▶ Vorschau = Serverwerte + lokale ungespeicherte Werte ─▶ Dialog
 OK    ─▶ ungespeicherte Änderungen? ─ ja ─▶ useOnlineSave (alles) ─ Fehler ─▶ Abbruch, nichts angelegt
-      ─▶ GET <source>/<documentId>  (gespeicherter Stand, auch Felder außerhalb der Feldkonfiguration)
+      ─▶ GET <source>/<documentId>?populate…  (gespeicherter Stand, auch Felder außerhalb der Feldkonfiguration)
+      ─▶ Komponenten bereinigen (cleanComponentValue)
       ─▶ POST <target> { data: { …Zielwerte, <relationField>: { connect: [{ documentId }] } } }
       ─▶ Dialog: "Item angelegt: <label> (ID <documentId>)"
 ```
 
 - Ein gerade angelegter Entwurf wird beim Vorab-Speichern erstellt und danach über seine neue
   `documentId` verknüpft. Ohne `documentId` (Strapi v4) wird über `{ id }` verknüpft.
+- Komponenten werden nur gefüllt, wenn das Datenmodell der Quelle aus dem Schema kommt; ohne Schema werden
+  sie weder populiert noch bereinigt. Ohne lesbare Komponenten-Schemas fällt nur die `id` der Einträge weg.
+  Verschachtelte Komponenten werden nicht eigens populiert (nur eine Ebene).
+- Die Vorschau zeigt Komponenten unbereinigt, mit lokalen Änderungen in Viewer-Form (bei
+  Wikidata-Feldern ist `id` dort die QID); angelegt wird aus dem gespeicherten Strapi-Stand.
 - Die Bezeichnung im Ergebnis ist `label` der Antwort, sonst der erste abgeleitete Textwert.
 - Ein zweites Ableiten desselben Items ist erlaubt und legt ein weiteres Ziel-Item an (kein Hinweis).
 - **Unklarer Ausgang** (Timeout, Abbruch, `outcomeUnknown`): der Dialog sagt, dass das Item vielleicht
@@ -1378,8 +1387,11 @@ schreibbaren Settings. Quelle ist fest die geladene Collection. Die Ziel-Collect
 Collection-Types des Schemas (`fetchCollectionTypesFromStrapi`, nur `api::`-Collection-Types ohne die
 Quelle; ohne Leserecht ein Textfeld). Die Dropdowns kommen aus den Datenmodellen
 ([12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen)): Quelle aus `useRemoteFieldModel`, Ziel
-per `fetchCollectionFieldModelFromStrapi` auf `target`. Strukturierte Felder (Relation, Medien, Komponente,
-JSON) stehen in den Feld-Dropdowns, sind aber gesperrt. Das Relationsfeld bietet die `relation`-Attribute
+per `fetchCollectionFieldModelFromStrapi` auf `target`. Komponente, JSON und Blocks sind wählbar, wenn das
+jeweilige Modell aus dem Schema kommt (`isMappableField`); im Quell-Dropdown sind dann nur Felder gleicher
+Struktur frei (`areFieldsCompatible`), Präfix und fester Wert entfallen für solche Ziele. Eine gespeicherte
+Regel mit unpassendem Paar meldet `deriveRuleIncompatibleField` und lässt sich nicht speichern.
+Relation, Medien und Dynamic Zones bleiben gesperrt. Das Relationsfeld bietet die `relation`-Attribute
 des Ziels an (bei geratenem Modell die strukturierten Felder). Das Eingabefeld für einen festen Wert richtet
 sich nach dem Zieltyp (Checkbox, Zahl, Text). `Regel speichern` schreibt die ganze Liste
 (`PUT <configPath>` mit `{ data: { mappings } }`), ersetzt dabei nur die Regel der eigenen Quelle und
@@ -1673,9 +1685,9 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
 | `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
 | `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
-| `composables/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
-| `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens |
-| `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile |
+| `composables/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; wählbare strukturierte Felder; Kompatibilität (Komponenten-UID, `repeatable`, Typ); unpassende Zeilen; Bereinigen von Komponenten (Einträge-`id`, Medien/Relationen, verschachtelt, JSON unverändert); kein Präfix für Objekte; zu populierende Felder; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
+| `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens; Komponente populiert und ohne `id`/Medien gesendet (Beispiel `collectors`); Modelle beim Anlegen nachgeladen, wenn die Quelle ein Entwurf war; Anlegen auch ohne lesbares Schema |
+| `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile; unpassende Komponente blockiert das Speichern |
 | `composables/useOnlineSave.test.js` | Ohne angemeldete Online-Sitzung kein Speichern (`false`); nichts ausstehend → `true`; Items und Regeln speichern und als gespeichert markieren; nur Regeln; `false` bei fehlgeschlagenen Regeln; Teilfehler hält erstellte Items synchron |
 | `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; `loadStructuredFieldKeys` lädt bei Bedarf genau einmal und liefert die strukturierten Felder, ohne Modell eine leere Liste; Fehlerstatus mit Meldung |
 
@@ -1685,7 +1697,7 @@ Stand 2026-11-10: 35 Testdateien, 374 Tests, alle grün. Komponenten (`.vue`) ha
 | --- | --- |
 | `fields/fieldRegistry.test.js` | Registrierte Feldtypen bleiben stabil; Fallback auf abgeleiteten Editor-Typ bei unbekanntem Typ; Editor-Bindings für Checkbox, Read-only-Text und Candidate; Defaults je Typ; Normalisierung beim Config-Apply inkl. best-effort Integer-Coercion; kanonische Form für fehlerhafte Wikidata-Werte; `autosuggest`-Config bleibt opaker Pass-through; Edit-Normalisierung inkl. Legacy-Pfad und `configuredType`-gesteuerter Integer-Logik |
 | `services/strapiSearch.test.js` | Durchsuchbare Felder (Texttypen, ohne Typ, Hierarchie-Felder; ohne Checkbox/Integer/Wikidata); Filteraufbau UND über Tokens, ODER über Felder; Request enthält die Filter; abgelehntes Feld wird entfernt und die Suche wiederholt; Fehler ohne verbleibendes Feld; mehr Treffer als die Obergrenze brechen nach der ersten Seite ab (mit `total`) bzw. sobald überschritten (ohne `total`); andere Fehler werden durchgereicht |
-| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist; Collection-Types nur `api::`-Collection-Types nach Anzeigename, leere Liste ohne Leserecht |
+| `services/strapiDataModel.test.js` | Felder des passenden Content-Types ohne Systemfelder; vorgeschlagener Viewer-Typ je Strapi-Typ, strukturierte Typen markiert; kein passender Content-Type; Beispiel-Item (v5 und v4 `attributes`) mit geratenen Typen; Schema zuerst, Fallback auf Beispiel-Item mit `populate=*`, dann ohne `populate`; Fehler, wenn nichts lesbar ist; Collection-Types nur `api::`-Collection-Types nach Anzeigename, leere Liste ohne Leserecht; Komponenten-UID und `repeatable`; Komponenten-Schemas je UID, `{}` ohne Leserecht |
 | `services/strapiApi.test.js` | Normalisierung flacher und `attributes`-basierter Zeilen inkl. `documentId`/`id`-Fallback und hartem Fehler ohne stabile ID; Update-Payload mit `data`-Wrapper; Update-Request gegen den aufgelösten Item-Pfad; `populate[n]`-Aufbau; Ermittlung der Wikidata-Feldschlüssel aus Settings; Wikidata-Mapping Strapi ↔ Viewer in beide Richtungen; Settings lesen (inkl. optionalem Wording) und schreiben über `configPath`; Ersetzungsregeln aus `data.replacements` inkl. Legacy-Fallback auf `data.settings.replacements`, Schreiben nach `data.replacements` und Fehler bei fehlendem Prop; Datenmodell-Prüfung inkl. `wikidata_id`-Mismatch und Retry nach abgelehntem `populate`-Key; Item-Fetch-Retry ohne ungültigen `populate`-Key; 2xx ohne JSON bricht nach einem Request ab (Items und Datenmodell-Prüfung), `204` liefert `null`; Timeout und Netzwerkfehler als `outcomeUnknown`; 401 mit Token erreicht den Unauthorized-Handler, ohne Token nicht |
 
 ### Stores

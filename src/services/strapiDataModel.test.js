@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
   extractCollectionTypes,
+  extractComponentSchemas,
   extractFieldModelFromContentTypes,
+  fetchComponentSchemasFromStrapi,
   extractFieldModelFromSampleRow,
   fetchCollectionFieldModelFromStrapi,
   fetchCollectionTypesFromStrapi,
@@ -97,9 +99,59 @@ describe('extractFieldModelFromContentTypes', () => {
     expect(byKey.species).toMatchObject({ strapiType: 'relation', suggestedType: 'normal', isStructured: true })
   })
 
+  test('keeps the component UID and repeatable of component fields', () => {
+    const payload = {
+      data: [
+        {
+          uid: 'api::index-card.index-card',
+          schema: {
+            pluralName: 'index-cards',
+            attributes: { collectors: { type: 'component', component: 'shared.wikidata-entity', repeatable: true } },
+          },
+        },
+      ],
+    }
+    expect(extractFieldModelFromContentTypes(payload, '/api/index-cards')).toEqual([
+      {
+        key: 'collectors',
+        strapiType: 'component',
+        suggestedType: 'normal',
+        isStructured: true,
+        component: 'shared.wikidata-entity',
+        repeatable: true,
+      },
+    ])
+  })
+
   test('returns null when no content type matches', () => {
     expect(extractFieldModelFromContentTypes(contentTypesPayload, '/api/unknown')).toBeNull()
     expect(extractFieldModelFromContentTypes({}, '/api/index-cards')).toBeNull()
+  })
+})
+
+describe('component schemas', () => {
+  const componentsPayload = {
+    data: [
+      { uid: 'shared.wikidata-entity', schema: { attributes: { wikidata_id: { type: 'string' } } } },
+      { uid: 'broken' },
+    ],
+  }
+
+  test('extractComponentSchemas maps the attributes by UID', () => {
+    expect(extractComponentSchemas(componentsPayload)).toEqual({
+      'shared.wikidata-entity': { wikidata_id: { type: 'string' } },
+    })
+    expect(extractComponentSchemas({})).toEqual({})
+  })
+
+  test('fetchComponentSchemasFromStrapi reads the components endpoint, {} when forbidden', async () => {
+    globalThis.fetch = vi.fn(async () => okJson(componentsPayload))
+    const schemas = await fetchComponentSchemasFromStrapi({ profile, token: 't' })
+    expect(Object.keys(schemas)).toEqual(['shared.wikidata-entity'])
+    expect(String(globalThis.fetch.mock.calls[0][0])).toContain('/api/content-type-builder/components')
+
+    globalThis.fetch = vi.fn(async () => forbidden())
+    expect(await fetchComponentSchemasFromStrapi({ profile, token: 't' })).toEqual({})
   })
 })
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11 - Derivation rules: copy component, JSON and blocks fields
+
+- In the derivation rule editor, component, JSON and blocks fields can now be mapped (they were greyed
+  out). They are copied whole, only into a field of the same structure (component: same component and
+  same single/repeatable setting); other pairs are greyed out, and a stored rule with a mismatch cannot
+  be saved. Needs the content-type schema; relation, media and dynamic zone fields stay locked.
+- `Item ableiten` populates the copied components and sends them without their database ids and
+  without nested media/relations. JSON content inside a component is kept as is.
+
 ## 2026-11 - Editor layout under the scan
 
 - Under the scan, the hierarchy fields (`level_0`, `level_1`, …) come first, compact and two per row,

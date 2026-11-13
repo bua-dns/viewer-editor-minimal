@@ -1,14 +1,16 @@
 <script setup>
 // Konfiguration tab: the derivation rule of the loaded collection (viewer-setting.mappings).
-// Dropdowns come from the data models of the source and the target collection; structured
-// fields (relation, media, component, JSON) are listed but cannot be mapped.
+// Dropdowns come from the data models of the source and the target collection. Component, JSON and
+// blocks fields are copied whole between fields of the same structure (needs the schema); relation,
+// media and dynamic zones are listed but cannot be mapped.
 import { computed, onMounted, toRef } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useDerivationRuleDraft } from '../composables/useDerivationRuleDraft'
+import { areFieldsCompatible, isMappableField } from '../composables/derivationRules'
 
 const props = defineProps({
   sourcePath: { type: String, required: true },
-  // { fields: [{ key, strapiType, isStructured }], status } of the loaded collection
+  // { source, fields: [{ key, strapiType, isStructured, component?, repeatable? }], status } of the loaded collection
   sourceFieldModel: { type: Object, default: null },
 })
 
@@ -29,7 +31,7 @@ const {
   removeRow,
   resetDraft,
   save,
-} = useDerivationRuleDraft({ sourcePath: toRef(props, 'sourcePath') })
+} = useDerivationRuleDraft({ sourcePath: toRef(props, 'sourcePath'), sourceFieldModel: toRef(props, 'sourceFieldModel') })
 
 onMounted(loadCollectionTypes)
 
@@ -44,8 +46,27 @@ function fieldOptionLabel(field) {
   return field.strapiType ? `${field.key} (${field.strapiType})` : field.key
 }
 
+function findTargetField(row) {
+  return targetFields.value.find((entry) => entry.key === row.target)
+}
+
+// Structured targets are copied whole: no fixed value, no prefix.
+function hasStructuredTarget(row) {
+  return Boolean(findTargetField(row)?.isStructured)
+}
+
+function isTargetOptionDisabled(field) {
+  return !isMappableField(field, targetModel.value.source)
+}
+
+function isSourceOptionDisabled(row, field) {
+  if (!isMappableField(field, props.sourceFieldModel?.source)) return true
+  const targetField = findTargetField(row)
+  return Boolean(targetField) && !areFieldsCompatible(field, targetField)
+}
+
 function constantInputType(row) {
-  const field = targetFields.value.find((entry) => entry.key === row.target)
+  const field = findTargetField(row)
   if (field?.strapiType === 'boolean') return 'checkbox'
   return NUMBER_TYPES.has(field?.strapiType) ? 'number' : 'text'
 }
@@ -54,6 +75,12 @@ function onKindChange(row) {
   if (row.kind === 'constant') {
     row.value = constantInputType(row) === 'checkbox' ? false : ''
   }
+}
+
+function onTargetChange(row) {
+  if (!hasStructuredTarget(row)) return
+  row.kind = 'copy'
+  row.prefix = ''
 }
 
 const saveNote = computed(() => {
@@ -132,12 +159,12 @@ const saveNote = computed(() => {
       <tbody>
         <tr v-for="row in draft.rows" :key="row.key">
           <td>
-            <select v-model="row.target" :aria-label="t('deriveRuleTargetField', 'Target field')">
+            <select v-model="row.target" :aria-label="t('deriveRuleTargetField', 'Target field')" @change="onTargetChange(row)">
               <option value="">{{ t('deriveRuleChoose', 'Choose …') }}</option>
               <option v-if="row.target && !targetFields.some((field) => field.key === row.target)" :value="row.target">
                 {{ row.target }}
               </option>
-              <option v-for="field in targetFields" :key="field.key" :value="field.key" :disabled="field.isStructured">
+              <option v-for="field in targetFields" :key="field.key" :value="field.key" :disabled="isTargetOptionDisabled(field)">
                 {{ fieldOptionLabel(field) }}
               </option>
             </select>
@@ -145,7 +172,7 @@ const saveNote = computed(() => {
           <td>
             <select v-model="row.kind" :aria-label="t('deriveRuleKind', 'Value from')" @change="onKindChange(row)">
               <option value="copy">{{ t('deriveRuleKindCopy', 'Source field') }}</option>
-              <option value="constant">{{ t('deriveRuleKindConstant', 'Fixed value') }}</option>
+              <option value="constant" :disabled="hasStructuredTarget(row)">{{ t('deriveRuleKindConstant', 'Fixed value') }}</option>
             </select>
           </td>
           <td>
@@ -154,7 +181,8 @@ const saveNote = computed(() => {
               <option v-if="row.from && !sourceFields.some((field) => field.key === row.from)" :value="row.from">
                 {{ row.from }}
               </option>
-              <option v-for="field in sourceFields" :key="field.key" :value="field.key" :disabled="field.isStructured">
+              <option v-for="field in sourceFields" :key="field.key" :value="field.key"
+                :disabled="isSourceOptionDisabled(row, field)">
                 {{ fieldOptionLabel(field) }}
               </option>
             </select>
@@ -165,7 +193,7 @@ const saveNote = computed(() => {
             <input v-else v-model="row.value" type="text" :aria-label="t('deriveRuleValue', 'Fixed value')" />
           </td>
           <td>
-            <input v-if="row.kind === 'copy'" v-model="row.prefix" type="text" placeholder="item_"
+            <input v-if="row.kind === 'copy' && !hasStructuredTarget(row)" v-model="row.prefix" type="text" placeholder="item_"
               :aria-label="t('deriveRulePrefix', 'Prefix')" />
           </td>
           <td>

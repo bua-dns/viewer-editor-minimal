@@ -5,7 +5,13 @@ import { fetchCollectionFieldModelFromStrapi, fetchCollectionTypesFromStrapi } f
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 import { useDerivationRulesStore } from '../stores/useDerivationRulesStore'
-import { findRuleForSource, normalizeCollectionPath, normalizeDerivationRules, validateDerivationRule } from './derivationRules'
+import {
+  findIncompatibleMappings,
+  findRuleForSource,
+  normalizeCollectionPath,
+  normalizeDerivationRules,
+  validateDerivationRule,
+} from './derivationRules'
 import { createRequestSequence } from './requestSequence'
 
 const EMPTY_MODEL = { source: '', fields: [], status: 'idle', errorMessage: '' }
@@ -77,15 +83,27 @@ const INCOMPLETE_ROW_ERROR = {
   fallback: 'Every row needs a target field, and a copy needs a source field.',
 }
 
+const INCOMPATIBLE_FIELD_ERROR = {
+  key: 'deriveRuleIncompatibleField',
+  fallback: 'A component, JSON or blocks field can only be filled from a field of the same structure.',
+}
+
 function isIncompleteRow(row) {
   return !row.target || (row.kind === 'copy' && !row.from)
 }
 
 /**
- * @param {object} options `sourcePath` (ref of the loaded collection); `session`, `services` and
- *   `saveRule` (stores the rule, default: the rules store) are injected in tests.
+ * @param {object} options `sourcePath` (ref of the loaded collection); `sourceFieldModel` (ref of
+ *   its `{ source, fields }`, for the compatibility check); `session`, `services` and `saveRule`
+ *   (stores the rule, default: the rules store) are injected in tests.
  */
-export function useDerivationRuleDraft({ sourcePath, session = defaultSession, services = defaultServices, saveRule }) {
+export function useDerivationRuleDraft({
+  sourcePath,
+  sourceFieldModel = ref(null),
+  session = defaultSession,
+  services = defaultServices,
+  saveRule,
+}) {
   const { rules, saveStatus, lastSaveError, saveDerivationRule } = useDerivationRulesStore()
   const storeRule = saveRule || saveDerivationRule
   const storedRule = computed(() => findRuleForSource(rules.value, sourcePath.value))
@@ -118,9 +136,14 @@ export function useDerivationRuleDraft({ sourcePath, session = defaultSession, s
   }
 
   const rule = computed(() => draftToRule(draft.value))
+  const incompatibleTargets = computed(() =>
+    findIncompatibleMappings(rule.value, sourceFieldModel.value?.fields || [], targetModel.value.fields),
+  )
   const errors = computed(() => {
     const ruleErrors = validateDerivationRule(rule.value)
-    return draft.value.rows.some(isIncompleteRow) ? [...ruleErrors, INCOMPLETE_ROW_ERROR] : ruleErrors
+    if (draft.value.rows.some(isIncompleteRow)) ruleErrors.push(INCOMPLETE_ROW_ERROR)
+    if (incompatibleTargets.value.length) ruleErrors.push(INCOMPATIBLE_FIELD_ERROR)
+    return ruleErrors
   })
   const comparedRule = computed(() => storedRule.value || draftToRule(createDraft(null, sourcePath.value)))
   const isDirty = computed(() => JSON.stringify(rule.value) !== JSON.stringify(comparedRule.value))

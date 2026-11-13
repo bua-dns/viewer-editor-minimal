@@ -9,11 +9,13 @@ import {
 import { useAuthStore } from '../stores/useAuthStore'
 import { useConnectionProfileStore } from '../stores/useConnectionProfileStore'
 import { useDerivationRulesStore } from '../stores/useDerivationRulesStore'
+import { fetchCollectionFieldModelFromStrapi, fetchComponentSchemasFromStrapi } from '../services/strapiDataModel'
 import {
   buildDerivedFields,
   buildDerivedItemPayload,
   describeCreatedItem,
   findRuleForSource,
+  listPopulatedSourceFields,
   readLocalItemValues,
   readRowValues,
   resolveRuleLabel,
@@ -29,9 +31,14 @@ function defaultSession() {
 }
 
 const defaultServices = {
-  fetchRow: ({ profile, token, itemsPath, id }) => fetchCollectionItemFromStrapi({ profile, token, itemsPath, id }),
+  fetchRow: ({ profile, token, itemsPath, id, populateFields }) =>
+    fetchCollectionItemFromStrapi({ profile, token, itemsPath, id, populateFields }),
   createItem: ({ profile, token, itemsPath, fields }) => createCollectionItemInStrapi({ profile, token, itemsPath, fields }),
+  fetchFieldModel: fetchCollectionFieldModelFromStrapi,
+  fetchComponentSchemas: fetchComponentSchemasFromStrapi,
 }
+
+const NO_SOURCE_MODELS = { sourceFieldModel: [], componentSchemas: {} }
 
 function isSavedOnlineItem(item) {
   const meta = item?.__onlineMeta
@@ -69,6 +76,7 @@ export function useItemDerivation({
   const runs = createRequestSequence()
   let sourceItem = null
   let rule = null
+  let sourceModels = NO_SOURCE_MODELS
 
   const activeRule = computed(() => (isEnabled() ? findRuleForSource(rules.value, sourcePath.value) : null))
   const canDerive = computed(() => Boolean(activeRule.value && selectedItem.value))
@@ -82,10 +90,30 @@ export function useItemDerivation({
     dialog.value = { ...dialog.value, ...patch }
   }
 
+  function sourceItemsPath() {
+    return sourceItem.__onlineMeta.itemsPath || sourcePath.value
+  }
+
+  // The source collection's field model and the component schemas, so component values can be
+  // populated and cleaned; without them (schema not readable) values are copied as read.
+  async function loadSourceModels() {
+    if (!isSavedOnlineItem(sourceItem)) return NO_SOURCE_MODELS
+    try {
+      const [fieldModel, componentSchemas] = await Promise.all([
+        services.fetchFieldModel({ ...session(), itemsPath: sourceItemsPath() }),
+        services.fetchComponentSchemas(session()),
+      ])
+      return { sourceFieldModel: fieldModel?.fields || [], componentSchemas: componentSchemas || {} }
+    } catch {
+      return NO_SOURCE_MODELS
+    }
+  }
+
   async function readSavedSourceValues() {
     if (!isSavedOnlineItem(sourceItem)) return {}
-    const meta = sourceItem.__onlineMeta
-    const row = await services.fetchRow({ ...session(), itemsPath: meta.itemsPath || sourcePath.value, id: meta.id })
+    const populateFields = listPopulatedSourceFields(rule, sourceModels.sourceFieldModel)
+    const id = sourceItem.__onlineMeta.id
+    const row = await services.fetchRow({ ...session(), itemsPath: sourceItemsPath(), id, populateFields })
     return readRowValues(row)
   }
 
@@ -106,7 +134,10 @@ export function useItemDerivation({
     const isCurrent = runs.start()
     dialog.value = { ...CLOSED_DIALOG, isOpen: true, phase: 'loading', targetPath: rule.target, willSaveFirst: hasPendingChanges.value }
     try {
-      // Unsaved edits of the item are shown as they will be saved.
+      sourceModels = await loadSourceModels()
+      if (!isCurrent()) return
+      // Unsaved edits of the item are shown as they will be saved. Not cleaned: the viewer holds
+      // some components in its own form (Wikidata entries: `id` is the QID), which cleaning would cut.
       const values = { ...(await readSavedSourceValues()), ...readLocalItemValues(sourceItem) }
       if (!isCurrent()) return
       update({ phase: 'preview', preview: toPreview(buildDerivedFields(rule, values)) })
@@ -129,11 +160,13 @@ export function useItemDerivation({
     update({ phase: 'running', error: '' })
     try {
       await saveFirstIfNeeded()
+      // A draft got its server identity only now, so its models were not loaded for the preview.
+      if (sourceModels === NO_SOURCE_MODELS) sourceModels = await loadSourceModels()
       const values = await readSavedSourceValues()
-      const fields = buildDerivedItemPayload(rule, values, sourceItem.__onlineMeta)
+      const fields = buildDerivedItemPayload(rule, values, sourceItem.__onlineMeta, sourceModels)
       const response = await services.createItem({ ...session(), itemsPath: rule.target, fields })
       if (!isCurrent()) return
-      update({ phase: 'done', created: describeCreatedItem(response, buildDerivedFields(rule, values)) })
+      update({ phase: 'done', created: describeCreatedItem(response, buildDerivedFields(rule, values, sourceModels)) })
       onCreated({ targetPath: rule.target, documentId: response?.data?.documentId ?? response?.data?.id ?? '' })
     } catch (error) {
       if (isCurrent()) update({ phase: 'error', error: describeError(error) })
