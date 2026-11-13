@@ -2,7 +2,7 @@
 // Renders a list of view items as scan cards (when the data has a scan field) or as compact rows.
 // Used by ListPanel for the flat list, the hierarchy groups and the search results.
 import { isCreatedItem } from '../composables/createdItems'
-import { hasNonEmptyValue } from '../composables/valueChecks'
+import { hasNonEmptyValue } from '../domain/valueChecks'
 
 const props = defineProps({
   items: {

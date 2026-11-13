@@ -4,7 +4,7 @@ import {
   joinBaseUrlAndPath,
   parseConnectionProfileJsonText,
   validateConnectionProfile,
-} from '../composables/connectionProfile'
+} from '../domain/connectionProfile'
 import { checkDataModelImplementationInStrapi } from '../services/strapiApi'
 import { useAppConfigStore } from './useAppConfigStore'
 

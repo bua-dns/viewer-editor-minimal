@@ -278,25 +278,20 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
 
 ### Composables (`src/composables/`)
 
+Vue-Composables und Abläufe, die über Stores Zustand lesen oder ändern.
+
 - `useViewerData.js` - Datenmodell, Import/Parsing, Validierung, Suche, Sortierung, Edit-Logik
 - `useDataImportExport.js` - Datei-Import/Export-Flow, Beispieldaten, Start-from-Scratch, Reset
 - `useFieldMapping.js` - Label-/Placeholder-/Hint-/Sortier-Mapping und Binding an die Feld-Registry
 - `useSelectionNavigation.js` - Auswahlindex, Vor/Zurück-Navigation, Auswahl aufheben
-- `hierarchyConfig.js` - reine Hierarchie-Helfer: Feldlisten normalisieren, Hierarchie-Felder aus Settings auflösen, Level-1-/Level-2-Optionen aus Items zählen
 - `useModalKeyboard.js` - gemeinsames Escape-Handling für Modals
 - `useModalFocus.js` - Fokus in Modals: erstes Element fokussieren, Tab im Dialog halten, Fokus zurückgeben
-- `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
 - `useReplacementsApply.js` - Orchestrierung eines Ersetzungslaufs (lokal bzw. über die ganze Collection)
 - `useWikidataSearch.js` - Wikidata-Suche inkl. Priorisierung, Claim-/Statement-Nachladen, Lokalisierung
-- `userConfigValidation.js` - zentraler Validator für importierte bzw. geladene JSON-Config
-- `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
 - `publicConfigUrls.js` - Kandidaten-URLs und Fetch für Konfigurationsdateien in `public/`
 - `usePendingOnlineChangesGuard.js` - Online-Sitzung, ungespeicherte Online-Änderungen und die Rückfrage vor dem Verwerfen
-- `requestSequence.js` - "neuester Request gewinnt" für Ladevorgänge, die gemeinsamen State schreiben
-- `searchQuery.js` - gemeinsame Suchregeln: Tokenisierung, Mindestlänge drei Zeichen
 - `useCollectionSearch.js` - Suchbereich in der Hierarchie (Kategorie oder gesamter Bestand), Zustand der
   Trefferansicht, navigierbare Items (siehe [6.5](#65-bestandsweite-suche-in-der-hierarchie))
-- `valueChecks.js` - `hasNonEmptyValue` (Grundlage für "bearbeitet")
 - `useRemoteFieldModel.js` - lädt das Felder-Datenmodell der Online-Collection, sobald der Tab
   `Konfiguration` offen ist oder die bestandsweite Suche es braucht, einmal je Verbindung/Token/Collection
   (siehe [12.11](#1211-datenmodell-der-collection-felder-zum-hinzufügen))
@@ -304,18 +299,34 @@ erscheint im Ziel nur richtig, wenn es dort dieselbe Struktur und dieselbe Feldk
   alles gespeichert wurde. `saveOnlineItemChanges(item)` ist `Item speichern` im Kopf des Editierbereichs:
   nur das offene Item (Update oder neues Item), alle anderen Änderungen und die Ersetzungsregeln bleiben
   pending
-- `derivationRules.js` - reine Logik der Ableitungsregeln: Normalisieren, Regel je Quell-Collection,
-  Validierung, Zielwerte (Kopie, Präfix, fester Wert) und Relation (`connect`)
 - `useItemDerivation.js` - Ablauf von `Item ableiten` (Vorschau, Vorab-Speichern, Anlegen) und die
   Verdrahtung in `App.vue` (Button-Beschriftung, Sichtbarkeit des Regel-Editors)
 - `useDerivationRuleDraft.js` - Entwurfszustand des Regel-Editors: Ziel-Collections, Datenmodell des Ziels,
   Fehler, Speichern
-- `linkedItems.js` - reine Helfer für verknüpfte Items einer sekundären Collection: Konfigurations-Scope,
-  Verknüpfungsziel, Schlüssel, Felder mit Defaults, Kopfzeile, Sprach-Fallback
 - `useSecondaryItems.js` - verknüpfte Items je sekundärer Collection laden, bearbeiten, speichern, lösen,
   löschen; Konfiguration der Collection anwenden bzw. neu laden (siehe [12.13](#1213-collection-layout-und-verknüpfte-items))
+
+### Domain-Logik (`src/domain/`)
+
+Reine Logik ohne Vue, Stores und Netzwerk. Stores, Services und Composables importieren von hier,
+nie umgekehrt; `domain/` nutzt nur `fields/`.
+
+- `connectionProfile.js` - Validator/Normalizer für Verbindungsprofile + URL-Join-Helper
 - `csvFormat.js` - CSV lesen (`parseCsvRecords`, quote-aware über Zeilenumbrüche) und schreiben
   (`toCsvCell`); genutzt von Import, Export und Start-from-Scratch (siehe [9.3](#93-csv-import))
+- `derivationRules.js` - reine Logik der Ableitungsregeln: Normalisieren, Regel je Quell-Collection,
+  Validierung, Zielwerte (Kopie, Präfix, fester Wert) und Relation (`connect`)
+- `hierarchyConfig.js` - reine Hierarchie-Helfer: Feldlisten normalisieren, Hierarchie-Felder aus Settings auflösen, Level-1-/Level-2-Optionen aus Items zählen
+- `linkedItems.js` - reine Helfer für verknüpfte Items einer sekundären Collection: Konfigurations-Scope,
+  Verknüpfungsziel, Schlüssel, Felder mit Defaults, Kopfzeile, Sprach-Fallback
+- `onlineSaveConflicts.js` - Konfliktprüfung beim Speichern: welche Felder auf dem Server seit dem
+  Laden geändert wurden (leere Werte gleich, Zahl = String-Form, Objektschlüssel-Reihenfolge egal)
+- `replacementRules.js` - reine Regel-Logik der Ersetzungen (ersetzbare Felder, Matching, Diff-Berechnung)
+- `requestSequence.js` - "neuester Request gewinnt" für Ladevorgänge, die gemeinsamen State schreiben
+- `searchQuery.js` - gemeinsame Suchregeln: Tokenisierung, Mindestlänge drei Zeichen
+- `userConfigValidation.js` - zentraler Validator für importierte bzw. geladene JSON-Config
+- `valueChecks.js` - `hasNonEmptyValue`: Grundlage für "bearbeitet", für die online gesendeten Felder und den
+  Konfliktvergleich beim Speichern
 
 ### Stores (`src/stores/`)
 
@@ -876,7 +887,7 @@ nicht-JSON-Typen (`Date`, `Map`, Funktionen).
 ### 9.3 CSV-Import
 
 - CSV-Import nutzt `parseCsvText` in `src/composables/useViewerData.js`, das die Datensätze aus
-  `parseCsvRecords` (`src/composables/csvFormat.js`) liest. Der Parser liest die Datei in einem Durchgang:
+  `parseCsvRecords` (`src/domain/csvFormat.js`) liest. Der Parser liest die Datei in einem Durchgang:
   ein Zeilenumbruch in einem quoted Wert gehört zum Wert (als `\n`), so dass ein exportierter
   mehrzeiliger Wert (Feldtyp `text`) wieder in seiner Zeile landet. Ein nicht geschlossenes
   Anführungszeichen ist ein Fehler mit Zeilenangabe; leere Zeilen werden übersprungen.
@@ -941,7 +952,7 @@ für "alle Felder"; er ist ein regulärer Objektschlüssel im selben Namensraum 
   Regeln ersetzbar ist - Felder, die aus der Konfiguration entfernt wurden, sind nicht dabei.
 - Reihenfolge je Feld: zuerst die `allFields`-Regeln, danach die feldspezifischen, jeweils in
   Einfügereihenfolge. Regeln wirken also nacheinander auf denselben Wert.
-- Die Regel-Logik liegt ohne Vue-Abhängigkeit in `src/composables/replacementRules.js`
+- Die Regel-Logik liegt ohne Vue-Abhängigkeit in `src/domain/replacementRules.js`
   (`collectReplaceableFieldKeys`, `collectRulesForField`, `computeReplacementChanges`).
 
 ### 11.2 Auslöser eines Laufs
@@ -1040,7 +1051,7 @@ Orchestriert wird der Lauf in `src/composables/useReplacementsApply.js`:
 ### 12.1 Verbindungsprofil
 
 - Ein Profil besteht aus `version`, `label`, `baseUrl`, `configPath` und `updatedAt`
-  (Validierung/Normalisierung in `src/composables/connectionProfile.js`: `baseUrl` ohne trailing Slash,
+  (Validierung/Normalisierung in `src/domain/connectionProfile.js`: `baseUrl` ohne trailing Slash,
   `configPath` immer mit führendem Slash, nur `http`/`https`).
 - **Die Auth-Endpunkte sind nicht Teil des Profils**, sondern fest verdrahtet: `/api/auth/local` für
   den Login und `/api/users/me` für den Nutzerabruf. Konfigurierbar ist nur `configPath` (Settings-Singleton).
@@ -1092,7 +1103,7 @@ Ein Watcher in `App.vue` reagiert auf App-Modus, Online-Sitzung (`hasOnlineSessi
 
 **Nur der neueste Lauf schreibt:** Datenquellen-Ladevorgänge und Level-1-Ladevorgänge
 ([12.5](#125-hierarchie-und-level-1-buckets)) teilen eine Request-Sequenz
-(`src/composables/requestSequence.js`). Nach jedem `await` prüft ein Lauf `isCurrent()`; ist inzwischen
+(`src/domain/requestSequence.js`). Nach jedem `await` prüft ein Lauf `isCurrent()`; ist inzwischen
 ein neuerer gestartet (Logout, Moduswechsel, Gruppenklick, …), bricht er ab, ohne zu schreiben. Ist die
 Sitzung dann schon geschlossen, werden die Online-Stores erneut geleert, falls der veraltete Request sie
 noch befüllt hat.
@@ -1196,7 +1207,7 @@ Wikidata-Feld nicht als populierbare Relation/Komponente existiert.
 **Offline-Modus (lokale JSON-Datei).** Die Hierarchie kommt aus der angewendeten User-Config
 (`appliedHierarchyFields`, also aus der `config` der importierten Datei oder aus `Konfiguration anwenden`).
 Da alle Items im Speicher liegen, gibt es keine Nachlade-Requests; die reinen Funktionen in
-`src/composables/hierarchyConfig.js` zählen Boxen und Gruppen direkt aus `rawItems`:
+`src/domain/hierarchyConfig.js` zählen Boxen und Gruppen direkt aus `rawItems`:
 
 - Ohne `firstLevelStaticList`: alle gefundenen Level-1-Werte alphabetisch mit Trefferzahl, der
   `isUnassigned`-Bucket am Ende.
@@ -1265,7 +1276,7 @@ Strapi-Instanz.
   `normalizeOnlineChangedFieldsForStrapi(...)` in die Strapi-Komponentenform gebracht.
 - **Konfliktprüfung:** Je geändertem Feld merkt sich der Eintrag den beim Laden gesehenen
   Serverwert (`baselineFields`). Vor jedem `PUT` lädt der Save das Item neu
-  (`fetchCollectionItemFromStrapi`) und vergleicht feldweise (`src/composables/onlineSaveConflicts.js`):
+  (`fetchCollectionItemFromStrapi`) und vergleicht feldweise (`src/domain/onlineSaveConflicts.js`):
   Hat sich ein Feld auf dem Server geändert und entspricht weder dem geladenen noch dem zu sendenden
   Wert, wird das Item nicht geschrieben und der Save meldet die Felder. Die Serverwerte werden dabei zur
   neuen Baseline - ein zweites Speichern überschreibt also bewusst. Der Vergleich ist feldweise statt
@@ -1746,31 +1757,31 @@ pnpm test        # entspricht: vitest run
 
 Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. den Auswahlabbruch und `missingData` im Wikidata-Feld.
 
-### Composables
+### Composables und Domain-Logik
 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
-| `composables/csvFormat.test.js` | Quoted Zellen mit Zeilenumbruch, Trennzeichen und `""`; CRLF als Satzende und in Quotes; leere Zeilen und BOM; nicht geschlossenes Anführungszeichen als Fehler mit Zeile; `toCsvCell`-Ausgabe liest sich zurück |
+| `domain/csvFormat.test.js` | Quoted Zellen mit Zeilenumbruch, Trennzeichen und `""`; CRLF als Satzende und in Quotes; leere Zeilen und BOM; nicht geschlossenes Anführungszeichen als Fehler mit Zeile; `toCsvCell`-Ausgabe liest sich zurück |
 | `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip, Export-Import-Roundtrip mehrzeiliger Werte, Zeilenangabe nach mehrzeiliger Zelle), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
-| `composables/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
+| `domain/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
 | `composables/useSelectionNavigation.test.js` | Navigation folgt der aktuellen gefilterten Reihenfolge nach Umsortierung; Vorwärts-Navigation ist bei nur einem Item deaktiviert |
 | `composables/useWikidataSearch.test.js` | Resilientes Merge-Verhalten bei Ausfall einer Suchsprache; `AbortError`-Pfad ohne Warning-Logging; `claimPresence` mit Objekt-Defs; Nachladen roher Statement-Daten; Nachladen lokalisierter Labels/Descriptions (`de`/`en`) |
-| `composables/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne sichtbare Read-only-Felder und Reservierte, ausgeblendete auch read-only enthalten); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
+| `domain/replacementRules.test.js` | Ersetzbare Feldtypen (`normal`/`text`, ohne sichtbare Read-only-Felder und Reservierte, ausgeblendete auch read-only enthalten); literales, case-sensitives Ersetzen aller Vorkommen; Reihenfolge `allFields` vor feldspezifisch; Löschen per leerem Ersetzungstext; Ignorieren nicht-primitiver Regelwerte; Änderungsliste je Item-Index |
 | `composables/useReplacementsApply.test.js` | Offline-Lauf ändert nur geladene Items und rührt die Online-Pipeline nicht an; Online-Lauf trackt Deltas der geladenen Items und reicht die geladenen IDs an den Collection-Durchlauf; Fehlerfall des Collection-Durchlaufs; Lauf ohne Regeln bleibt wirkungslos |
-| `composables/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
-| `composables/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
+| `domain/hierarchyConfig.test.js` | Normalisierung von Hierarchie-Feldlisten (Array und kommaseparierter String); Settings-Auflösung inkl. Durchfallen bei weniger als zwei Einträgen und Feld-Auto-Erkennung; Level-1-Optionen mit Trefferzahl, alphabetischer Sortierung und `isUnassigned`-Bucket am Ende; `firstLevelStaticList` fixiert Reihenfolge, fehlende Datenwerte bleiben erreichbar; Level-2-Optionen nur innerhalb des gewählten Level-1-Werts; Zugehörigkeitsprüfung zu einem Level-1-Wert |
+| `domain/searchQuery.test.js` | Tokenisierung (lowercase, Whitespace); Mindestlänge drei Zeichen; `null`/`undefined` als leere Anfrage |
 | `composables/useCollectionSearch.test.js` | Suchbereich: lokal in einer Kategorie, bestandsweit ohne Auswahl, Schalter überschreibt; ohne Hierarchie keine Trefferansicht; Panel-Zustand (Suchfeld online ohne Items aktiv); offline: nur Kategorie-Treffer navigierbar, Trefferansicht live, Zurück leert Anfrage und schließt das Item, Schalter aus behält die Anfrage; online: Suche erst bei Submit, nicht in einer Kategorie ohne Schalter, Fehler/Abbruch behalten die Kategorieansicht, entfernte Felder, leere Anfrage kehrt zurück, abgebrochene Rückkehr bleibt in den Treffern, Schalter aus lädt die Kategorie neu |
-| `composables/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
-| `composables/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
-| `composables/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
-| `composables/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; wählbare strukturierte Felder; Kompatibilität (Komponenten-UID, `repeatable`, Typ); unpassende Zeilen; Bereinigen von Komponenten (Einträge-`id`, Medien/Relationen, verschachtelt, JSON unverändert); kein Präfix für Objekte; zu populierende Felder; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
+| `domain/valueChecks.test.js` | Leere Strings/Arrays/Objekte gelten als leer, `0` und `false` als gefüllt |
+| `domain/requestSequence.test.js` | Nur der neueste Lauf ist aktuell; `invalidate` macht laufende Läufe veraltet; ein langsamerer früherer Request schreibt nicht nach einem neueren |
+| `domain/connectionProfile.test.js` | Normalisierung von `baseUrl` (Trim, trailing Slash) und `configPath` (führender Slash); Pflichtfeld-Validierung; `createSavedConnectionProfile` mit `updatedAt`; JSON-Parsing; `joinBaseUrlAndPath` |
+| `domain/derivationRules.test.js` | Normalisieren der Regeln (`null` → keine, Pfade ohne Query/Slash, unbrauchbare Regeln/Zeilen verworfen, Label als String); Regel je Quelle; Ersetzen der eigenen Regel ohne die anderen; Validierung (Ziel fehlt/gleich Quelle, Relation fehlt, keine Felder, Zielfeld doppelt); Button-Label je Sprache mit Fallback; Zielwerte mit Präfix, Kopie und Konstante, leere Quellen ausgelassen, `0`/`false` übernommen; wählbare strukturierte Felder; Kompatibilität (Komponenten-UID, `repeatable`, Typ); unpassende Zeilen; Bereinigen von Komponenten (Einträge-`id`, Medien/Relationen, verschachtelt, JSON unverändert); kein Präfix für Objekte; zu populierende Felder; `connect` über `documentId` bzw. `id`; Ergebnisbeschreibung |
 | `composables/useItemDerivation.test.js` | Aktion nur mit Schalter und Regel für die geladene Collection; Beschriftung aus der Regel, sonst Default; Regel-Editor nur bei schreibbaren Settings; Vorschau aus Serverwerten plus lokalen Änderungen; Anlegen mit Relation und Ergebnis; Vorab-Speichern vor dem POST; kein Anlegen, wenn das Speichern scheitert; Entwurf wird über die neue Identität verknüpft; Meldung bei unklarem Ausgang; kein Schließen während des Anlegens; Komponente populiert und ohne `id`/Medien gesendet (Beispiel `collectors`); Modelle beim Anlegen nachgeladen, wenn die Quelle ein Entwurf war; Anlegen auch ohne lesbares Schema |
 | `composables/useDerivationRuleDraft.test.js` | Entwurf aus der gespeicherten Regel inkl. Laden des Zielmodells; nur Relationsattribute als Relationsfeld; ohne Regel nicht speicherbar; unvollständige Zeile blockiert; Speichern über den Store und Abgleich danach; Entfernen einer Zeile; unpassende Komponente blockiert das Speichern |
 | `composables/useOnlineSave.test.js` | Ohne angemeldete Online-Sitzung kein Speichern (`false`); nichts ausstehend → `true`; Items und Regeln speichern und als gespeichert markieren; nur Regeln; `false` bei fehlgeschlagenen Regeln; Teilfehler hält erstellte Items synchron |
-| `composables/linkedItems.test.js` | Gespeichertes Item ist Verknüpfungsziel, Entwurf nicht; Schlüssel aus Collection-Pfad und ID; konfigurierte Felder mit Defaults und normalisiert; Kopfzeile aus dem Label-Feld, sonst die ID; Sprach-Fallback de → en → beliebig |
-| `composables/onlineSaveConflicts.test.js` | Leere Werte gelten als gleich; Zahl und String-Form gleich, Objekt-Schlüsselreihenfolge egal; `false` bleibt von leer verschieden; Konflikt, wenn der Serverwert weder Basis noch gesendeter Wert ist; kein Konflikt ohne Basis oder Serverwert |
+| `domain/linkedItems.test.js` | Gespeichertes Item ist Verknüpfungsziel, Entwurf nicht; Schlüssel aus Collection-Pfad und ID; konfigurierte Felder mit Defaults und normalisiert; Kopfzeile aus dem Label-Feld, sonst die ID; Sprach-Fallback de → en → beliebig |
+| `domain/onlineSaveConflicts.test.js` | Leere Werte gelten als gleich; Zahl und String-Form gleich, Objekt-Schlüsselreihenfolge egal; `false` bleibt von leer verschieden; Konflikt, wenn der Serverwert weder Basis noch gesendeter Wert ist; kein Konflikt ohne Basis oder Serverwert |
 | `composables/useSecondaryItems.test.js` | Ein Abschnitt je sekundärer Collection mit eigener Feldkonfiguration; Laden über die konfigurierte Relation; Bearbeitung als ausstehende Änderung, auch nach Neuladen; Zurücknehmen; nach dem Ableiten wird das neue Item geöffnet; Entwurf zeigt keine verknüpften Items; Konfiguration anwenden schreibt nur das eigene Attribut; Konfiguration neu laden (mit Rückfrage bei nicht angewendeten Änderungen); Lösen, Löschen, Ablehnen der Rückfrage, Fehler; eigenes Speichern |
 | `composables/useRemoteFieldModel.test.js` | Lädt erst, wenn benötigt, und nur einmal je Kontext; lädt neu bei anderer Collection und bei `reload`; leert das Modell offline bzw. abgemeldet; `loadStructuredFieldKeys` lädt bei Bedarf genau einmal und liefert die strukturierten Felder, ohne Modell eine leere Liste; Fehlerstatus mit Meldung |
 

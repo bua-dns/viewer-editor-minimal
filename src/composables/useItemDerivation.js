@@ -21,8 +21,8 @@ import {
   readLocalItemValues,
   readRowValues,
   resolveRuleLabel,
-} from './derivationRules'
-import { createRequestSequence } from './requestSequence'
+} from '../domain/derivationRules'
+import { createRequestSequence } from '../domain/requestSequence'
 
 const CLOSED_DIALOG = { isOpen: false, phase: 'idle', targetPath: '', preview: [], willSaveFirst: false, created: null, error: '' }
 

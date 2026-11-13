@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11 - Pure logic in `src/domain/`
+
+- Internal: the 11 modules without Vue, stores or network calls (validation, hierarchy, replacement and
+  derivation rules, CSV, search rules, conflict check, …) moved from `src/composables/` to `src/domain/`.
+  Stores and services now import pure logic from there instead of from `composables/`. The duplicated
+  `hasNonEmptyOnlineFieldValue` in `strapiApi.js` was dropped for `domain/valueChecks.js`. No change in
+  behaviour.
+
 ## 2026-11 - Import errors visible, sturdier storage and admin scripts
 
 - Import errors (broken JSON/CSV, a file that doesn't match the selected mode, sample data that can't be

@@ -192,7 +192,8 @@ Hinweise:
 
 - `src/App.vue` – UI-Composition-Root (Verdrahtung von Komponenten, Stores und Composables)
 - `src/components/` – SFCs für Liste, Sidebar-Editor, Konfiguration, Ersetzungen, Einstellungen, Modals
-- `src/composables/` – Datenlogik, Import/Export, Feld-Mapping, Navigation, Wikidata-Suche, Validierung
+- `src/composables/` – Vue-Composables und Abläufe: Datenmodell, Import/Export, Feld-Mapping, Navigation, Speichern, Wikidata-Suche
+- `src/domain/` – reine Logik ohne Vue und Netzwerk: Validierung, Hierarchie, Ersetzungs- und Ableitungsregeln, CSV, Suchregeln
 - `src/stores/` – App-Config, User-Config, Datenmodus, Ersetzungen, Auth, Online-Modus/-Settings/-Items/-Updates
 - `src/fields/` – zentrale Feldtypen-Registry
 - `src/services/` – Strapi-HTTP-Zugriff (`strapiApi.js` als Basis, dazu Suche, Datenmodell, Ableitungsregeln, Collection-Layout)

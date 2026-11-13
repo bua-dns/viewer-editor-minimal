@@ -12,8 +12,8 @@ import {
   normalizeDerivationRules,
   structureOfField,
   validateDerivationRule,
-} from './derivationRules'
-import { createRequestSequence } from './requestSequence'
+} from '../domain/derivationRules'
+import { createRequestSequence } from '../domain/requestSequence'
 
 const EMPTY_MODEL = { source: '', fields: [], status: 'idle', errorMessage: '' }
 let nextRowKey = 1

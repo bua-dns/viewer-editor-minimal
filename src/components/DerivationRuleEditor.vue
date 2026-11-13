@@ -6,7 +6,7 @@
 import { computed, onMounted, toRef } from 'vue'
 import { useAppConfigStore } from '../stores/useAppConfigStore'
 import { useDerivationRuleDraft } from '../composables/useDerivationRuleDraft'
-import { areFieldsCompatible, isMappableField } from '../composables/derivationRules'
+import { areFieldsCompatible, isMappableField } from '../domain/derivationRules'
 
 const props = defineProps({
   sourcePath: { type: String, required: true },

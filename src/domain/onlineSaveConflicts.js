@@ -1,4 +1,4 @@
-import { hasNonEmptyOnlineFieldValue } from '../services/strapiApi'
+import { hasNonEmptyValue } from './valueChecks'
 
 function stableStringify(value) {
   if (Array.isArray(value)) {
@@ -19,8 +19,8 @@ function stableStringify(value) {
  * are equal, numbers equal their string form, and object key order does not matter.
  */
 export function isSameOnlineValue(left, right) {
-  const leftIsEmpty = !hasNonEmptyOnlineFieldValue(left)
-  const rightIsEmpty = !hasNonEmptyOnlineFieldValue(right)
+  const leftIsEmpty = !hasNonEmptyValue(left)
+  const rightIsEmpty = !hasNonEmptyValue(right)
   if (leftIsEmpty || rightIsEmpty) return leftIsEmpty && rightIsEmpty
   return stableStringify(left) === stableStringify(right)
 }
