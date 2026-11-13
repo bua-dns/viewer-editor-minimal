@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11 - Import is all or nothing
+
+- A JSON file whose embedded `config` is invalid is now rejected as a whole, with the reason in the
+  status area. Before, its data was loaded without a field config.
+- A rejected file (broken JSON or CSV, invalid config) no longer touches what is loaded: data, file name,
+  config and replacement rules stay as they were. Before, a broken file cleared the replacement rules.
+
 ## 2026-11 - Pure logic in `src/domain/`
 
 - Internal: the 11 modules without Vue, stores or network calls (validation, hierarchy, replacement and

@@ -7,6 +7,7 @@ import { tokenizeSearchQuery } from '../domain/searchQuery'
 import { hasNonEmptyValue } from '../domain/valueChecks'
 import { parseCsvRecords, splitCsvLine, toCsvCell } from '../domain/csvFormat'
 import { isPlainObject } from '../domain/objects'
+import { validateImportedConfigPayload } from '../domain/userConfigValidation'
 
 function uid() {
   if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
@@ -60,6 +61,12 @@ function parseJsonPayload(text) {
   const hasConfigProperty = hasDataObject && Object.prototype.hasOwnProperty.call(parsed, 'config')
   if (hasConfigProperty && !isPlainObject(parsed.config)) {
     return { ok: false, error: 'JSON-Feld "config" muss ein Objekt sein.' }
+  }
+
+  // An invalid embedded config rejects the whole file, so the import never half-succeeds.
+  if (hasConfigProperty) {
+    const configValidation = validateImportedConfigPayload(parsed.config)
+    if (!configValidation.ok) return { ok: false, error: configValidation.error }
   }
 
   const configFromPayload = hasConfigProperty ? parsed.config : null
@@ -271,11 +278,12 @@ export function useViewerData(options = {}) {
     importedConfig.value = null
   }
 
+  // A rejected file changes nothing but the error message: the loaded data, its config and its
+  // replacement rules stay as they were.
   function importFromJsonText(text, fileName = '') {
     const result = parseJsonPayload(text)
     if (!result.ok) {
       errorMessage.value = result.error
-      clearReplacements()
       return false
     }
     initializeFromJsonArray(result.data, fileName, result.suspendedItems)
@@ -295,7 +303,6 @@ export function useViewerData(options = {}) {
 
     if (!result.ok) {
       errorMessage.value = result.error
-      clearReplacements()
       return false
     }
 

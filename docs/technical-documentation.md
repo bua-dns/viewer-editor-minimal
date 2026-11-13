@@ -874,16 +874,19 @@ Die Data-Transfer-Funktion ist modularisiert:
    - gültiges JSON
    - entweder Top-Level-Array oder Objekt mit `data`-Array
    - jedes Datenelement ist ein Plain Object
-   - falls vorhanden: `config` ist ein Objekt
+   - falls vorhanden: `config` ist ein Objekt und besteht `validateImportedConfigPayload`
+     (`src/domain/userConfigValidation.js`); eine ungültige `config` lehnt die ganze Datei ab
    - falls vorhanden: `replacements` ist ein Objekt
    - falls vorhanden: `suspendedItems` ist ein Array von Item-Indizes
 4. Bei Erfolg initialisiert `initializeFromJsonArray` die Datenstates, übernimmt eine optionale `config`
    in `importedConfig` und übergibt `replacements` an den Replacements-Store. `suspendedItems` wird
    gegen die Itemanzahl normalisiert (nur nicht-negative Integer im gültigen Bereich, dedupliziert, sortiert).
-5. `useDataImportExport` setzt die Feldkonfiguration zurück, validiert eine eingebettete `config` strikt
-   und wendet sie an, inklusive der Viewer-Einstellungen (siehe [4.3](#43-konfiguration-der-datenquelle)).
-   Bei ungültiger `config` erscheint eine Fehlermeldung; die Daten bleiben ohne Feldkonfiguration geladen.
-6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt erhalten. `errorMessage` und die
+5. `useDataImportExport` setzt die Feldkonfiguration zurück und wendet eine eingebettete `config` an,
+   inklusive der Viewer-Einstellungen (siehe [4.3](#43-konfiguration-der-datenquelle)). Weil Schritt 3
+   dieselbe Prüfung schon gemacht hat, scheitert das hier für JSON-Dateien nicht mehr; der Fehlerzweig
+   (Grundkonfiguration, Meldung) bleibt als Absicherung.
+6. Bei Fehler wird `errorMessage` gesetzt und der alte Stand bleibt vollständig erhalten: Daten,
+   Dateiname, `config` und Ersetzungsregeln (der Import ist atomar, auch beim CSV-Import). `errorMessage` und die
    Mismatch-Meldung (`modeErrorMessage`) erscheinen im Statusbereich unter der Liste (`role="alert"`).
 
 **Kopierstrategie:** Daten werden via `cloneData` (`JSON.parse(JSON.stringify(...))`) tief kopiert.
@@ -1768,7 +1771,7 @@ Komponenten (`.vue`) haben keine Tests (kein DOM-Testsetup); das betrifft u. a. 
 | Datei | Geprüftes Verhalten |
 | --- | --- |
 | `domain/csvFormat.test.js` | Quoted Zellen mit Zeilenumbruch, Trennzeichen und `""`; CRLF als Satzende und in Quotes; leere Zeilen und BOM; nicht geschlossenes Anführungszeichen als Fehler mit Zeile; `toCsvCell`-Ausgabe liest sich zurück |
-| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip, Export-Import-Roundtrip mehrzeiliger Werte, Zeilenangabe nach mehrzeiliger Zelle), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
+| `composables/useViewerData.test.js` | Validierung von `parseJsonPayload` (Top-Level-Array, eingebettete `data`/`config`, `suspendedItems`), `looksLikeImageUrl`, CSV-Randfälle (`splitCsvLine` mit Quotes/escaped Quotes, leere und fehlende trailing Spalten, Spaltenüberschuss als Fehlerpfad, Whitespace-erhaltender Roundtrip, Export-Import-Roundtrip mehrzeiliger Werte, Zeilenangabe nach mehrzeiliger Zelle), Mindestlänge der Suche, Label-Feld-Priorisierung, Sortierung nach Bearbeitungsstand inkl. invertiertem Modus und Zusammenspiel mit `suspendEditing`, Suspend-Toggle per UID, Import/Export der Suspend-Indizes, Kern-Flow (Init → Filter → Select → Update → Reset), atomarer Import (ungültige eingebettete `config` oder defekte Datei: Daten, Dateiname und Ersetzungsregeln bleiben), Wikidata-Werte als Entity-Arrays inkl. Metadaten-Roundtrip, `appendOnlineDraftItem` und `syncSnapshotItemAtIndex`, `applyReplacementsToLoadedItems` (Wertänderung, `_searchText`, `isDirty`; keine Wirkung ohne Treffer) |
 | `domain/userConfigValidation.test.js` | Gültige Config-Payloads; Ablehnung fehlender/ungültiger `fields`, unbekannter Feldtypen, ungültiger `itemLabelField`/`markAsEditedBasis`/`showOnlyNonEmptyFields`/`fieldWidth`/`hint`/`readOnly`; `readOnly` verboten für `wikidata-autosuggest`; `autosuggest` nur auf Wikidata-Feldern; `prefillWith`-Regeln; `alsoGetDataFrom` als String und Repeater inkl. Property-ID-Prüfung; Candidate-Regeln (`targetField` Pflicht, kein Candidate-Ziel, `inputType`); Typen der Viewer-Einstellungen (`language`, `languageMode`, `primaryColor`, `dataInspectionMode`) |
 | `composables/useFieldMapping.test.js` | Leere Wikidata-Felder bleiben bei `showOnlyNonEmptyFields` sichtbar; `suspendEditing` und `__onlineMeta` erscheinen nie als editierbare Felder; Candidate-gesteuertes Prefill/Force-Search für Autosuggest-Bindings |
 | `composables/useDataImportExport.test.js` | Eine noch nicht angewendete User-Config wird vor JSON- **und** CSV-Export automatisch angewendet; JSON-Export schreibt die Viewer-Einstellungen der Datenquelle in `config`; JSON-Import übernimmt sie, CSV-Import und ungültige `config` fallen auf die Grundkonfiguration zurück; eine ohne Daten vorbereitete Feldkonfiguration bleibt beim ersten Import ohne `config` erhalten und geht in `Neu beginnen` ein, wird sonst ersetzt |
